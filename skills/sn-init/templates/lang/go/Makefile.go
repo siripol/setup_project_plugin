@@ -19,5 +19,8 @@ agent-run:
 client-run:
 	go run ./src
 
+orchestrator-run:
+	go run ./src/cmd/orchestrator $(SPRINT)
+
 mcp-server:
 	go run ./mcp_server

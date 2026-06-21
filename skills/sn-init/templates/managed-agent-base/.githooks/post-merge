@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# When merging a req/REQ-NNN branch, close the matching GitHub issue.
+
+set -u
+
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+merged="$(git log -1 --pretty=%s 2>/dev/null || true)"
+
+# Look for a REQ id in either the current branch name or the merge subject.
+req=""
+for src in "$branch" "$merged"; do
+    if [[ "$src" =~ REQ-([0-9]{3,}) ]]; then
+        req="REQ-${BASH_REMATCH[1]}"
+        break
+    fi
+done
+[ -z "$req" ] && exit 0
+
+if ! command -v gh >/dev/null 2>&1; then
+    echo "post-merge: gh CLI not installed; skipping auto-close for $req"
+    exit 0
+fi
+
+pr="$(git log -1 --pretty=%B | grep -oE '#[0-9]+' | head -1 | tr -d '#')"
+[ -z "$pr" ] && pr="0"
+
+issue="$(echo "$req" | sed -E 's/REQ-0*([0-9]+)/\1/')"
+gh issue close "$issue" --comment "Closed by merge of $req (PR #$pr)." 2>/dev/null && \
+    echo "post-merge: closed GitHub issue $issue for $req"
+exit 0

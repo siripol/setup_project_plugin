@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Reject commits whose subject doesn't reference a REQ id, unless the message
+# is explicitly marked as a chore, wip, or docs change.
+
+set -eu
+
+msg_file="${1:?commit-msg hook requires the message file}"
+subject="$(head -1 "$msg_file")"
+
+case "$subject" in
+    chore:*|wip:*|docs:*|merge\ *|Revert\ *) exit 0 ;;
+esac
+
+if echo "$subject" | grep -qE 'REQ-[0-9]{3,}'; then
+    exit 0
+fi
+
+echo "commit-msg: subject must reference a REQ id (e.g. 'feat(REQ-007): ...'). " >&2
+echo "Prefix with 'chore:', 'wip:', or 'docs:' if intentional." >&2
+exit 1

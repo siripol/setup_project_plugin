@@ -686,5 +686,135 @@ def test_makefile_has_workflow_targets(tmp_path: Path):
         "gh-import", "gh-close",
         "worktree-add", "worktree-remove", "sprint-concurrent",
         "safety-status", "safety-trip-breaker",
+        "hooks-install", "hooks-uninstall", "orchestrate",
     ):
         assert f"{target}:" in mk, f"missing make target: {target}"
+
+
+# ---------------------------------------------------------------------------
+# Spec-loop orchestrator
+
+
+def _import_orchestrator():
+    import importlib
+    import sys as _sys
+    plugin_root = Path(__file__).resolve().parent.parent
+    sp = str(plugin_root / "scripts")
+    if sp not in _sys.path:
+        _sys.path.insert(0, sp)
+    return importlib.import_module("orchestrator")
+
+
+def test_orchestrator_phases_listed():
+    orchestrator = _import_orchestrator()
+    assert orchestrator.PHASES[0] == "impact"
+    assert orchestrator.PHASES[-1] == "done"
+    assert "evaluate" in orchestrator.PHASES
+    for phase in ("plan", "decompose", "execute", "test", "integrate", "adversary",
+                  "evaluate", "curate"):
+        assert phase in orchestrator.PHASE_TO_SUBAGENT
+
+
+def test_orchestrator_invoke_stub_returns_ok():
+    orchestrator = _import_orchestrator()
+    verdict = orchestrator.invoke_subagent("planner", "test prompt", {})
+    assert verdict["status"] == "ok"
+    assert verdict["subagent"] == "planner"
+
+
+def test_orchestrator_phase_records_history(tmp_path: Path, monkeypatch):
+    orchestrator = _import_orchestrator()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+
+    orch = orchestrator.Orchestrator(sprint_id="SPRINT-001", project_root=tmp_path)
+    result = orch.phase("REQ-001", "plan")
+    assert result["status"] == "ok"
+
+    state = json.loads((tmp_path / ".sn-init" / "workflow-state.json").read_text())
+    assert state["active_phase"]["REQ-001"] == "plan"
+    history = state["phase_history"]["REQ-001"]
+    assert history[-1]["phase"] == "plan"
+
+
+def test_orchestrator_run_missing_sprint_returns_error(tmp_path: Path, monkeypatch):
+    orchestrator = _import_orchestrator()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    orch = orchestrator.Orchestrator(sprint_id="SPRINT-404", project_root=tmp_path)
+    assert orch.run() == 2
+
+
+def test_orchestrator_run_processes_reqs(tmp_path: Path, monkeypatch):
+    orchestrator = _import_orchestrator()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    sprint = tmp_path / "docs" / "sprints" / "active" / "SPRINT-007-x"
+    (sprint / "requirements").mkdir(parents=True)
+    (sprint / "requirements" / "REQ-042-foo.md").write_text("body")
+
+    orch = orchestrator.Orchestrator(sprint_id="SPRINT-007", project_root=tmp_path)
+    assert orch.run() == 0
+    state = json.loads((tmp_path / ".sn-init" / "workflow-state.json").read_text())
+    assert state["sprints"]["SPRINT-007"]["status"] == "completed"
+
+
+# ---------------------------------------------------------------------------
+# Lang orchestrator files
+
+
+def test_py_overlay_ships_orchestrator(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    src = (tmp_path / "demo" / "src" / "orchestrator.py").read_text()
+    assert "invoke_subagent" in src
+
+
+def test_ts_overlay_ships_orchestrator(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    src = (tmp_path / "demo" / "src" / "orchestrator.ts").read_text()
+    assert "invokeSubagent" in src
+    pkg = json.loads((tmp_path / "demo" / "package.json").read_text())
+    assert "orchestrator" in pkg["scripts"]
+
+
+def test_go_overlay_ships_orchestrator(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=go", "--no-git")
+    src = (tmp_path / "demo" / "src" / "cmd" / "orchestrator" / "main.go").read_text()
+    assert "invokeSubagent" in src
+
+
+# ---------------------------------------------------------------------------
+# Git hooks scaffold
+
+
+def test_githooks_scaffold_present(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    hooks = tmp_path / "demo" / ".githooks"
+    assert (hooks / "README.md").exists()
+    assert (hooks / "commit-msg").exists()
+    assert (hooks / "post-merge").exists()
+
+
+def test_commit_msg_hook_rejects_messages_without_req(tmp_path: Path):
+    import subprocess
+    _run(tmp_path, "demo", "--no-git")
+    hook = tmp_path / "demo" / ".githooks" / "commit-msg"
+    msg_file = tmp_path / "msg.txt"
+    msg_file.write_text("feat: add a thing\n")
+    result = subprocess.run([str(hook), str(msg_file)], capture_output=True, text=True)
+    assert result.returncode == 1
+    assert "REQ id" in result.stderr
+
+
+def test_commit_msg_hook_accepts_chore_and_req(tmp_path: Path):
+    import subprocess
+    _run(tmp_path, "demo", "--no-git")
+    hook = tmp_path / "demo" / ".githooks" / "commit-msg"
+    msg_file = tmp_path / "msg.txt"
+    msg_file.write_text("chore: bump deps\n")
+    assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
+    msg_file.write_text("feat(REQ-042): wire login flow\n")
+    assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
