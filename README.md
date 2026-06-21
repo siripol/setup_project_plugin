@@ -6,11 +6,45 @@ Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered
 
 ## Install
 
+Three install paths — pick the first one that works for your setup.
+
+### 1. Claude Code marketplace (recommended once published)
+
 ```bash
+claude plugin install setup-project-plugin
+```
+
+Resolves the plugin name `setup-project-plugin` (from `.claude-plugin/plugin.json`) against the Claude Code marketplace and installs the latest release. The marketplace flag is set in the manifest under `"marketplace"` — flip `"published": true` and tag a release (`v0.2.0` already exists) when you are ready to publish.
+
+### 2. Direct from GitHub
+
+```bash
+claude plugin install https://github.com/siripol/setup_project_plugin
+```
+
+Or pin to a specific tag:
+
+```bash
+claude plugin install https://github.com/siripol/setup_project_plugin@v0.2.0
+```
+
+Useful while the marketplace publish flag is still off, or for installing a pre-release commit.
+
+### 3. Local path (development / unpublished forks)
+
+```bash
+git clone https://github.com/siripol/setup_project_plugin /path/to/setup_project_plugin
 claude plugin install /path/to/setup_project_plugin
 ```
 
-Or point Claude Code at the directory directly.
+Or point Claude Code at the directory directly without copying — useful while iterating on the plugin itself.
+
+### Verify the install
+
+```bash
+claude plugin list                 # setup-project-plugin should appear
+/sn-setup --help                   # entry slash command resolves
+```
 
 ## Commands
 
