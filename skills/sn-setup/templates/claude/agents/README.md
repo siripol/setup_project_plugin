@@ -14,4 +14,4 @@ can_delegate: []      # other subagents it may invoke
 (System prompt body)
 ```
 
-The base 2 (code-reviewer, test-writer) ship by default. Use `/sn-init --subagents=all` to ship the full library.
+The base 2 (code-reviewer, test-writer) ship by default. Use `/sn-setup --subagents=all` to ship the full library.
