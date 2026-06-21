@@ -1,3 +1,7 @@
+# Use bash so recipes can rely on `$((10#$VAR + 1))` arithmetic, $${VAR:-default}
+# parameter expansion, etc. POSIX sh (dash on Ubuntu) does not support either.
+SHELL := /bin/bash
+
 .PHONY: help agent session test fmt lint validate logs-tail logs-clean logs-stats mcp-server \
         claude-local-edit claude-local-show \
         req-new req-import req-rollback req-resume req-replay req-loop \
