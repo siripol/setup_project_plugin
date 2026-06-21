@@ -1,7 +1,7 @@
 [project]
 name = "${name}"
 version = "0.1.0"
-description = "Claude-powered agent scaffolded by sn-init."
+description = "Claude-powered agent scaffolded by sn-setup."
 requires-python = ">=3.10"
 dependencies = [
     "claude-agent-sdk>=0.1",

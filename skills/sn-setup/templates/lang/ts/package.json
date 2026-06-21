@@ -1,7 +1,7 @@
 {
   "name": "${name}",
   "version": "0.1.0",
-  "description": "Claude-powered agent scaffolded by sn-init.",
+  "description": "Claude-powered agent scaffolded by sn-setup.",
   "type": "module",
   "scripts": {
     "agent": "tsx src/agent.ts",

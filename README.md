@@ -1,13 +1,13 @@
-# init-project-plugin
+# setup-project-plugin
 
 Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
 
-84 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
+90 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
 
 ## Install
 
 ```bash
-claude plugin install /path/to/init_project_plugin
+claude plugin install /path/to/setup_project_plugin
 ```
 
 Or point Claude Code at the directory directly.
@@ -168,15 +168,15 @@ python3 scripts/sn_init.py /tmp/snitest --dry-run
 Repo layout:
 
 ```
-init_project_plugin/
+setup_project_plugin/
   .claude-plugin/plugin.json
   commands/sn-setup.md
   hooks/README.md
-  scripts/{sn_init,errors,sn_logging,safety,orchestrator,obsidian_client,req_import,gen_subagent_index}.py
+  scripts/{sn_init,errors,sn_logging,safety,orchestrator,obsidian_client,req_import,gen_subagent_index,claude_md_merger}.py
   scripts/importers/{md,txt,json,docx,pdf}.py
   skills/sn-setup/SKILL.md + templates/
   tests/test_sn_init.py
-  LICENSE  CHANGELOG.md  README.md
+  Commands.md  README.md  LICENSE  CHANGELOG.md
 ```
 
 ## License

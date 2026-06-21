@@ -62,7 +62,7 @@ Scaffold a Claude-powered project, or add `.claude/` scaffolding into an existin
 cd existing-repo && /sn-setup
 
 # Migrate older project layout to sn- flat prefix
-cd existing-sn-init-project && /sn-setup --upgrade --rename-ns
+cd existing-sn-setup-project && /sn-setup --upgrade --rename-ns
 
 # Preview an upgrade without writing
 /sn-setup --upgrade --rename-ns --dry-run
@@ -326,7 +326,7 @@ See the scaffolded `Makefile` for the `safety-*`, `worktree-*`, `hooks-*`, `logs
 If you scaffolded a project before this layout (either the original bare-name flat layout, or the mid-2026 `sn:` colon namespace), migrate it in one shot:
 
 ```bash
-cd <existing-sn-init-project>
+cd <existing-sn-setup-project>
 /sn-setup --upgrade --rename-ns
 ```
 
