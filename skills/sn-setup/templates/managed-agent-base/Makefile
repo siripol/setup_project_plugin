@@ -4,7 +4,7 @@ SHELL := /bin/bash
 
 .PHONY: help agent session test fmt lint validate logs-tail logs-clean logs-stats mcp-server \
         claude-local-edit claude-local-show \
-        req-new req-import req-rollback req-resume req-replay req-loop \
+        req-new req-import req-rollback req-resume req-replay req-loop req-validate \
         sprint-new sprint-add sprint-remove sprint-run sprint-done sprint-status \
         sprint-concurrent worktree-add worktree-list worktree-remove \
         knowledge-check knowledge-update knowledge-promote knowledge-demote knowledge-tech-matrix \
@@ -86,6 +86,9 @@ req-replay: ## Open replay/REQ-NNN branch for regression check
 
 req-loop: ## Hint: run /sn-sprint-run inside Claude session
 	@echo "Invoke /sn-sprint-run for the active sprint to start the spec-loop cycle."
+
+req-validate: ## Validate every REQ frontmatter against docs/requirements/req-schema.json
+	@python3 scripts/req_validate.py
 
 sprint-new: ## Create docs/sprints/active/SPRINT-NNN-<SLUG>/
 	@if [ -z "$$SLUG" ]; then echo "Usage: make sprint-new SLUG=<slug>"; exit 2; fi

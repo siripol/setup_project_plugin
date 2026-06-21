@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/siripol/setup_project_plugin/req-schema.json",
+  "title": "REQ frontmatter",
+  "description": "Schema for the YAML frontmatter block on each docs/requirements/active/REQ-NNN-*.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "priority", "requires", "acceptance", "eval_threshold"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^REQ-[0-9]{3}$",
+      "description": "Zero-padded REQ id, e.g. REQ-001. Auto-assigned by /sn-req-new."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-line user-facing requirement title."
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^REQ-[0-9]{3}$"
+      },
+      "uniqueItems": true,
+      "description": "REQ ids that must complete before this one starts. Topo-sorted by the orchestrator."
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "description": "One bullet per acceptance criterion. Keep them testable."
+    },
+    "eval_threshold": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Minimum sn-evaluator score (0-100) for the triple-signal gate to pass."
+    }
+  }
+}

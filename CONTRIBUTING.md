@@ -8,11 +8,12 @@ Thanks for opening this file — pull requests and issues are welcome.
 git clone https://github.com/siripol/setup_project_plugin
 cd setup_project_plugin
 uv venv .venv
-uv pip install pytest
+uv pip install pytest pytest-cov pre-commit
 .venv/bin/python -m pytest tests/test_sn_init.py -q
+pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-All 96 cases must pass before you push.
+All 98 cases must pass before you push. The `pre-commit` hooks run YAML / TOML / JSON validators + ruff on `scripts/` and `tests/` on every commit; the `pre-push` stage runs `pytest` so you don't push a broken build by accident.
 
 ## Code layout
 
@@ -25,7 +26,7 @@ All 96 cases must pass before you push.
   - `claude/agents/sn-*.md` — 8 generated subagents.
   - `managed-agent-base/` — language-agnostic project scaffold (`Makefile`, `CLAUDE.md`, `.harness/`, `scripts/`, `docs/`).
   - `lang/{go,py,ts}/` — per-stack overlay (`src/`, `mcp_server/`, `tests/`, build config).
-- `tests/test_sn_init.py` — 96 pytest cases covering scaffold, upgrade, rename-ns, merger, importers, safety, Makefile rendering, orchestrator promise emission.
+- `tests/test_sn_init.py` — 98 pytest cases covering scaffold, upgrade, rename-ns, merger, importers, safety, Makefile rendering, orchestrator promise emission, Go/TS lang-overlay smoke tests.
 - `.claude-plugin/{plugin.json,marketplace.json}` — Claude Code manifest + marketplace catalog.
 
 ## Workflow
