@@ -13,16 +13,16 @@ This plugin ships with a `.claude-plugin/marketplace.json` catalog (marketplace 
 Run these two slash commands inside any Claude Code session:
 
 ```
-/plugin marketplace add siripol/setup_project_plugin
+/plugin marketplace add https://github.com/siripol/setup_project_plugin
 /plugin install setup-project-plugin@sn-setup
 ```
 
 What each step does:
 
 1. `/plugin marketplace add <source>` — registers the marketplace defined by `.claude-plugin/marketplace.json` at the source. Source may be:
-   - GitHub shorthand: `siripol/setup_project_plugin`
-   - Full URL: `https://github.com/siripol/setup_project_plugin`
-   - Local path: `/path/to/setup_project_plugin` (dev mode — auto-picks up `git pull` changes)
+   - **Full HTTPS URL (recommended)**: `https://github.com/siripol/setup_project_plugin` — no SSH key setup required.
+   - GitHub shorthand: `siripol/setup_project_plugin` — uses SSH; needs `github.com` in your `~/.ssh/known_hosts` (`ssh-keyscan github.com >> ~/.ssh/known_hosts` once).
+   - Local path: `/path/to/setup_project_plugin` (dev mode — auto-picks up `git pull` changes).
 2. `/plugin install <plugin>@<marketplace>` — installs the plugin named `setup-project-plugin` from the `sn-setup` marketplace.
 
 Manage the marketplace afterwards:
