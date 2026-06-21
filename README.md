@@ -97,19 +97,19 @@ Each carries a capability manifest (`tools:`, `can_modify:`, `can_delegate:`, `c
 
 ## Namespace
 
-Generated commands and subagents are scaffolded under an `sn/` subdir, so Claude Code surfaces them as `/sn:<name>` and `sn:<name>` — distinct from user-authored commands. The entry command itself stays `/sn-init`.
+Generated commands and subagents are scaffolded with a flat `sn-` filename prefix (no subdir), so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands while keeping `/`-autocomplete a single sweep through the `sn-` block. The entry command itself stays `/sn-init`.
 
-Examples: `/sn:knowledge-update`, `/sn:sprint-run`, `/sn:req-new`, subagent `sn:knowledge-curator`.
+Examples: `/sn-knowledge-update`, `/sn-sprint-run`, `/sn-req-new`, subagent `sn-knowledge-curator`.
 
-Projects scaffolded under the old flat layout can be migrated with `/sn-init --upgrade --rename-ns` — it relocates files, rewrites cross-references in Makefile/orchestrator/docs, and section-merges every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten; backups written next to each merged file).
+Projects scaffolded under earlier layouts (bare flat names, or the mid-2026 `sn/` colon namespace) can be migrated with `/sn-init --upgrade --rename-ns` — it renames files, rewrites cross-references in Makefile/orchestrator/docs, and section-merges every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten; backups written next to each merged file).
 
 ## Spec-loop workflow
 
 1. User writes `REQ-NNN-<slug>.md` into `docs/requirements/active/` (or `make req-import FILE=...`).
 2. Group into sprints: `make sprint-new SLUG=...`, `make sprint-add SPRINT=... REQ=...`.
-3. Run: `make sprint-run SPRINT=...` (orchestrator dispatches subagents, surfaced as `/sn:sprint-run` inside Claude Code).
-4. **Mandatory pre-sprint impact check** — `sn:impact-analyzer` writes `impact.md`. Major impact → halt + `AskUserQuestion`.
-5. Per REQ (topo-sorted): `sn:planner → sn:task-decomposer → sn:task-executor + sn:task-tester → sn:integration-tester → sn:adversary → sn:evaluator → sn:knowledge-curator → doc-writer`.
+3. Run: `make sprint-run SPRINT=...` (orchestrator dispatches subagents, surfaced as `/sn-sprint-run` inside Claude Code).
+4. **Mandatory pre-sprint impact check** — `sn-impact-analyzer` writes `impact.md`. Major impact → halt + `AskUserQuestion`.
+5. Per REQ (topo-sorted): `sn-planner → sn-task-decomposer → sn-task-executor + sn-task-tester → sn-integration-tester → sn-adversary → sn-evaluator → sn-knowledge-curator → doc-writer`.
 6. **Triple-signal exit gate**: `eval_score ≥ threshold` AND `integration.pass` AND `adversary.findings_resolved`.
 7. On pass: `make sprint-done SPRINT=...` archives the whole folder to `docs/sprints/completed/`.
 

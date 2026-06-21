@@ -1,5 +1,5 @@
 ---
-name: evaluator
+name: sn-evaluator
 description: Scores REQ result against acceptance criteria (0-100). Triple-signal gate: integration.pass + eval >= threshold + adversary.resolved.
 tools: [Read, Grep, Glob]
 can_modify: [docs/generated/eval-scores.md]

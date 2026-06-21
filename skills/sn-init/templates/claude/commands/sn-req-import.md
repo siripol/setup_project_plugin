@@ -1,5 +1,5 @@
 ---
-name: req-import
+name: sn-req-import
 description: Convert an md/txt/json/docx/pdf source into a REQ-NNN.md file.
 args:
   - FILE (required) — path to source document

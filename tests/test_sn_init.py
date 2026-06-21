@@ -420,32 +420,32 @@ def test_subagent_shortcut_omitted_when_subagent_absent(tmp_path: Path):
 
 def test_workflow_spec_loop_default_ships_workflow_files(tmp_path: Path):
     _run(tmp_path, "demo", "--no-git")
-    agents = tmp_path / "demo" / ".claude" / "agents" / "sn"
-    commands = tmp_path / "demo" / ".claude" / "commands" / "sn"
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    commands = tmp_path / "demo" / ".claude" / "commands"
     for name in ("task-decomposer", "task-executor", "task-tester", "integration-tester",
                  "evaluator", "adversary", "knowledge-curator", "impact-analyzer"):
-        assert (agents / f"{name}.md").exists(), f"missing workflow subagent: {name}"
+        assert (agents / f"sn-{name}.md").exists(), f"missing workflow subagent: sn-{name}"
     for slash in ("sprint-new", "sprint-add", "sprint-run", "sprint-done", "sprint-status",
                   "req-new", "req-import", "req-rollback", "req-resume", "req-replay",
                   "knowledge-check", "knowledge-update", "knowledge-promote",
                   "knowledge-demote", "knowledge-tech-matrix", "gh-import"):
-        assert (commands / f"{slash}.md").exists(), f"missing workflow command: {slash}"
-    # Old flat layout must not be present anymore.
-    flat_agents = tmp_path / "demo" / ".claude" / "agents"
-    flat_commands = tmp_path / "demo" / ".claude" / "commands"
-    assert not (flat_agents / "knowledge-curator.md").exists()
-    assert not (flat_commands / "sprint-run.md").exists()
+        assert (commands / f"sn-{slash}.md").exists(), f"missing workflow command: sn-{slash}"
+    # Old bare-name and colon-namespace layouts must not be present anymore.
+    assert not (agents / "knowledge-curator.md").exists()
+    assert not (commands / "sprint-run.md").exists()
+    assert not (agents / "sn" / "knowledge-curator.md").exists()
+    assert not (commands / "sn" / "sprint-run.md").exists()
 
 
 def test_workflow_none_drops_workflow_files(tmp_path: Path):
     _run(tmp_path, "demo", "--no-git", "--workflow=none")
-    agents_sn = tmp_path / "demo" / ".claude" / "agents" / "sn"
-    commands_sn = tmp_path / "demo" / ".claude" / "commands" / "sn"
-    assert (not agents_sn.exists()) or (not any(agents_sn.iterdir())), \
-        "sn/ agent dir should be empty when workflow off"
-    assert (not commands_sn.exists()) or (not any(commands_sn.iterdir())), \
-        "sn/ command dir should be empty when workflow off"
+    agents = tmp_path / "demo" / ".claude" / "agents"
     commands = tmp_path / "demo" / ".claude" / "commands"
+    for name in ("task-decomposer", "task-executor", "task-tester", "integration-tester",
+                 "evaluator", "adversary", "knowledge-curator", "impact-analyzer"):
+        assert not (agents / f"sn-{name}.md").exists(), f"unexpected workflow subagent: sn-{name}"
+    for slash in ("sprint-new", "req-new", "knowledge-update"):
+        assert not (commands / f"sn-{slash}.md").exists(), f"unexpected workflow command: sn-{slash}"
     assert (commands / "claude-local-edit.md").exists()
     assert (commands / "claude-local-show.md").exists()
 
@@ -1182,13 +1182,13 @@ def test_rename_ns_dry_run_reports_plan(tmp_path: Path, monkeypatch, capsys):
     assert rc == errors.EXIT_OK
     out = capsys.readouterr().out
     assert "would rename" in out
-    assert ".claude/commands/knowledge-update.md → .claude/commands/sn/knowledge-update.md" in out
-    assert ".claude/agents/knowledge-curator.md → .claude/agents/sn/knowledge-curator.md" in out
+    assert ".claude/commands/knowledge-update.md → .claude/commands/sn-knowledge-update.md" in out
+    assert ".claude/agents/knowledge-curator.md → .claude/agents/sn-knowledge-curator.md" in out
     assert "would rewrite refs" in out
     assert "would section-merge" in out
     # Dry-run must not move anything.
     assert (tmp_path / ".claude" / "commands" / "knowledge-update.md").exists()
-    assert not (tmp_path / ".claude" / "commands" / "sn").exists()
+    assert not (tmp_path / ".claude" / "commands" / "sn-knowledge-update.md").exists()
 
 
 def test_rename_ns_applies_migration(tmp_path: Path, monkeypatch):
@@ -1197,29 +1197,29 @@ def test_rename_ns_applies_migration(tmp_path: Path, monkeypatch):
     rc = sn_init.main(["--upgrade", "--rename-ns"])
     assert rc == errors.EXIT_OK
 
-    # Files moved into sn/ subdir.
-    assert (tmp_path / ".claude" / "commands" / "sn" / "knowledge-update.md").exists()
-    assert (tmp_path / ".claude" / "commands" / "sn" / "sprint-run.md").exists()
-    assert (tmp_path / ".claude" / "agents" / "sn" / "knowledge-curator.md").exists()
+    # Files renamed with sn- prefix at the flat top level.
+    assert (tmp_path / ".claude" / "commands" / "sn-knowledge-update.md").exists()
+    assert (tmp_path / ".claude" / "commands" / "sn-sprint-run.md").exists()
+    assert (tmp_path / ".claude" / "agents" / "sn-knowledge-curator.md").exists()
     assert not (tmp_path / ".claude" / "commands" / "knowledge-update.md").exists()
     assert not (tmp_path / ".claude" / "agents" / "knowledge-curator.md").exists()
 
     # Refs rewritten.
     mk = (tmp_path / "Makefile").read_text()
-    assert "/sn:knowledge-update" in mk
-    assert "/sn:sprint-run" in mk
+    assert "/sn-knowledge-update" in mk
+    assert "/sn-sprint-run" in mk
 
     orch = (tmp_path / "scripts" / "orchestrator.py").read_text()
-    assert '"impact": "sn:impact-analyzer"' in orch
-    assert '"curate": "sn:knowledge-curator"' in orch
+    assert '"impact": "sn-impact-analyzer"' in orch
+    assert '"curate": "sn-knowledge-curator"' in orch
     # Phase KEY "adversary" must not be prefixed (only value side).
-    assert '"adversary": "sn:adversary"' in orch
-    assert '"sn:adversary": "sn:adversary"' not in orch
+    assert '"adversary": "sn-adversary"' in orch
+    assert '"sn-adversary": "sn-adversary"' not in orch
 
-    # Inside the moved command file, /<cmd> got prefixed too.
-    moved = (tmp_path / ".claude" / "commands" / "sn" / "knowledge-update.md").read_text()
-    assert "/sn:sprint-run" in moved
-    assert "/sn:knowledge-update" in moved
+    # Inside the renamed command file, /<cmd> got prefixed too.
+    moved = (tmp_path / ".claude" / "commands" / "sn-knowledge-update.md").read_text()
+    assert "/sn-sprint-run" in moved
+    assert "/sn-knowledge-update" in moved
 
     # CLAUDE.md merged: user sections preserved, template sections appended.
     claude_md = (tmp_path / "CLAUDE.md").read_text()
@@ -1250,8 +1250,10 @@ def test_plan_new_files_emits_sn_namespace(tmp_path: Path):
     ])
     files = sn_init._plan_new_files(args, target)
     rels = {rel for rel, _ in files}
-    assert ".claude/commands/sn/knowledge-update.md" in rels
-    assert ".claude/agents/sn/knowledge-curator.md" in rels
-    # No file should land under the old workflow/ subdir.
+    assert ".claude/commands/sn-knowledge-update.md" in rels
+    assert ".claude/agents/sn-knowledge-curator.md" in rels
+    # No file should land under any subdir under commands/ or agents/.
+    assert not any(rel.startswith(".claude/commands/sn/") for rel in rels)
+    assert not any(rel.startswith(".claude/agents/sn/") for rel in rels)
     assert not any(rel.startswith(".claude/commands/workflow/") for rel in rels)
     assert not any(rel.startswith(".claude/agents/workflow/") for rel in rels)

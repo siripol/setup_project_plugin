@@ -20,7 +20,7 @@ Repo-resident harness engineering config per OpenAI's framework. Human-edit only
 6. Graph substrate (`docs/generated/dep-graph.md`)
 7. Bounded authority (per-subagent capability manifest)
 8. Runtime legibility (`.sn-init/logs/`)
-9. Adversarial testing (`sn:adversary` subagent)
+9. Adversarial testing (`sn-adversary` subagent)
 10. No-good compilation (failures → rules)
 11. Semantic density
 12. Invariant coverage

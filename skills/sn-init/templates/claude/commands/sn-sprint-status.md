@@ -1,5 +1,5 @@
 ---
-name: sprint-status
+name: sn-sprint-status
 description: Print a table of every sprint (active + completed) with REQ counts, status, owner, and last update.
 ---
 

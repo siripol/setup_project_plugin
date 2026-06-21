@@ -1,5 +1,5 @@
 ---
-name: knowledge-tech-matrix
+name: sn-knowledge-tech-matrix
 description: Regenerate the cross-project tech matrix at <vault>/knowledge/global/tech/README.md.
 ---
 

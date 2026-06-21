@@ -27,4 +27,4 @@ severity: critical
 (How `test` proves the invariant. Include mutation cases that should fail.)
 ```
 
-The `sn:adversary` subagent runs after each spec-loop sprint and tries to falsify the invariants — any successful break commits a new failing test that catches the regression.
+The `sn-adversary` subagent runs after each spec-loop sprint and tries to falsify the invariants — any successful break commits a new failing test that catches the regression.

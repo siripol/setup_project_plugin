@@ -1,5 +1,5 @@
 ---
-name: sprint-add
+name: sn-sprint-add
 description: Move a REQ from docs/requirements/active/ into a sprint's requirements/ subfolder. Updates sprint.md reqs list.
 args:
   - SPRINT (required) — sprint id

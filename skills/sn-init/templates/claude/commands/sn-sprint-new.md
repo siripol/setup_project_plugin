@@ -1,5 +1,5 @@
 ---
-name: sprint-new
+name: sn-sprint-new
 description: Create a new SPRINT-NNN folder under docs/sprints/active/ with all subfolders (requirements, exec-plans, tasks, proof) + sprint.md manifest.
 args:
   - SLUG (required) — short kebab-case identifier
