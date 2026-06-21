@@ -4,7 +4,7 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
-## [Unreleased]
+## [0.3.0] — 2026-06-22
 
 ### Added
 
