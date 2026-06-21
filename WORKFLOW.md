@@ -447,6 +447,43 @@ git push origin v1.0.0
 gh release create v1.0.0 --generate-notes
 ```
 
+## Autonomous mode — combine with Ralph Wiggum (official plugin)
+
+For unattended sprint runs, pair this plugin with Anthropic's official [`ralph-wiggum`](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum) plugin. Ralph wraps any prompt in a `while true` loop that re-feeds the prompt every iteration until a completion-promise string appears in stdout.
+
+No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`.
+
+### One-time install
+
+```
+/plugin install ralph-wiggum
+```
+
+### Run a sprint autonomously
+
+```
+/ralph-loop "/sn-sprint-run SPRINT=SPRINT-001" \
+  --max-iterations 20 \
+  --completion-promise "DONE: SPRINT-001 triple-signal pass" \
+  --halt-promise       "BLOCKED: SPRINT-001"
+```
+
+| Flag | Meaning |
+|---|---|
+| Positional prompt | `/sn-sprint-run SPRINT=<id>` — the inner command this plugin already ships |
+| `--max-iterations` | Secondary ceiling. The `scripts/safety.py` circuit breaker is the primary stop |
+| `--completion-promise` | The orchestrator emits `DONE: <SPRINT-id> triple-signal pass` exactly once when the triple-signal gate passes and `sn-knowledge-curator` finishes writing facts |
+| `--halt-promise` | Prefix-matches all three `BLOCKED:` reasons (`breaker tripped`, `rate-limit exhausted`, `max iterations reached`) so Ralph terminates on any safety stop |
+
+### Safety + hook coexistence
+
+- The `scripts/safety.py` circuit breaker (3 no-progress OR 5 same-error cycles) is the **authority**. Ralph's `--max-iterations` is a paranoid secondary ceiling.
+- A `BLOCKED:` promise always wins over `DONE:`. Ralph never re-feeds past a safety stop.
+- The scaffolded `audit.sh` Stop hook (`.claude/hooks/audit.sh`) runs **before** Ralph's Stop hook so the JSONL audit trail logs every iteration.
+- Both hooks read the same post-truncation stdout (capped at 2 KB by `audit.py` `MAX_INLINE_BYTES`); the orchestrator emits the promise on its own line near the start of the final phase summary to stay below the limit.
+- `--no-audit-log` removes `audit.sh` but does not block Ralph compatibility — Ralph's hook is registered at plugin install time in user settings, independent of the project `.claude/settings.json`.
+- State persists in `.sn-init/workflow-state.json` between iterations so each Ralph re-feed resumes at the last completed phase.
+
 ## Recovery cheat sheet
 
 | Situation | Command |
