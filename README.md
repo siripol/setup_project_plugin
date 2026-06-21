@@ -95,13 +95,21 @@ Default model: `claude-opus-4-8` with `thinking: {type: "adaptive"}`.
 
 Each carries a capability manifest (`tools:`, `can_modify:`, `can_delegate:`, `chokepoint_gate:`) enforced by `.claude/hooks/chokepoint-gate.{sh,py,ts}`.
 
+## Namespace
+
+Generated commands and subagents are scaffolded under an `sn/` subdir, so Claude Code surfaces them as `/sn:<name>` and `sn:<name>` — distinct from user-authored commands. The entry command itself stays `/sn-init`.
+
+Examples: `/sn:knowledge-update`, `/sn:sprint-run`, `/sn:req-new`, subagent `sn:knowledge-curator`.
+
+Projects scaffolded under the old flat layout can be migrated with `/sn-init --upgrade --rename-ns` — it relocates files, rewrites cross-references in Makefile/orchestrator/docs, and section-merges every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten; backups written next to each merged file).
+
 ## Spec-loop workflow
 
 1. User writes `REQ-NNN-<slug>.md` into `docs/requirements/active/` (or `make req-import FILE=...`).
 2. Group into sprints: `make sprint-new SLUG=...`, `make sprint-add SPRINT=... REQ=...`.
-3. Run: `make sprint-run SPRINT=...` (orchestrator dispatches subagents).
-4. **Mandatory pre-sprint impact check** — `impact-analyzer` writes `impact.md`. Major impact → halt + `AskUserQuestion`.
-5. Per REQ (topo-sorted): `planner → task-decomposer → executor + tester → integration-tester → adversary → evaluator → knowledge-curator → doc-writer`.
+3. Run: `make sprint-run SPRINT=...` (orchestrator dispatches subagents, surfaced as `/sn:sprint-run` inside Claude Code).
+4. **Mandatory pre-sprint impact check** — `sn:impact-analyzer` writes `impact.md`. Major impact → halt + `AskUserQuestion`.
+5. Per REQ (topo-sorted): `sn:planner → sn:task-decomposer → sn:task-executor + sn:task-tester → sn:integration-tester → sn:adversary → sn:evaluator → sn:knowledge-curator → doc-writer`.
 6. **Triple-signal exit gate**: `eval_score ≥ threshold` AND `integration.pass` AND `adversary.findings_resolved`.
 7. On pass: `make sprint-done SPRINT=...` archives the whole folder to `docs/sprints/completed/`.
 

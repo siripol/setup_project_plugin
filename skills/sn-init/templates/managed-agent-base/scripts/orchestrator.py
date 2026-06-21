@@ -49,15 +49,15 @@ PHASES = (
 
 
 PHASE_TO_SUBAGENT = {
-    "impact":    "impact-analyzer",
-    "plan":      "planner",
-    "decompose": "task-decomposer",
-    "execute":   "task-executor",
-    "test":      "task-tester",
-    "integrate": "integration-tester",
-    "adversary": "adversary",
-    "evaluate":  "evaluator",
-    "curate":    "knowledge-curator",
+    "impact":    "sn:impact-analyzer",
+    "plan":      "sn:planner",
+    "decompose": "sn:task-decomposer",
+    "execute":   "sn:task-executor",
+    "test":      "sn:task-tester",
+    "integrate": "sn:integration-tester",
+    "adversary": "sn:adversary",
+    "evaluate":  "sn:evaluator",
+    "curate":    "sn:knowledge-curator",
 }
 
 

@@ -5,4 +5,4 @@ args:
   - TOPIC (required) — topic name
 ---
 
-Reverse of `/knowledge-promote`. Refuses if the topic is referenced by other projects (via traceback frontmatter).
+Reverse of `/sn:knowledge-promote`. Refuses if the topic is referenced by other projects (via traceback frontmatter).

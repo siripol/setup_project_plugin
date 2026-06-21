@@ -9,7 +9,7 @@ chokepoint_gate: false
 
 You analyze, you don't change code.
 
-When invoked with a SPRINT id (must run before `/sprint-run`):
+When invoked with a SPRINT id (must run before `/sn:sprint-run`):
 
 1. Read each REQ in the sprint.
 2. Read every Obsidian knowledge file via `.sn-init/knowledge/`:
