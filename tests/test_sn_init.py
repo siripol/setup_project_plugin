@@ -306,3 +306,57 @@ def test_new_mode_ts_state_lang(tmp_path: Path):
     _run(tmp_path, "demo", "--lang=ts", "--no-git")
     state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
     assert state["lang"] == "ts"
+
+
+# ---------------------------------------------------------------------------
+# audit log hooks
+
+
+def test_audit_log_default_on(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    assert (project / ".claude" / "hooks" / "audit.sh").exists()
+    assert (project / ".claude" / "hooks" / "audit.py").exists()
+    assert (project / ".claude" / "hooks" / "audit.ts").exists()
+    assert (project / ".sn-init" / "logs" / ".gitkeep").exists()
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    hooks = settings["hooks"]
+    for event in ("PreToolUse", "PostToolUse", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop"):
+        assert event in hooks, f"missing event registration: {event}"
+        assert any(".claude/hooks/audit.sh" in (h.get("command", "")) for h in hooks[event])
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["flags"]["audit_log"] is True
+
+
+def test_audit_log_opt_out(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--no-audit-log")
+    project = tmp_path / "demo"
+    assert not (project / ".claude" / "hooks" / "audit.sh").exists()
+    assert not (project / ".claude" / "hooks" / "audit.py").exists()
+    assert not (project / ".claude" / "hooks" / "audit.ts").exists()
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    assert settings["hooks"] == {}
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["flags"]["audit_log"] is False
+
+
+def test_audit_py_hook_signature(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    project = tmp_path / "demo"
+    src = (project / ".claude" / "hooks" / "audit.py").read_text()
+    assert "async def audit_hook" in src
+    assert "MAX_INLINE_BYTES" in src
+
+
+def test_agent_py_wires_audit_hook(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    src = (tmp_path / "demo" / "src" / "agent.py").read_text()
+    assert "from audit import audit_hook" in src
+    assert "HookMatcher" in src
+
+
+def test_agent_ts_wires_audit_hook(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    src = (tmp_path / "demo" / "src" / "agent.ts").read_text()
+    assert "auditHook" in src
+    assert ".claude/hooks/audit.js" in src

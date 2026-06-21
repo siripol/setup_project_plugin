@@ -56,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-obsidian", action="store_true")
     p.add_argument("--prompt", default=None)
     p.add_argument("--workflow", choices=WORKFLOW_CHOICES, default="spec-loop")
+    p.add_argument("--no-audit-log", action="store_true", dest="no_audit_log")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     return p
@@ -267,10 +268,35 @@ def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[st
         if path.is_dir():
             continue
         rel = Path(".claude") / path.relative_to(claude)
+        rel_str = str(rel)
+
+        # Skip audit hook artifacts when the flag opts out.
+        if args.no_audit_log and (
+            rel_str.startswith(".claude/hooks/audit.")
+            or rel_str == ".claude/settings.json"
+        ):
+            if rel_str == ".claude/settings.json":
+                content = _read_template("claude/settings.json")
+                content = _strip_audit_hooks(content)
+                files.append((rel_str, content))
+                continue
+            # drop audit.{sh,py,ts}
+            continue
+
         content = path.read_text(encoding="utf-8")
         content = _substitute(content, ctx)
-        files.append((str(rel), content))
+        files.append((rel_str, content))
     return files
+
+
+def _strip_audit_hooks(settings_json: str) -> str:
+    """Return settings.json with the hooks block emptied."""
+    try:
+        data = json.loads(settings_json)
+        data["hooks"] = {}
+        return json.dumps(data, indent=2) + "\n"
+    except Exception:
+        return settings_json
 
 
 def _render_ci(args: argparse.Namespace, project_name: str) -> str:
@@ -343,6 +369,7 @@ def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[
             "workflow": args.workflow,
             "install": args.install,
             "git": not args.no_git,
+            "audit_log": not args.no_audit_log,
         },
         "files_written": files,
         "created_at": datetime.now(timezone.utc).isoformat(),

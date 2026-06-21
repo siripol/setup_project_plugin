@@ -11,6 +11,6 @@
     "declaration": true,
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "mcp_server/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "mcp_server/**/*.ts", "tests/**/*.ts", ".claude/hooks/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
