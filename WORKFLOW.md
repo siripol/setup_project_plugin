@@ -451,7 +451,7 @@ gh release create v1.0.0 --generate-notes
 
 For unattended sprint runs, pair this plugin with Anthropic's official [`ralph-wiggum`](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum) plugin. Ralph wraps any prompt in a `while true` loop that re-feeds the prompt every iteration until a completion-promise string appears in stdout.
 
-No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`.
+No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`. The orchestrator (`scripts/orchestrator.py`) is the load-bearing piece: it emits the `DONE:` / `BLOCKED:` promise strings verbatim on stdout via `_emit_promise()`, so Ralph's pattern match works out of the box without any extra glue.
 
 ### One-time install
 
