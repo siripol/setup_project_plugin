@@ -13,7 +13,16 @@ uv pip install pytest pytest-cov pre-commit
 pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-All 98 cases must pass before you push. The `pre-commit` hooks run YAML / TOML / JSON validators + ruff on `scripts/` and `tests/` on every commit; the `pre-push` stage runs `pytest` so you don't push a broken build by accident.
+All 111 cases must pass before you push.
+
+If you touched a scaffolded `src/agent.{py,ts,go}` overlay (or expect to), also run the Agent SDK rule checker against a fresh scaffold:
+
+```bash
+cd /tmp && rm -rf check && python3 /path/to/this/repo/scripts/sn_init.py check --lang=py --no-git --no-ci --no-obsidian
+cd check && python3 scripts/verify_agent_sdk.py
+```
+
+Expect `verify_agent_sdk: 1 file(s) OK`. A failure means the overlay drifted out of compliance with the 12-rule checklist shipped at `docs/principles/agent-sdk-best-practices.md`. The `pre-commit` hooks run YAML / TOML / JSON validators + ruff on `scripts/` and `tests/` on every commit; the `pre-push` stage runs `pytest` so you don't push a broken build by accident.
 
 ## Code layout
 
@@ -22,11 +31,11 @@ All 98 cases must pass before you push. The `pre-commit` hooks run YAML / TOML /
 - `scripts/claude_md_merger.py` — pure section-aware merge for `CLAUDE*.md` during `--upgrade --rename-ns`.
 - `scripts/gen_subagent_index.py` — regenerates `docs/design-docs/subagents.md` from agent frontmatter.
 - `skills/sn-setup/templates/` — everything the scaffolder copies into a target project.
-  - `claude/commands/sn-*.md` — 17 generated slash commands.
-  - `claude/agents/sn-*.md` — 8 generated subagents.
+  - `claude/commands/sn-*.md` — 18 generated slash commands.
+  - `claude/agents/sn-*.md` — 9 generated subagents.
   - `managed-agent-base/` — language-agnostic project scaffold (`Makefile`, `CLAUDE.md`, `.harness/`, `scripts/`, `docs/`).
   - `lang/{go,py,ts}/` — per-stack overlay (`src/`, `mcp_server/`, `tests/`, build config).
-- `tests/test_sn_init.py` — 98 pytest cases covering scaffold, upgrade, rename-ns, merger, importers, safety, Makefile rendering, orchestrator promise emission, Go/TS lang-overlay smoke tests.
+- `tests/test_sn_init.py` — 111 pytest cases covering scaffold, upgrade, rename-ns, merger, importers, safety, Makefile rendering, orchestrator promise emission, Go/TS lang-overlay smoke tests, `/sn-verify` exit-code contract, `sn-agent-sdk-reviewer` subagent shape.
 - `.claude-plugin/{plugin.json,marketplace.json}` — Claude Code manifest + marketplace catalog.
 
 ## Workflow

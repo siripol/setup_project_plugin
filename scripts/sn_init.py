@@ -37,7 +37,7 @@ except ImportError:
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = PLUGIN_ROOT / "skills" / "sn-setup" / "templates"
 SN_INIT_VERSION = "0.1.0"
-TEMPLATE_VERSION = "2026.06.23"
+TEMPLATE_VERSION = "2026.06.24"
 
 LANG_CHOICES = ("go", "py", "ts")
 TIER_CHOICES = ("2", "3", "both")
@@ -344,11 +344,12 @@ RENAMED_COMMANDS = (
     "sprint-status", "sprint-remove",
     "req-new", "req-import", "req-replay", "req-resume", "req-rollback",
     "gh-import",
+    "verify",
 )
 RENAMED_AGENTS = (
     "knowledge-curator", "impact-analyzer", "task-decomposer",
     "task-executor", "task-tester", "integration-tester",
-    "adversary", "evaluator",
+    "adversary", "evaluator", "agent-sdk-reviewer",
 )
 OVERWRITE_CLAUDE_SECTIONS = ("Tracking", "What sn-init created")
 
@@ -862,6 +863,23 @@ def _print_summary(target: Path, args: argparse.Namespace, mode: str, patched: l
         else:
             print("  no missing files (already up to date)")
     print(f"  lang={args.lang}  tier={args.tier}  workflow={args.workflow}")
+    _print_agent_sdk_verify_hint(args)
+
+
+def _print_agent_sdk_verify_hint(args: argparse.Namespace) -> None:
+    """Suggest running Anthropic's official agent-sdk-dev verifier after a
+    Python or TypeScript scaffold. Informational only — never auto-invoke
+    because the agent-sdk-dev plugin may not be installed."""
+    verifier = {"py": "agent-sdk-verifier-py", "ts": "agent-sdk-verifier-ts"}.get(args.lang)
+    if verifier is None:
+        return
+    print("")
+    print("Next step — verify your Agent SDK code against Anthropic's official patterns:")
+    print("  1. Read docs/principles/agent-sdk-best-practices.md")
+    print("  2. Run /sn-verify (or make verify) to check the mechanical rules")
+    print(f"  3. (Optional) Install Anthropic's agent-sdk-dev plugin: /plugin install agent-sdk-dev")
+    print(f"     Then ask: \"Run {verifier} on this project\"")
+    print("Reference: https://github.com/anthropics/claude-plugins-official/tree/main/plugins/agent-sdk-dev")
 
 
 def _today() -> str:

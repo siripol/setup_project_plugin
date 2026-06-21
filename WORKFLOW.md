@@ -521,6 +521,53 @@ No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`
 | Circuit breaker tripped on a REQ | `make safety-reset-breaker REQ=REQ-NNN` |
 | Rate-limit hit | `make safety-reset-rate-limit` |
 
+## Verify Agent SDK code against best practices
+
+The scaffold ships `docs/principles/agent-sdk-best-practices.md` — a 12-rule checklist sourced from Anthropic's [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview). Six rules are mechanically checkable; six need prose analysis.
+
+### Mechanical check — `/sn-verify`
+
+```
+/sn-verify
+```
+
+Or via Make:
+
+```bash
+make verify
+```
+
+`scripts/verify_agent_sdk.py` reads `src/agent.{py,ts,go}` and asserts:
+
+1. `allowed_tools=[...]` whitelist present (rule 1).
+2. No hardcoded `ANTHROPIC_API_KEY` literal (rule 2).
+3. `model="..."` explicit, not relying on SDK default (rule 3).
+4. At least one `HookMatcher(...)` (Python) or `hooks:` block (TS) — rule 5.
+5. `AgentDefinition` with non-empty `tools=[...]` (rule 6).
+6. `setting_sources=["project"]` (or `settingSources`) when scaffolded with `--tier=3` — rule 9.
+
+Exit codes: `0` all pass, `2` one or more rules failed (each with `::error file=…:: <path>: <rule>`), `3` no `src/agent.*` files found.
+
+### Prose review — `sn-agent-sdk-reviewer` subagent
+
+For the six rules that need judgement (`permission_mode` choice, session persistence, MCP server vetting, `WebSearch` necessity, streaming, error catch), ask the dedicated reviewer subagent:
+
+```
+"Review src/agent.py against the Agent SDK best practices."
+```
+
+The orchestrator dispatches `sn-agent-sdk-reviewer`, which reads the file and the principles doc, then produces a PASS / PASS WITH WARNINGS / FAIL report with specific line references.
+
+### Third-party check — official `agent-sdk-dev` plugin
+
+Anthropic ships an [official verifier plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/agent-sdk-dev) with `agent-sdk-verifier-{py,ts}` subagents. After scaffolding, the `/sn-setup` banner nudges you to install it:
+
+```
+/plugin install agent-sdk-dev
+```
+
+Then ask Claude: `"Run agent-sdk-verifier-py on this project"`. The official verifier checks broader patterns (Python environment setup, TypeScript config, dependency hygiene) that our project-local rules don't cover. Treat it as a complement, not a replacement.
+
 ## See also
 
 - [`COMMANDS.md`](COMMANDS.md) — per-command reference with exit codes and Make-target mirror.

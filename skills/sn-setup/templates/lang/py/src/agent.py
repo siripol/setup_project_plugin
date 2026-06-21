@@ -74,6 +74,8 @@ async def run_agent(prompt: str = DEFAULT_PROMPT) -> list[object]:
         raise SystemExit("set ANTHROPIC_API_KEY in env")
 
     options = ClaudeAgentOptions(
+        # Rule 3 — pin the model id; SDK default is a moving target.
+        model="${model}",
         allowed_tools=["Read", "Glob", "Grep", "Agent"],
         agents={
             "code-reviewer": AgentDefinition(
@@ -83,6 +85,9 @@ async def run_agent(prompt: str = DEFAULT_PROMPT) -> list[object]:
             )
         },
         hooks=_hook_block(),
+        # Rule 9 — production scaffolds restrict the config load surface
+        # so a developer-local `~/.claude/` override cannot leak in.
+        setting_sources=["project"],
     )
 
     captured: list[object] = []

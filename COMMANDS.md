@@ -1,6 +1,6 @@
 # Commands — `sn-*` reference
 
-Every plugin-provided slash command starts with `sn-`. `/sn-setup` is the entry command at the plugin level. The other 17 commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
+Every plugin-provided slash command starts with `sn-`. `/sn-setup` is the entry command at the plugin level. The other 18 commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
 
 Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispatched by the spec-loop orchestrator; users normally do not invoke them directly.
 
@@ -13,8 +13,9 @@ Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispat
 | REQ lifecycle | 5 | `/sn-req-new` `/sn-req-import` `/sn-req-rollback` `/sn-req-resume` `/sn-req-replay` |
 | Knowledge (Obsidian) | 5 | `/sn-knowledge-check` `/sn-knowledge-update` `/sn-knowledge-promote` `/sn-knowledge-demote` `/sn-knowledge-tech-matrix` |
 | GitHub | 1 | `/sn-gh-import` |
+| Verification | 1 | `/sn-verify` |
 
-Total: **18 slash commands** (1 entry + 17 generated) + **8 subagents**.
+Total: **19 slash commands** (1 entry + 18 generated) + **9 subagents**.
 
 ---
 
@@ -273,9 +274,34 @@ Requires the `gh` CLI to be authenticated. Paired with `--workflow-pr` + `make g
 
 ---
 
+## Verification command
+
+### `/sn-verify`
+
+No args. Shells to `scripts/verify_agent_sdk.py` and checks every `src/agent.{py,ts,go}` against the six mechanically-checkable rules from `docs/principles/agent-sdk-best-practices.md`:
+
+| # | Rule | Check |
+|---|---|---|
+| 1 | Whitelist tools | `allowed_tools=[...]` (py) / `allowedTools: [...]` (ts) |
+| 2 | No hardcoded API key | No literal `sk-...` string |
+| 3 | Lock the model id | `model="..."` keyword present |
+| 5 | Hooks for guaranteed side effects | At least one `HookMatcher` or `hooks:` block |
+| 6 | Subagents narrowly defined | `AgentDefinition` has non-empty `tools=[...]` |
+| 9 | Restrict `setting_sources` in prod | `setting_sources=["project"]` (when `--tier=3`/`both`) |
+
+Exit codes: `0` all pass, `2` one or more rule failures (each printed as `::error file=…:: rule N: <description>` for CI), `3` no `src/agent.*` files found.
+
+For the six rules that need prose analysis (`permission_mode`, sessions, MCP vetting, `WebSearch` necessity, streaming, error handling) — invoke the `sn-agent-sdk-reviewer` subagent.
+
+```bash
+make verify          # same as /sn-verify
+```
+
+---
+
 ## Subagents (dispatched by the orchestrator, not user-invoked)
 
-The spec-loop orchestrator (`scripts/orchestrator.py`) dispatches these eight subagents in order during `/sn-sprint-run`:
+The spec-loop orchestrator (`scripts/orchestrator.py`) dispatches these eight subagents in order during `/sn-sprint-run`. A ninth subagent — `sn-agent-sdk-reviewer` — is read-only and ad-hoc (you ask Claude to invoke it; no orchestrator phase fires it).
 
 | Phase | Subagent | Purpose |
 |---|---|---|
@@ -288,8 +314,9 @@ The spec-loop orchestrator (`scripts/orchestrator.py`) dispatches these eight su
 | adversary | `sn-adversary` | Adversarial testing — tries to falsify invariants under `.harness/invariants/` |
 | evaluate | `sn-evaluator` | Scores the REQ result against acceptance criteria (0-100) |
 | curate | `sn-knowledge-curator` | Extracts durable facts from completed REQs into Obsidian buckets |
+| _ad-hoc_ | `sn-agent-sdk-reviewer` | Reviews `src/agent.{py,ts,go}` against the 6 prose-analysis Agent SDK best-practices rules (rules 4, 7, 8, 10, 11, 12); complements `/sn-verify` which handles the 6 mechanical rules |
 
-These are referenced internally in `PHASE_TO_SUBAGENT` in `scripts/orchestrator.py`. Users normally do not invoke them directly via `/sn-<name>` — that is the orchestrator's job.
+The orchestrator phases reference subagents via `PHASE_TO_SUBAGENT` in `scripts/orchestrator.py`. `sn-agent-sdk-reviewer` is not in that map — invoke it on demand ("Review `src/agent.py` against Agent SDK best practices").
 
 ---
 
@@ -316,6 +343,7 @@ The scaffolded `Makefile` exposes a thin wrapper for every command (so you can r
 | `make knowledge-demote TOPIC=...` | `/sn-knowledge-demote` |
 | `make knowledge-tech-matrix` | `/sn-knowledge-tech-matrix` |
 | `make gh-import` | `/sn-gh-import` |
+| `make verify` | `/sn-verify` |
 
 See the scaffolded `Makefile` for the `safety-*`, `worktree-*`, `hooks-*`, `logs-*`, and `orchestrate` targets too — they don't have matching slash commands.
 

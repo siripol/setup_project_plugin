@@ -46,6 +46,8 @@ export async function runAgent(prompt: string = DEFAULT_PROMPT): Promise<string[
   const chokeHook = await loadHook("../.claude/hooks/chokepoint-gate.js", "chokepointGateHook");
 
   const options = {
+    // Rule 3 — pin the model id; SDK default is a moving target.
+    model: "${model}",
     allowedTools: ["Read", "Glob", "Grep", "Agent"] as const,
     agents: {
       "code-reviewer": {
@@ -55,6 +57,8 @@ export async function runAgent(prompt: string = DEFAULT_PROMPT): Promise<string[
       },
     },
     hooks: hookBlock(auditHook, rateLimitHook, chokeHook),
+    // Rule 9 — restrict the config load surface in production.
+    settingSources: ["project"] as const,
   };
 
   const captured: string[] = [];

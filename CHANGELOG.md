@@ -4,6 +4,22 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [0.4.0] — 2026-06-22
+
+### Added
+
+- `docs/principles/agent-sdk-best-practices.md` — 12-rule checklist for every scaffolded Agent SDK app. Sourced from Anthropic's [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview). Six rules are mechanically checked by `/sn-verify`; six need prose analysis from `sn-agent-sdk-reviewer`.
+- `/sn-verify` slash command + scaffolded `scripts/verify_agent_sdk.py` + `make verify` Make target. Checks `src/agent.{py,ts,go}` against rules 1, 2, 3, 5, 6, 9 with `::error file=…::` annotations for CI.
+- `sn-agent-sdk-reviewer` subagent (`tools: [Read, Grep]`, `can_modify: []`). Reviews rules 4, 7, 8, 10, 11, 12 (permission_mode, sessions, MCP vetting, WebSearch necessity, streaming, error handling). Read-only, ad-hoc — not in `PHASE_TO_SUBAGENT`; invoke on demand.
+- Post-scaffold banner suggests three verify paths in order: (1) read the doc, (2) run `/sn-verify`, (3) optionally install Anthropic's official `agent-sdk-dev` plugin. Skipped for `--lang=go` since Anthropic only ships verifiers for py + ts.
+- `WORKFLOW.md` new `## Verify Agent SDK code against best practices` section covering mechanical + prose + third-party check paths.
+
+### Changed
+
+- Scaffolded `src/agent.py` (py overlay) and `src/agent.ts` (ts overlay) updated to be compliant with the rules they ship — `model="${model}"` keyword and `setting_sources=["project"]` (py) / `settingSources: ["project"]` (ts) added. A new test (`test_verify_agent_sdk_passes_on_compliant_py_overlay`) drives `python3 scripts/verify_agent_sdk.py` against a fresh scaffold and asserts rc 0; future overlay drift surfaces immediately.
+- `COMMANDS.md` totals bumped 18 → 19 slash commands (+`/sn-verify` family "Verification"), 8 → 9 subagents (+`sn-agent-sdk-reviewer` ad-hoc).
+- README + CONTRIBUTING test counts bumped 98 → 110.
+
 ## [0.3.0] — 2026-06-22
 
 ### Added

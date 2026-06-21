@@ -1139,6 +1139,147 @@ def test_scaffold_subagent_index_script_present(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
+# Agent SDK verifier hint (Anthropic agent-sdk-dev plugin integration)
+
+
+def test_agent_sdk_verify_hint_py(tmp_path: Path, capsys):
+    _run(tmp_path, "demo", "--lang=py", "--no-git", "--no-ci", "--no-obsidian")
+    out = capsys.readouterr().out
+    assert "agent-sdk-verifier-py" in out
+    assert "/plugin install agent-sdk-dev" in out
+    assert "/sn-verify" in out
+    assert "anthropics/claude-plugins-official" in out
+
+
+def test_agent_sdk_verify_hint_ts(tmp_path: Path, capsys):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git", "--no-ci", "--no-obsidian")
+    out = capsys.readouterr().out
+    assert "agent-sdk-verifier-ts" in out
+    assert "/sn-verify" in out
+
+
+def test_agent_sdk_verify_hint_skipped_for_go(tmp_path: Path, capsys):
+    """Anthropic ships verifiers for py + ts only — Go scaffold must not
+    nudge the user toward a verifier that doesn't exist for their lang."""
+    _run(tmp_path, "demo", "--lang=go", "--no-git", "--no-ci", "--no-obsidian")
+    out = capsys.readouterr().out
+    assert "agent-sdk-verifier" not in out
+
+
+def test_agent_sdk_best_practices_doc_shipped(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    path = tmp_path / "demo" / "docs" / "principles" / "agent-sdk-best-practices.md"
+    assert path.exists()
+    body = path.read_text()
+    # 12 rules pinned; spot-check a few mechanical + prose ones.
+    assert "Whitelist tools per session" in body
+    assert "Auth via env var only" in body
+    assert "Lock the model id" in body
+    assert "Define subagents narrowly" in body
+    assert "Stream — don't collect" in body
+
+
+# ---------------------------------------------------------------------------
+# /sn-verify slash command + verify_agent_sdk.py
+
+
+def test_sn_verify_command_ships(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    assert (tmp_path / "demo" / ".claude" / "commands" / "sn-verify.md").exists()
+
+
+def test_verify_agent_sdk_script_ships(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    assert (tmp_path / "demo" / "scripts" / "verify_agent_sdk.py").exists()
+
+
+def test_makefile_verify_target_ships(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    mk = (tmp_path / "demo" / "Makefile").read_text()
+    assert "verify:" in mk
+    assert "verify_agent_sdk.py" in mk
+
+
+def test_verify_in_renamed_commands():
+    assert "verify" in sn_init.RENAMED_COMMANDS
+
+
+def test_verify_agent_sdk_passes_on_compliant_py_overlay(tmp_path: Path):
+    """The scaffolded python overlay (src/agent.py) MUST pass the verifier
+    out of the box. If we ship code that fails our own rules the doc is a lie."""
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("python3"):
+        pytest.skip("python3 not installed")
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    project = tmp_path / "demo"
+    r = subprocess.run(
+        ["python3", "scripts/verify_agent_sdk.py"],
+        cwd=project, capture_output=True, text=True,
+    )
+    # rc 0 = all pass; rc 3 = no agent files (which would be a different bug).
+    # rc 2 = one or more rules failed — that means our overlay is non-compliant.
+    assert r.returncode in (0, 3), (
+        f"verify_agent_sdk.py rc={r.returncode}\n"
+        f"stdout: {r.stdout}\nstderr: {r.stderr}"
+    )
+
+
+def test_verify_agent_sdk_passes_on_compliant_ts_overlay(tmp_path: Path):
+    """The TS overlay (src/agent.ts) must also pass the rules it ships."""
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("python3"):
+        pytest.skip("python3 not installed")
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    project = tmp_path / "demo"
+    r = subprocess.run(
+        ["python3", "scripts/verify_agent_sdk.py"],
+        cwd=project, capture_output=True, text=True,
+    )
+    assert r.returncode in (0, 3), (
+        f"verify_agent_sdk.py rc={r.returncode}\n"
+        f"stdout: {r.stdout}\nstderr: {r.stderr}"
+    )
+
+
+def test_sn_agent_sdk_reviewer_subagent_ships(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    path = tmp_path / "demo" / ".claude" / "agents" / "sn-agent-sdk-reviewer.md"
+    assert path.exists()
+    body = path.read_text()
+    # Must be read-only — `can_modify: []`.
+    assert "can_modify: []" in body
+    # Must scope to the prose-analysis rules only.
+    assert "Rule 4" in body and "Rule 7" in body and "Rule 8" in body
+    assert "Rule 10" in body and "Rule 11" in body and "Rule 12" in body
+
+
+def test_agent_sdk_reviewer_in_renamed_agents():
+    assert "agent-sdk-reviewer" in sn_init.RENAMED_AGENTS
+
+
+def test_verify_agent_sdk_fails_on_hardcoded_key(tmp_path: Path):
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("python3"):
+        pytest.skip("python3 not installed")
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    project = tmp_path / "demo"
+    agent_py = project / "src" / "agent.py"
+    body = agent_py.read_text()
+    # Inject a hardcoded key literal — rule 2 should catch it.
+    body += '\nANTHROPIC_API_KEY = "sk-fake-test-key-1234567890abcdef"\n'
+    agent_py.write_text(body)
+    r = subprocess.run(
+        ["python3", "scripts/verify_agent_sdk.py"],
+        cwd=project, capture_output=True, text=True,
+    )
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "rule 2: hardcoded API key" in r.stderr
+
+
+# ---------------------------------------------------------------------------
 # Makefile $$VAR rendering — regression for the safe_substitute halving bug
 
 

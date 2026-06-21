@@ -6,7 +6,7 @@
 
 Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
 
-98 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
+111 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
 
 ```mermaid
 flowchart LR
@@ -91,6 +91,7 @@ The local-path source watches the directory, so a `git pull` (or a code edit) re
   - **new mode** — empty cwd OR `name` arg → full scaffold + git init + commit.
   - **add mode** — non-empty cwd + no `name` → patches missing `.claude/` files only (idempotent via `.sn-init-state.json`).
   - **upgrade mode** — `--upgrade` re-runs the scaffold over an existing project, adds files that didn't exist yet, never overwrites user edits.
+- `/sn-verify` (scaffolded) — checks `src/agent.{py,ts,go}` against the six mechanically-checkable [Agent SDK best practices](skills/sn-setup/templates/managed-agent-base/docs/principles/agent-sdk-best-practices.md). For prose-analysis rules invoke the `sn-agent-sdk-reviewer` subagent. See [`COMMANDS.md`](COMMANDS.md) for the full list of 18 generated commands + 9 subagents.
 
 ## Quickstart
 
@@ -160,7 +161,7 @@ For the end-to-end usage walkthrough (REQ → sprint → spec-loop → triple-si
 
 Default model: `claude-opus-4-8` with `thinking: {type: "adaptive"}`.
 
-## Subagent library (13 shipped)
+## Subagent library (14 shipped)
 
 | Bucket | Subagents |
 |---|---|
