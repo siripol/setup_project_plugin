@@ -354,6 +354,6 @@ Refuses to run without `--upgrade`. Refuses to start in a directory that has no 
 - `commands/sn-setup.md` — full flag table for the entry command (machine-parseable form).
 - `skills/sn-setup/SKILL.md` — when the skill triggers and what defaults it applies.
 - `README.md` — top-level overview, file tree, safety rails, Obsidian KB layout.
-- `workflow.md` — step-by-step walkthrough using the `sn-*` commands to take a new requirement through scaffolding, a sprint, the spec-loop, the triple-signal gate, and archival.
+- `WORKFLOW.md` — step-by-step walkthrough using the `sn-*` commands to take a new requirement through scaffolding, a sprint, the spec-loop, the triple-signal gate, and archival.
 - `CHANGELOG.md` — versioned release notes, including the vault commits shipped alongside each plugin batch.
 - `skills/sn-setup/templates/managed-agent-base/Makefile` — every Make target shipped to a scaffolded project.

@@ -255,7 +255,7 @@ After `sprint-done`:
 
 ## See also
 
-- [`Commands.md`](Commands.md) — per-command reference with exit codes and Make-target mirror.
+- [`COMMANDS.md`](COMMANDS.md) — per-command reference with exit codes and Make-target mirror.
 - [`README.md`](README.md) — top-level overview, install, file tree, safety rails, Obsidian KB layout.
 - [`CHANGELOG.md`](CHANGELOG.md) — release notes, including vault commits per batch.
 - `skills/sn-setup/templates/managed-agent-base/Makefile` — every Make target shipped to a scaffolded project (one mirror per slash command, plus extras for safety, worktrees, hooks).

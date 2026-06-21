@@ -23,7 +23,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
-- `Commands.md` — top-level reference for every `sn-*` slash command (1 entry + 17 generated) and the 8 `sn-*` subagents dispatched by the spec-loop orchestrator. Includes per-command usage, exit codes, Make-target mirror table, and a migration recipe for moving older scaffolds onto the current `sn-` flat layout.
+- `COMMANDS.md` — top-level reference for every `sn-*` slash command (1 entry + 17 generated) and the 8 `sn-*` subagents dispatched by the spec-loop orchestrator. Includes per-command usage, exit codes, Make-target mirror table, and a migration recipe for moving older scaffolds onto the current `sn-` flat layout.
 - `scripts/claude_md_merger.py` — pure `merge(existing, template, *, overwrite_sections)` for section-aware merge of `CLAUDE*.md` during `--upgrade --rename-ns`. Existing sections keep, template-only sections append, whitelist (`## Tracking`, `## What sn-setup created`) overwrites.
 - `--rename-ns` flag on `/sn-setup --upgrade`: migrates scaffolded projects from any of three legacy layouts (bare flat names, the mid-2026 `sn:` colon namespace, the original `sn-init` branding) to the current `sn-<name>` flat layout. Rewrites `/cmd` and `/sn:cmd` references in `Makefile`, `scripts/orchestrator.py`, and every command doc. Refuses without `--upgrade`. State records `renamed[]`, `rewritten[]`, `merged_files[]` in `.sn-init-state.json`. Backups land at `<file>.pre-upgrade-<UTC-ts>.bak`.
 - 6 new tests (90 total, all green): merger preserve/overwrite, `--rename-ns` requires `--upgrade`, dry-run plan output, applied migration smoke, no `workflow/` subdir in plan.
