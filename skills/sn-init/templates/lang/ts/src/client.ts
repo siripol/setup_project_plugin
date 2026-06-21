@@ -1,9 +1,11 @@
 // Tier 3 — Managed Agents session driver via @anthropic-ai/sdk.
-// Runnable stub. Set AGENT_ID env then `npm run client`.
+//
+// Creates a session against a previously-applied Managed Agent and streams
+// events. Set AGENT_ID and ANTHROPIC_API_KEY, then `npm run client`.
 
 import Anthropic from "@anthropic-ai/sdk";
 
-export async function runSession(agentId?: string): Promise<void> {
+export async function runSession(agentId?: string, message: string = "Hello from sn-init."): Promise<number> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("set ANTHROPIC_API_KEY in env");
   }
@@ -12,15 +14,20 @@ export async function runSession(agentId?: string): Promise<void> {
     throw new Error("set AGENT_ID or pass it to runSession()");
   }
 
-  // Pseudocode (uncomment after `npm install`):
-  //
-  //   const client = new Anthropic();
-  //   const session = await client.beta.sessions.create({ agent_id: id });
-  //   for await (const event of client.beta.sessions.events.stream(session.id)) {
-  //     console.log(event);
-  //   }
-  void Anthropic; // referenced for future use
-  console.log(`client.ts stub — would create Managed Agent session for agent ${id}`);
+  const client = new Anthropic();
+  const session = await (client as any).beta.sessions.create({ agent_id: id });
+  console.log(`session: ${session.id}`);
+
+  await (client as any).beta.sessions.messages.create({
+    session_id: session.id,
+    content: message,
+  });
+
+  for await (const event of (client as any).beta.sessions.events.stream(session.id)) {
+    console.log(event);
+    if (event?.type === "session.idle") break;
+  }
+  return 0;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

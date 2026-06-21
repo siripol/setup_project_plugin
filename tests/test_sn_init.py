@@ -818,3 +818,90 @@ def test_commit_msg_hook_accepts_chore_and_req(tmp_path: Path):
     assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
     msg_file.write_text("feat(REQ-042): wire login flow\n")
     assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# Real SDK wire-up in lang overlays
+
+
+def test_py_agent_uses_real_sdk_imports(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    src = (tmp_path / "demo" / "src" / "agent.py").read_text()
+    assert "from claude_agent_sdk import" in src
+    assert "query" in src
+    assert "ClaudeAgentOptions" in src
+    assert "AgentDefinition" in src
+    assert "rate_limit_hook" in src or "rate-limit" in src
+    assert "chokepoint_gate_hook" in src
+
+
+def test_py_client_uses_anthropic_beta_sessions(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    src = (tmp_path / "demo" / "src" / "client.py").read_text()
+    assert "from anthropic import Anthropic" in src
+    assert "beta.sessions.create" in src
+    assert "events.stream" in src
+
+
+def test_py_mcp_server_registers_real_tools(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    src = (tmp_path / "demo" / "mcp_server" / "main.py").read_text()
+    assert "FastMCP" in src
+    assert "@mcp.tool()" in src
+    assert "list_project_files" in src
+
+
+def test_ts_agent_uses_real_sdk_imports(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    src = (tmp_path / "demo" / "src" / "agent.ts").read_text()
+    assert 'from "@anthropic-ai/claude-agent-sdk"' in src
+    assert "rateLimitHook" in src
+    assert "chokepointGateHook" in src
+    assert "auditHook" in src
+
+
+def test_ts_client_uses_anthropic_beta_sessions(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    src = (tmp_path / "demo" / "src" / "client.ts").read_text()
+    assert 'from "@anthropic-ai/sdk"' in src
+    assert "beta.sessions.create" in src
+
+
+def test_ts_mcp_server_handles_tools_list_and_call(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    src = (tmp_path / "demo" / "mcp_server" / "main.ts").read_text()
+    assert "tools/list" in src
+    assert "tools/call" in src
+    assert "echo" in src
+    assert "now" in src
+
+
+def test_go_agent_uses_anthropic_sdk_go(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=go", "--no-git")
+    src = (tmp_path / "demo" / "src" / "agent.go").read_text()
+    assert "github.com/anthropics/anthropic-sdk-go" in src
+    assert "client.Messages.New" in src
+    assert "anthropic.NewClient" in src
+
+
+def test_go_client_uses_beta_sessions(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=go", "--no-git")
+    src = (tmp_path / "demo" / "src" / "client.go").read_text()
+    assert "client.Beta.Sessions.New" in src
+    assert "Sessions.Events.Stream" in src
+
+
+def test_go_mcp_server_registers_tools(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=go", "--no-git")
+    src = (tmp_path / "demo" / "mcp_server" / "main.go").read_text()
+    assert "github.com/modelcontextprotocol/go-sdk" in src
+    assert "RegisterTool" in src
+    assert "echo" in src
+    assert "ServeStdio" in src
+
+
+def test_go_mod_has_mcp_dep(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=go", "--no-git")
+    mod = (tmp_path / "demo" / "go.mod").read_text()
+    assert "github.com/anthropics/anthropic-sdk-go" in mod
+    assert "github.com/modelcontextprotocol/go-sdk" in mod
