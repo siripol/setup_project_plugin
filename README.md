@@ -132,7 +132,7 @@ make session                   # start a Managed Agent session
 
 Defaults shown in **bold**. See [`commands/sn-setup.md`](commands/sn-setup.md) for the complete table.
 
-For the end-to-end usage walkthrough (REQ → sprint → spec-loop → triple-signal gate → archive), see [`workflow.md`](workflow.md). The per-command reference (one section per `sn-*` slash command, plus the Make-target mirror table) is in [`Commands.md`](Commands.md).
+For the end-to-end usage walkthrough (REQ → sprint → spec-loop → triple-signal gate → archive), see [`WORKFLOW.md`](WORKFLOW.md). The per-command reference (one section per `sn-*` slash command, plus the Make-target mirror table) is in [`COMMANDS.md`](COMMANDS.md).
 
 ## Three tiers, three langs
 
@@ -235,7 +235,7 @@ setup_project_plugin/
   scripts/importers/{md,txt,json,docx,pdf}.py
   skills/sn-setup/SKILL.md + templates/
   tests/test_sn_init.py
-  Commands.md  README.md  LICENSE  CHANGELOG.md
+  COMMANDS.md  README.md  LICENSE  CHANGELOG.md
 ```
 
 ## Changelog
