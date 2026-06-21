@@ -1,0 +1,25 @@
+[project]
+name = "${name}"
+version = "0.1.0"
+description = "Claude-powered agent scaffolded by sn-init."
+requires-python = ">=3.10"
+dependencies = [
+    "claude-agent-sdk>=0.1",
+    "anthropic>=0.40",
+    "mcp>=0.9",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -231,3 +231,78 @@ def test_add_mode_appends_gitignore(tmp_path: Path):
     assert ".claude/CLAUDE.local.md" in gi
     assert ".claude/settings.local.json" in gi
     assert "node_modules" in gi  # original preserved
+
+
+# ---------------------------------------------------------------------------
+# lang overlays: py
+
+
+def test_new_mode_py_overlay(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--lang=py", "--no-git")
+    assert rc == errors.EXIT_OK
+    project = tmp_path / "demo"
+    expected = [
+        "pyproject.toml",
+        ".python-version",
+        "src/agent.py",
+        "src/client.py",
+        "mcp_server/main.py",
+        "mcp_server/README.md",
+        "tests/test_agent.py",
+        "tests/test_client.py",
+        "Makefile.py",
+    ]
+    for rel in expected:
+        assert (project / rel).exists(), f"missing: {rel}"
+
+
+def test_new_mode_py_pyproject_substituted(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    pyproj = (tmp_path / "demo" / "pyproject.toml").read_text()
+    assert 'name = "demo"' in pyproj
+    assert "claude-agent-sdk" in pyproj
+    assert "anthropic" in pyproj
+
+
+def test_new_mode_py_state_lang(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["lang"] == "py"
+
+
+# ---------------------------------------------------------------------------
+# lang overlays: ts
+
+
+def test_new_mode_ts_overlay(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    assert rc == errors.EXIT_OK
+    project = tmp_path / "demo"
+    expected = [
+        "package.json",
+        "tsconfig.json",
+        "src/agent.ts",
+        "src/client.ts",
+        "mcp_server/main.ts",
+        "mcp_server/README.md",
+        "tests/agent.test.ts",
+        "tests/client.test.ts",
+        "Makefile.ts",
+    ]
+    for rel in expected:
+        assert (project / rel).exists(), f"missing: {rel}"
+
+
+def test_new_mode_ts_package_json_substituted(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    pkg = json.loads((tmp_path / "demo" / "package.json").read_text())
+    assert pkg["name"] == "demo"
+    assert "@anthropic-ai/claude-agent-sdk" in pkg["dependencies"]
+    assert "@anthropic-ai/sdk" in pkg["dependencies"]
+    assert "@modelcontextprotocol/sdk" in pkg["dependencies"]
+
+
+def test_new_mode_ts_state_lang(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=ts", "--no-git")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["lang"] == "ts"
