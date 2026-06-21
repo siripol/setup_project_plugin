@@ -179,6 +179,10 @@ setup_project_plugin/
   Commands.md  README.md  LICENSE  CHANGELOG.md
 ```
 
+## Changelog
+
+Versioned release notes live in [`CHANGELOG.md`](CHANGELOG.md). Plugin version is sourced from `.claude-plugin/plugin.json` (currently `0.2.0`). Each release entry calls out renamed identifiers, added features, behavior changes, and a `Vault (obsidian_sharedknowledge)` subsection that lists the knowledge-mirror commits shipped alongside the plugin batch.
+
 ## License
 
 MIT — see `LICENSE`.
