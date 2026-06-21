@@ -111,28 +111,54 @@ class Orchestrator:
         state["active_sprint"] = self.sprint_id
         self._save(state)
 
+        all_passed = True
         for req_id in reqs:
             if safety and safety.is_in_cooldown(req_id):
+                self._emit_promise("BLOCKED", "breaker tripped")
+                all_passed = False
                 print(f"orchestrator: {req_id} in cooldown — skipping", file=sys.stderr)
                 continue
-            self._run_one_req(req_id)
+            req_pass = self._run_one_req(req_id)
+            if not req_pass:
+                all_passed = False
 
         state = self._state()
-        state["sprints"][self.sprint_id]["status"] = "completed"
+        state["sprints"][self.sprint_id]["status"] = "completed" if all_passed else "blocked"
         self._save(state)
-        return 0
 
-    def _run_one_req(self, req_id: str) -> None:
+        if all_passed:
+            self._emit_promise("DONE", "triple-signal pass")
+        return 0 if all_passed else 1
+
+    def _emit_promise(self, kind: str, reason: str) -> None:
+        # ralph-wiggum plugin pattern-matches this verbatim via
+        # --completion-promise / --halt-promise. Stays under 2KB so the
+        # audit.sh Stop hook sees the same stdout pre-truncation.
+        print(f"{kind}: {self.sprint_id} {reason}", flush=True)
+
+    def _run_one_req(self, req_id: str) -> bool:
         for phase in PHASES:
             if phase == "done":
                 continue
             verdict = self.phase(req_id, phase)
             if verdict.get("status") != "ok":
+                self._emit_promise("BLOCKED", self._blocked_reason(verdict))
                 print(
                     f"orchestrator: {req_id} {phase} → {verdict}",
                     file=sys.stderr,
                 )
-                return
+                return False
+        return True
+
+    def _blocked_reason(self, verdict: dict) -> str:
+        reason = (verdict.get("reason") or "").lower()
+        if "breaker" in reason or "cooldown" in reason:
+            return "breaker tripped"
+        if "rate" in reason and "limit" in reason:
+            return "rate-limit exhausted"
+        if "max" in reason and "iter" in reason:
+            return "max iterations reached"
+        return verdict.get("reason") or "phase failed"
 
     # --- phases ---
 

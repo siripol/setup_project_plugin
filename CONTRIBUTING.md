@@ -1,0 +1,85 @@
+# Contributing to setup-project-plugin
+
+Thanks for opening this file — pull requests and issues are welcome.
+
+## Quick start
+
+```bash
+git clone https://github.com/siripol/setup_project_plugin
+cd setup_project_plugin
+uv venv .venv
+uv pip install pytest
+.venv/bin/python -m pytest tests/test_sn_init.py -q
+```
+
+All 96 cases must pass before you push.
+
+## Code layout
+
+- `commands/sn-setup.md` — plugin entry slash command (frontmatter + body).
+- `scripts/sn_init.py` — scaffolder logic (argv parse, mode detect, atomic write).
+- `scripts/claude_md_merger.py` — pure section-aware merge for `CLAUDE*.md` during `--upgrade --rename-ns`.
+- `scripts/gen_subagent_index.py` — regenerates `docs/design-docs/subagents.md` from agent frontmatter.
+- `skills/sn-setup/templates/` — everything the scaffolder copies into a target project.
+  - `claude/commands/sn-*.md` — 17 generated slash commands.
+  - `claude/agents/sn-*.md` — 8 generated subagents.
+  - `managed-agent-base/` — language-agnostic project scaffold (`Makefile`, `CLAUDE.md`, `.harness/`, `scripts/`, `docs/`).
+  - `lang/{go,py,ts}/` — per-stack overlay (`src/`, `mcp_server/`, `tests/`, build config).
+- `tests/test_sn_init.py` — 96 pytest cases covering scaffold, upgrade, rename-ns, merger, importers, safety, Makefile rendering, orchestrator promise emission.
+- `.claude-plugin/{plugin.json,marketplace.json}` — Claude Code manifest + marketplace catalog.
+
+## Workflow
+
+1. Open an issue first for anything non-trivial so we can agree on the shape.
+2. Create a feature branch: `git checkout -b feat/<short-name>` (or `fix/...`, `docs/...`, `chore/...`).
+3. Write tests for the new behaviour. We aim for one new test per public surface change. Keep the scaffolder behaviour deterministic — tests should not need network access.
+4. Run `python -m pytest tests/test_sn_init.py -q` locally before pushing.
+5. Push the branch and open a PR against `main`. The CI workflow (see `.github/workflows/ci.yml`) re-runs pytest on every push.
+6. Update `CHANGELOG.md` under an `Unreleased` section (or under the current version if you are landing right before a release tag).
+7. Squash-merge when CI is green.
+
+## Commit message style
+
+We loosely follow Conventional Commits:
+
+```
+<type>(<scope>): short summary
+
+Optional longer body wrapped at ~72 columns. Explain *why* the change is
+needed and what behaviour changes. Reference REQ-NNN ids and prior
+commits where useful.
+```
+
+Common types we use here: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `style`. Scope is usually the touched area: `sn-setup`, `sn-init`, `WORKFLOW`, `README`, `plugin`, `scaffold`, etc.
+
+We do not append a `Co-Authored-By:` trailer for AI-assisted commits; commits are credited to the human author.
+
+## Adding a new generated `sn-*` command
+
+1. Create `skills/sn-setup/templates/claude/commands/sn-<name>.md` with frontmatter `name: sn-<name>` (matching the filename stem). Body documents args, behaviour, and side-effects.
+2. If the command takes args via a Make wrapper, add a target to `skills/sn-setup/templates/managed-agent-base/Makefile` next to the related family.
+3. Add `<name>` to `RENAMED_COMMANDS` in `scripts/sn_init.py` so `/sn-setup --upgrade --rename-ns` migrates older scaffolds.
+4. Document the command in `COMMANDS.md` under the right family heading and update the totals in the header.
+5. Add a `WORKFLOW.md` section if the command joins the spec-loop flow.
+6. Add tests under `tests/test_sn_init.py`: file presence, frontmatter, key body strings, Make target (if any), `RENAMED_COMMANDS` membership.
+
+## Adding a new generated subagent
+
+1. Create `skills/sn-setup/templates/claude/agents/sn-<name>.md` with the standard capability manifest in frontmatter (`tools`, `can_modify`, `can_delegate`, `chokepoint_gate`).
+2. Wire it into `PHASE_TO_SUBAGENT` in `skills/sn-setup/templates/managed-agent-base/scripts/orchestrator.py` if it joins a spec-loop phase.
+3. Update the subagent table in `README.md` and the orchestrator phase table in `WORKFLOW.md`.
+4. Add it to `RENAMED_AGENTS` in `scripts/sn_init.py` and update the workflow-files test in `tests/test_sn_init.py`.
+
+## Reporting bugs
+
+Issue with a scaffolded project? Include:
+
+- Output of `python --version` (or the equivalent for the lang overlay you used).
+- The full `/sn-setup` (or `/sn-setup --upgrade --rename-ns`) invocation.
+- Contents of `.sn-init-state.json` from the affected project.
+- `make safety-status` output if the breaker tripped.
+- A minimal repro path, ideally a fresh scaffold under `/tmp` that reproduces the symptom.
+
+## License
+
+By contributing you agree your work is licensed under the MIT License (see `LICENSE`).

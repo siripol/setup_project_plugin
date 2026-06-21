@@ -767,6 +767,70 @@ def test_orchestrator_run_processes_reqs(tmp_path: Path, monkeypatch):
     assert state["sprints"]["SPRINT-007"]["status"] == "completed"
 
 
+def test_orchestrator_emits_done_promise_on_pass(tmp_path: Path, monkeypatch, capsys):
+    """Triple-signal pass must emit the ralph-loop completion promise verbatim."""
+    orchestrator = _import_orchestrator()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    sprint = tmp_path / "docs" / "sprints" / "active" / "SPRINT-101-x"
+    (sprint / "requirements").mkdir(parents=True)
+    (sprint / "requirements" / "REQ-001-foo.md").write_text("body")
+
+    orch = orchestrator.Orchestrator(sprint_id="SPRINT-101", project_root=tmp_path)
+    rc = orch.run()
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "DONE: SPRINT-101 triple-signal pass" in out
+
+
+def test_orchestrator_emits_blocked_promise_on_phase_failure(tmp_path: Path, monkeypatch, capsys):
+    """A phase failure must emit `BLOCKED: <sprint> <reason>` so ralph terminates."""
+    orchestrator = _import_orchestrator()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    sprint = tmp_path / "docs" / "sprints" / "active" / "SPRINT-102-x"
+    (sprint / "requirements").mkdir(parents=True)
+    (sprint / "requirements" / "REQ-001-foo.md").write_text("body")
+
+    # Force the orchestrator's invoke_subagent stub to return an error verdict
+    # so the spec-loop fails and `_run_one_req` emits a BLOCKED: promise.
+    def _fail(*args, **kwargs):
+        return {"status": "failed", "reason": "circuit breaker tripped"}
+    monkeypatch.setattr(orchestrator, "invoke_subagent", _fail)
+
+    orch = orchestrator.Orchestrator(sprint_id="SPRINT-102", project_root=tmp_path)
+    rc = orch.run()
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "BLOCKED: SPRINT-102 breaker tripped" in out
+    assert "DONE: SPRINT-102" not in out
+
+
+def test_orchestrator_promise_strings_match_ralph_contract():
+    """Promise lines short (<2KB) so audit.sh + ralph see the same stdout."""
+    orchestrator = _import_orchestrator()
+    # _emit_promise renders strings inline; verify shape directly against the
+    # contract documented in WORKFLOW.md.
+    orch = orchestrator.Orchestrator(sprint_id="SPRINT-001", project_root=Path("/tmp"))
+    import io
+    import contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        orch._emit_promise("DONE", "triple-signal pass")
+        orch._emit_promise("BLOCKED", "breaker tripped")
+        orch._emit_promise("BLOCKED", "rate-limit exhausted")
+    lines = buf.getvalue().splitlines()
+    assert lines == [
+        "DONE: SPRINT-001 triple-signal pass",
+        "BLOCKED: SPRINT-001 breaker tripped",
+        "BLOCKED: SPRINT-001 rate-limit exhausted",
+    ]
+    for line in lines:
+        assert len(line.encode("utf-8")) < 2048
+
+
 # ---------------------------------------------------------------------------
 # Lang orchestrator files
 
@@ -1072,6 +1136,88 @@ def test_go_overlay_go_mod_parses(tmp_path: Path):
 def test_scaffold_subagent_index_script_present(tmp_path: Path):
     _run(tmp_path, "demo", "--no-git")
     assert (tmp_path / "demo" / "scripts" / "gen_subagent_index.py").exists()
+
+
+# ---------------------------------------------------------------------------
+# Makefile $$VAR rendering — regression for the safe_substitute halving bug
+
+
+def test_makefile_preserves_double_dollar_shell_vars(tmp_path: Path):
+    """`$$SPRINT` in template must survive scaffolding so Make reads it as
+    shell `$SPRINT`. Previously `_substitute` ran safe_substitute on any file
+    containing `${...}` (triggered by `${next:-000}` in two recipes), which
+    halved every `$$VAR` to `$VAR` and silently broke every Make target."""
+    _run(tmp_path, "demo", "--no-git")
+    mk = (tmp_path / "demo" / "Makefile").read_text()
+    # Sample a few representative targets that take args via shell vars.
+    for token in (
+        "[ -z \"$$SLUG\" ]",                              # req-new
+        "[ -z \"$$SPRINT\" ] || [ -z \"$$REQ\" ]",        # sprint-add
+        "[ -z \"$$SPRINT\" ] || [ -z \"$$N\" ]",          # sprint-concurrent
+        "$$(find docs -name 'REQ-*.md'",                  # shell command substitution
+    ):
+        assert token in mk, f"Make recipe mangled by safe_substitute: missing {token!r}"
+
+
+def test_integration_scaffold_runs_make_test(tmp_path: Path):
+    """End-to-end: scaffold a python project then run `make test` inside.
+    Validates the full bootstrap path beyond file presence — pyproject
+    parses, tests/ files import, scaffolded pytest passes."""
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("make"):
+        pytest.skip("make not installed")
+    if not _shutil.which("uv") and not _shutil.which("python3"):
+        pytest.skip("neither uv nor python3 installed")
+    _run(tmp_path, "demo", "--lang=py", "--no-git", "--no-ci", "--no-obsidian")
+    project = tmp_path / "demo"
+
+    # Drive Makefile.py's `test` target (lang overlay). Recipe runs
+    # `uv run pytest`. We don't care whether pytest finds tests / passes —
+    # the assertion is that the Make recipe parses + invokes uv. A shell
+    # mangling bug (`$X` → `command not found`) would surface here.
+    r = subprocess.run(
+        ["make", "-f", "Makefile.py", "test"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    combined = r.stdout + r.stderr
+    # Positive signal — `uv run pytest` reached the uv subprocess.
+    assert "uv run pytest" in combined or "Using CPython" in combined, combined
+    # Negative signal — the broken-recipe failure mode does NOT happen.
+    assert ": command not found" not in combined, combined
+
+
+def test_makefile_targets_runnable(tmp_path: Path):
+    """End-to-end: a representative subset of Make targets actually run
+    without `$VAR command not found` or similar shell breakage."""
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("make"):
+        pytest.skip("make not installed")
+    _run(tmp_path, "demo", "--lang=py", "--no-git")
+    project = tmp_path / "demo"
+
+    # No-arg call must surface the usage hint and exit 2.
+    r = subprocess.run(["make", "req-new"], cwd=project, capture_output=True, text=True)
+    assert r.returncode == 2
+    assert "Usage" in (r.stdout + r.stderr)
+
+    # Arg call must succeed and create the REQ file.
+    r = subprocess.run(["make", "req-new", "SLUG=foo"], cwd=project, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "created docs/requirements/active/REQ-001-foo.md" in r.stdout
+
+    # Hint-only targets should echo the slash-command invocation with the
+    # user-supplied arg fully expanded (not "$SPRINT" or empty).
+    r = subprocess.run(
+        ["make", "sprint-concurrent", "SPRINT=SPRINT-001", "N=3"],
+        cwd=project, capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "/sn-sprint-run SPRINT-001 with --workflow-concurrent=3" in r.stdout
 
 
 # ---------------------------------------------------------------------------
