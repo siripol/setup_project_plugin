@@ -360,3 +360,222 @@ def test_agent_ts_wires_audit_hook(tmp_path: Path):
     src = (tmp_path / "demo" / "src" / "agent.ts").read_text()
     assert "auditHook" in src
     assert ".claude/hooks/audit.js" in src
+
+
+# ---------------------------------------------------------------------------
+# subagent filtering
+
+
+def test_subagents_default_minimal(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    assert (agents / "code-reviewer.md").exists()
+    assert (agents / "test-writer.md").exists()
+    # Optional subagents NOT present by default
+    assert not (agents / "doc-writer.md").exists()
+    assert not (agents / "security-auditor.md").exists()
+    assert not (agents / "planner.md").exists()
+
+
+def test_subagents_all_ships_optional(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--subagents=all")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    for name in ("code-reviewer", "test-writer", "doc-writer", "security-auditor", "planner"):
+        assert (agents / f"{name}.md").exists(), f"missing: {name}"
+
+
+def test_subagents_none_drops_all(tmp_path: Path):
+    # --subagents=none + --workflow=none → only README.md remains.
+    _run(tmp_path, "demo", "--no-git", "--subagents=none", "--workflow=none")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    md_files = list(agents.glob("*.md"))
+    assert all(p.name == "README.md" for p in md_files), [p.name for p in md_files]
+
+
+def test_subagents_unknown_rejected(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--no-git", "--subagents=does-not-exist")
+    assert rc == errors.EXIT_USAGE
+
+
+def test_subagent_shortcut_commands_gated_on_subagent(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--subagents=all")
+    commands = tmp_path / "demo" / ".claude" / "commands"
+    for slash in ("review", "test", "doc", "audit", "plan"):
+        assert (commands / f"{slash}.md").exists(), f"missing /{slash}"
+
+
+def test_subagent_shortcut_omitted_when_subagent_absent(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")  # only base 2 subagents
+    commands = tmp_path / "demo" / ".claude" / "commands"
+    assert (commands / "review.md").exists()
+    assert (commands / "test.md").exists()
+    assert not (commands / "audit.md").exists()
+    assert not (commands / "plan.md").exists()
+    assert not (commands / "doc.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# workflow filtering
+
+
+def test_workflow_spec_loop_default_ships_workflow_files(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    commands = tmp_path / "demo" / ".claude" / "commands"
+    for name in ("task-decomposer", "task-executor", "task-tester", "integration-tester",
+                 "evaluator", "adversary", "knowledge-curator", "impact-analyzer"):
+        assert (agents / f"{name}.md").exists(), f"missing workflow subagent: {name}"
+    for slash in ("sprint-new", "sprint-add", "sprint-run", "sprint-done", "sprint-status",
+                  "req-new", "req-import", "req-rollback", "req-resume", "req-replay",
+                  "knowledge-check", "knowledge-update", "knowledge-promote",
+                  "knowledge-demote", "knowledge-tech-matrix", "gh-import"):
+        assert (commands / f"{slash}.md").exists(), f"missing workflow command: {slash}"
+
+
+def test_workflow_none_drops_workflow_files(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--workflow=none")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    commands = tmp_path / "demo" / ".claude" / "commands"
+    for name in WORKFLOW_SUBAGENTS:
+        assert not (agents / f"{name}.md").exists(), f"unexpected workflow subagent: {name}"
+    for slash in ("sprint-new", "req-new", "knowledge-update"):
+        assert not (commands / f"{slash}.md").exists(), f"unexpected workflow command: {slash}"
+    # Base shortcuts still survive
+    assert (commands / "claude-local-edit.md").exists()
+    assert (commands / "claude-local-show.md").exists()
+
+
+WORKFLOW_SUBAGENTS = (
+    "task-decomposer", "task-executor", "task-tester", "integration-tester",
+    "evaluator", "adversary", "knowledge-curator", "impact-analyzer",
+)
+
+
+# ---------------------------------------------------------------------------
+# harness scaffold
+
+
+def test_harness_scaffold_present(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    h = tmp_path / "demo" / ".harness"
+    for rel in ("README.md", "chokepoints.yaml", "proof-bundle-template.md",
+                "rules/README.md", "invariants/README.md", "normal-forms/README.md"):
+        assert (h / rel).exists(), f"missing: {rel}"
+
+
+# ---------------------------------------------------------------------------
+# claude-local commands
+
+
+def test_claude_local_commands_always_shipped(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--workflow=none")
+    commands = tmp_path / "demo" / ".claude" / "commands"
+    assert (commands / "claude-local-edit.md").exists()
+    assert (commands / "claude-local-show.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# obsidian flags persisted in state
+
+
+def test_obsidian_knowledge_default_project(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["flags"]["obsidian_knowledge"] == "project"
+    assert state["flags"]["obsidian_mcp"] == "auto"
+
+
+def test_obsidian_knowledge_global_flag(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--obsidian-knowledge=global", "--obsidian-mcp=on")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["flags"]["obsidian_knowledge"] == "global"
+    assert state["flags"]["obsidian_mcp"] == "on"
+
+
+# ---------------------------------------------------------------------------
+# REQ importer
+
+
+def test_req_import_from_markdown(tmp_path: Path):
+    # First scaffold a project so docs/requirements/ exists.
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    src = project / "external-spec.md"
+    src.write_text(
+        "# Login flow\n\n"
+        "Priority: high\n\n"
+        "## Acceptance criteria\n"
+        "- user can log in with email + password\n"
+        "- session expires after 15 min idle\n",
+        encoding="utf-8",
+    )
+    import subprocess
+    importer = Path(__file__).resolve().parent.parent / "scripts" / "req_import.py"
+    result = subprocess.run(
+        ["python3", str(importer), str(src)], cwd=project, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    reqs = list((project / "docs" / "requirements" / "active").glob("REQ-*.md"))
+    assert reqs, "no REQ file written"
+    body = reqs[0].read_text()
+    assert "Login flow" in body
+    assert "session expires after 15 min idle" in body
+    assert "priority: high" in body
+
+
+# ---------------------------------------------------------------------------
+# Obsidian client backend selection
+
+
+def test_obsidian_client_default_backend_filesystem(tmp_path: Path):
+    import sys as _sys
+
+    plugin_root = Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(plugin_root / "scripts"))
+    try:
+        import importlib
+        oc = importlib.import_module("obsidian_client")
+        client = oc.make_client(oc.ObsidianConfig(
+            vault_root=tmp_path, mode="auto", project="demo", knowledge_scope="project"
+        ))
+        assert client.backend == "fs"
+    finally:
+        _sys.path.remove(str(plugin_root / "scripts"))
+
+
+def test_obsidian_client_mode_on_requires_mcp(tmp_path: Path):
+    import sys as _sys
+
+    plugin_root = Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(plugin_root / "scripts"))
+    try:
+        import importlib
+        oc = importlib.import_module("obsidian_client")
+        with pytest.raises(oc.ObsidianBackendMissing):
+            oc.make_client(oc.ObsidianConfig(vault_root=tmp_path, mode="on", project="demo"))
+    finally:
+        _sys.path.remove(str(plugin_root / "scripts"))
+
+
+def test_obsidian_client_writes_project_topic(tmp_path: Path):
+    import sys as _sys
+
+    plugin_root = Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(plugin_root / "scripts"))
+    try:
+        import importlib
+        oc = importlib.import_module("obsidian_client")
+        client = oc.make_client(oc.ObsidianConfig(
+            vault_root=tmp_path, mode="off", project="demo", knowledge_scope="project"
+        ))
+        path = client.write_topic(
+            "project", "auth", "## Notes\n\nSession TTL: 15 min.\n",
+            traceback={"origin_project": "demo", "origin_req": "REQ-001"},
+        )
+        assert path == tmp_path / "knowledge" / "projects" / "demo" / "auth.md"
+        body = path.read_text()
+        assert "topic: auth" in body
+        assert "Session TTL" in body
+        assert "origin_project: demo" in body
+    finally:
+        _sys.path.remove(str(plugin_root / "scripts"))
