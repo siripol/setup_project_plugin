@@ -89,6 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--subagents", default=",".join(DEFAULT_SUBAGENTS),
                    help="Comma-list, 'all', or 'none'")
     p.add_argument("--no-audit-log", action="store_true", dest="no_audit_log")
+    p.add_argument("--upgrade", action="store_true",
+                   help="Patch-only: pull missing template files into an existing scaffold and "
+                        "bump .sn-init-state.json template_version. Never overwrites edited files.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     return p
@@ -151,6 +154,10 @@ def detect_mode(cwd: Path, name: str | None) -> tuple[str, Path]:
 
 def run(args: argparse.Namespace) -> int:
     cwd = Path.cwd()
+
+    if args.upgrade:
+        return _run_upgrade(args, cwd)
+
     mode, target = detect_mode(cwd, args.name)
     logger = snlog.StepLogger(target=target if not args.dry_run else None, verbose=args.verbose)
     logger.info(f"mode: {mode}")
@@ -160,6 +167,75 @@ def run(args: argparse.Namespace) -> int:
         return _run_new(args, target, logger)
     else:
         return _run_add(args, target, logger)
+
+
+def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
+    target = cwd.resolve()
+    state_path = target / ".sn-init-state.json"
+    if not state_path.exists():
+        raise errors.SnInitError(
+            "no .sn-init-state.json in cwd; upgrade only works on an existing sn-init scaffold."
+        )
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise errors.SnInitError(f"could not read state file: {e}") from e
+
+    prev_version = state.get("template_version", "")
+    if prev_version == TEMPLATE_VERSION:
+        print(f"sn-init: already at template version {TEMPLATE_VERSION}; nothing to do.")
+        return errors.EXIT_OK
+
+    # Reuse the flags persisted in state when args weren't passed explicitly.
+    persisted = state.get("flags", {})
+    args.lang = state.get("lang", args.lang)
+    args.tier = state.get("tier", args.tier)
+    args.workflow = persisted.get("workflow", args.workflow)
+    args.subagents = ",".join(persisted.get("subagents", []) or list(DEFAULT_SUBAGENTS))
+    args.no_ci = not persisted.get("ci", True)
+    args.devcontainer = persisted.get("devcontainer", False)
+    args.license_kind = persisted.get("license", args.license_kind)
+    args.no_audit_log = not persisted.get("audit_log", True)
+
+    files = _plan_new_files(args, target)
+
+    if args.dry_run:
+        added = [(rel, c) for (rel, c) in files if not (target / rel).exists()]
+        print(f"[upgrade-dry-run] would add {len(added)} missing files")
+        for rel, _ in sorted(added):
+            print(f"  + {rel}")
+        return errors.EXIT_OK
+
+    logger = snlog.StepLogger(target=target, verbose=args.verbose)
+    added: list[str] = []
+    for rel, content in files:
+        path = target / rel
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with logger.step("add", rel):
+            path.write_text(content, encoding="utf-8")
+        if _should_be_executable(rel):
+            try:
+                path.chmod(0o755)
+            except OSError:
+                pass
+        added.append(rel)
+
+    # Bump state version + record the upgrade.
+    state["template_version"] = TEMPLATE_VERSION
+    state.setdefault("upgrades", []).append({
+        "from": prev_version,
+        "to": TEMPLATE_VERSION,
+        "added": added,
+        "at": datetime.now(timezone.utc).isoformat(),
+    })
+    state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    print(
+        f"sn-init: upgraded {prev_version or '(none)'} → {TEMPLATE_VERSION}; "
+        f"added {len(added)} file(s)."
+    )
+    return errors.EXIT_OK
 
 
 def _run_new(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -> int:
