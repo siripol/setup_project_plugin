@@ -1,0 +1,16 @@
+# Files / glob patterns that require a human gate before modification.
+# The PreToolUse hook .claude/hooks/chokepoint-gate.* reads this file and
+# halts Edit/Write tool calls that target listed paths until the user approves.
+#
+# Add entries that are critical and easy to get wrong:
+#   - DB schemas, migration files
+#   - agents/main.yaml (Managed Agent config)
+#   - mcp/mcp.json (MCP server registry)
+#   - SECURITY.md, environments/*.yaml
+chokepoints:
+  - agents/main.yaml
+  - environments/*.yaml
+  - mcp/mcp.json
+  - docs/principles/security.md
+  - .harness/**
+  - .claude-plugin/plugin.json

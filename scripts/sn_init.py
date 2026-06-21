@@ -39,6 +39,32 @@ LANG_CHOICES = ("go", "py", "ts")
 TIER_CHOICES = ("2", "3", "both")
 LICENSE_CHOICES = ("none", "MIT", "Apache-2.0")
 WORKFLOW_CHOICES = ("none", "spec-loop")
+OBSIDIAN_KNOWLEDGE_CHOICES = ("project", "global")
+OBSIDIAN_MCP_CHOICES = ("auto", "on", "off")
+
+# Subagent library buckets (filenames under templates/claude/agents/).
+DEFAULT_SUBAGENTS = ("code-reviewer", "test-writer")
+OPTIONAL_SUBAGENTS = ("doc-writer", "security-auditor", "planner")
+WORKFLOW_SUBAGENTS = (
+    "task-decomposer",
+    "task-executor",
+    "task-tester",
+    "integration-tester",
+    "evaluator",
+    "adversary",
+    "knowledge-curator",
+    "impact-analyzer",
+)
+
+# Slash commands that pair with optional subagents (only ship when the
+# subagent ships).
+SUBAGENT_SHORTCUTS = {
+    "code-reviewer": "review",
+    "test-writer": "test",
+    "doc-writer": "doc",
+    "security-auditor": "audit",
+    "planner": "plan",
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,12 +80,32 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--devcontainer", action="store_true")
     p.add_argument("--obsidian", nargs="?", const="__default__", default="__default__")
     p.add_argument("--no-obsidian", action="store_true")
+    p.add_argument("--obsidian-knowledge", choices=OBSIDIAN_KNOWLEDGE_CHOICES,
+                   default="project", dest="obsidian_knowledge")
+    p.add_argument("--obsidian-mcp", choices=OBSIDIAN_MCP_CHOICES,
+                   default="auto", dest="obsidian_mcp")
     p.add_argument("--prompt", default=None)
     p.add_argument("--workflow", choices=WORKFLOW_CHOICES, default="spec-loop")
+    p.add_argument("--subagents", default=",".join(DEFAULT_SUBAGENTS),
+                   help="Comma-list, 'all', or 'none'")
     p.add_argument("--no-audit-log", action="store_true", dest="no_audit_log")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     return p
+
+
+def _resolve_subagents(spec: str) -> set[str]:
+    spec = spec.strip().lower()
+    if spec == "all":
+        return set(DEFAULT_SUBAGENTS + OPTIONAL_SUBAGENTS)
+    if spec == "none":
+        return set()
+    names = {n.strip() for n in spec.split(",") if n.strip()}
+    valid = set(DEFAULT_SUBAGENTS + OPTIONAL_SUBAGENTS)
+    unknown = names - valid
+    if unknown:
+        raise errors.UsageError(f"unknown subagents: {sorted(unknown)}; valid: {sorted(valid)}")
+    return names
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -264,10 +310,55 @@ def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[st
         "lang": args.lang,
         "model": "claude-opus-4-8",
     }
+    subagents = _resolve_subagents(args.subagents)
+    workflow_on = args.workflow == "spec-loop"
+
     for path in sorted(claude.rglob("*")):
         if path.is_dir():
             continue
-        rel = Path(".claude") / path.relative_to(claude)
+        rel_native = path.relative_to(claude)  # native nested subdir layout
+        parts = rel_native.parts
+
+        # --- subagent filter: keep top-level base files, gate optional + workflow.
+        if parts and parts[0] == "agents":
+            # Drop the optional/ and workflow/ subdir prefix and gate by flags.
+            if len(parts) == 1 and parts[0] == "agents":
+                pass  # not possible — rglob yields files only
+            elif len(parts) >= 2 and parts[1] == "optional":
+                name = Path(parts[-1]).stem
+                if name not in subagents:
+                    continue
+                rel_native = Path("agents") / parts[-1]
+            elif len(parts) >= 2 and parts[1] == "workflow":
+                if not workflow_on:
+                    continue
+                rel_native = Path("agents") / parts[-1]
+            elif len(parts) == 2:
+                # Top-level agents/foo.md — README ships always; subagent files
+                # ship only when listed in the resolved subagent set.
+                stem = Path(parts[-1]).stem
+                if stem == "README":
+                    pass
+                elif stem in subagents:
+                    pass
+                else:
+                    continue
+
+        # --- command filter: gate workflow/ + subagents/ subdirs.
+        if parts and parts[0] == "commands":
+            if len(parts) >= 2 and parts[1] == "workflow":
+                if not workflow_on:
+                    continue
+                rel_native = Path("commands") / parts[-1]
+            elif len(parts) >= 2 and parts[1] == "subagents":
+                stem = Path(parts[-1]).stem  # e.g. "review"
+                owner = _shortcut_owner(stem)
+                if owner is None or owner not in subagents:
+                    continue
+                rel_native = Path("commands") / parts[-1]
+            # Top-level commands/*.md (README, claude-local-*): always ship.
+
+        rel = Path(".claude") / rel_native
         rel_str = str(rel)
 
         # Skip audit hook artifacts when the flag opts out.
@@ -287,6 +378,13 @@ def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[st
         content = _substitute(content, ctx)
         files.append((rel_str, content))
     return files
+
+
+def _shortcut_owner(slash_name: str) -> str | None:
+    for owner, shortcut in SUBAGENT_SHORTCUTS.items():
+        if shortcut == slash_name:
+            return owner
+    return None
 
 
 def _strip_audit_hooks(settings_json: str) -> str:
@@ -366,7 +464,10 @@ def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[
             "ci": not args.no_ci,
             "devcontainer": args.devcontainer,
             "obsidian": (args.obsidian if args.obsidian != "__default__" else "default") if not args.no_obsidian else "off",
+            "obsidian_knowledge": args.obsidian_knowledge,
+            "obsidian_mcp": args.obsidian_mcp,
             "workflow": args.workflow,
+            "subagents": sorted(_resolve_subagents(args.subagents)),
             "install": args.install,
             "git": not args.no_git,
             "audit_log": not args.no_audit_log,
