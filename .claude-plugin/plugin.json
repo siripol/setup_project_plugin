@@ -4,10 +4,25 @@
   "description": "Scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.",
   "author": "siripoln.media@gmail.com",
   "license": "MIT",
+  "homepage": "https://github.com/siripol/setup_project_plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/siripol/setup_project_plugin.git"
+  },
   "commands": ["commands/sn-setup.md"],
   "skills": ["skills/sn-setup/SKILL.md"],
   "entry": "scripts/sn_init.py",
+  "keywords": [
+    "claude-code",
+    "scaffold",
+    "agent-sdk",
+    "managed-agents",
+    "spec-loop",
+    "obsidian"
+  ],
   "marketplace": {
-    "published": false
+    "published": true,
+    "category": "scaffolding",
+    "tagline": "Scaffold Claude-powered projects with Agent SDK + Managed Agents, spec-loop workflow, Obsidian knowledge mirror."
   }
 }
