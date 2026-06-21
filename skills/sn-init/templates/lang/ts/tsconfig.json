@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "outDir": "dist",
+    "declaration": true,
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "mcp_server/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
