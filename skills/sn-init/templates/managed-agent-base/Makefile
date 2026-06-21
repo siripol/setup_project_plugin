@@ -9,9 +9,9 @@
         hooks-install hooks-uninstall orchestrate subagent-index
 
 help: ## Show this help
-	@awk 'BEGIN {FS=":.*?## "; printf "Targets:\n"} \
-	      /^[a-zA-Z0-9_-]+:.*?##/ {printf "  %-22s %s\n", $$1, $$2}' \
-	      $(MAKEFILE_LIST) | sort
+	@printf "Targets:\n"
+	@grep -hE '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | sort | \
+	 sed 's/^\([^:]*\):.*## /  \1\t/'
 
 agent: ## Apply Managed Agent config (ant agents apply agents/main.yaml)
 	ant agents apply agents/main.yaml
