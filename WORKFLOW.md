@@ -273,6 +273,72 @@ After `sprint-done`:
 - `<vault>/knowledge/projects/demo-auth/` has new facts curated from the REQ (auth-policy, session-ttl, etc.).
 - `.sn-init/logs/exec-*.jsonl` has the full audit log for the session.
 
+## Worked example — 5 REQs, 2 sprints, one release
+
+A concrete scenario: you have five requirements for a `payments` service. You group them into two sprints (auth + invoicing), run them in order, and cut a release once both are archived.
+
+### Diagram
+
+```mermaid
+flowchart TB
+    subgraph S1["SPRINT-001 — auth"]
+        R1[REQ-001 login-flow]
+        R2[REQ-002 session-expiry]
+        R3[REQ-003 lockout-policy]
+    end
+
+    subgraph S2["SPRINT-002 — invoicing"]
+        R4[REQ-004 invoice-create]
+        R5[REQ-005 invoice-pdf]
+    end
+
+    S1 --> Run1[/sn-sprint-run SPRINT=SPRINT-001/]
+    Run1 --> Done1[/sn-sprint-done SPRINT=SPRINT-001/]
+    Done1 --> S2
+    S2 --> Run2[/sn-sprint-run SPRINT=SPRINT-002/]
+    Run2 --> Done2[/sn-sprint-done SPRINT=SPRINT-002/]
+    Done2 --> Tag([git tag v1.0.0 + gh release])
+```
+
+### Commands, in order
+
+```
+# Create 5 requirements
+/sn-req-new SLUG=login-flow         # → REQ-001
+/sn-req-new SLUG=session-expiry     # → REQ-002
+/sn-req-new SLUG=lockout-policy     # → REQ-003
+/sn-req-new SLUG=invoice-create     # → REQ-004
+/sn-req-new SLUG=invoice-pdf        # → REQ-005
+# edit each REQ-NNN-*.md to fill acceptance criteria
+
+# Sprint 1 — auth (REQ-001..003)
+/sn-sprint-new SLUG=auth                       # → SPRINT-001
+/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-001
+/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-002
+/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-003
+/sn-knowledge-check SPRINT=SPRINT-001          # optional preview
+/sn-sprint-run     SPRINT=SPRINT-001
+/sn-sprint-done    SPRINT=SPRINT-001           # archives to docs/sprints/completed/
+
+# Sprint 2 — invoicing (REQ-004..005)
+/sn-sprint-new SLUG=invoicing                  # → SPRINT-002
+/sn-sprint-add SPRINT=SPRINT-002 REQ=REQ-004
+/sn-sprint-add SPRINT=SPRINT-002 REQ=REQ-005
+/sn-sprint-run     SPRINT=SPRINT-002
+/sn-sprint-done    SPRINT=SPRINT-002
+
+# Release
+git tag -a v1.0.0 -m "v1.0.0 — auth + invoicing"
+git push origin v1.0.0
+gh release create v1.0.0 --generate-notes
+```
+
+### Why this order
+
+- Sprint 1 runs first because invoicing in Sprint 2 has `requires: [REQ-001]` (every invoice needs an authenticated user). The orchestrator topo-sorts on the `requires:` field, so cross-sprint dependency is just a `requires:` line on the dependent REQ.
+- Both sprints curate knowledge after their triple-signal gate passes — `sn-knowledge-curator` writes `projects/payments/auth-policy.md`, `session-ttl.md`, `lockout-counter.md`, `invoice-shape.md`, `pdf-renderer.md` to the Obsidian vault.
+- The release tag wraps both archived sprints into one shipped version. `gh release create --generate-notes` pulls from commits since the last tag, which already mention `REQ-NNN` thanks to the scaffolded `commit-msg` git hook.
+
 ## Recovery cheat sheet
 
 | Situation | Command |
