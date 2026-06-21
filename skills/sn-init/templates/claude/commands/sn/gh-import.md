@@ -10,4 +10,4 @@ Runs `gh issue list --label req --state open --json number,title,body` and conve
 - Issue number → REQ id suffix
 - Label set → priority hint
 
-Requires `gh` CLI authenticated. Paired with `--workflow-pr` + `/gh-close` for auto-close on merge.
+Requires `gh` CLI authenticated. Paired with `--workflow-pr` + `make gh-close` for auto-close on merge.

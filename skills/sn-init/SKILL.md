@@ -37,9 +37,20 @@ See plugin `README.md` for install instructions.
 - Obsidian tracking note ON (opt-out via `--no-obsidian`)
 - Dep install OFF (opt-in via `--install`)
 
+## Namespace
+
+Generated commands and subagents land under an `sn/` subdir (`.claude/commands/sn/`, `.claude/agents/sn/`) so Claude Code surfaces them as `/sn:<name>` and `sn:<name>` — distinct from user-authored commands. The entry command itself stays `/sn-init`.
+
+For projects scaffolded before this layout, run `/sn-init --upgrade --rename-ns` to:
+- relocate existing `.claude/commands/<name>.md` → `.claude/commands/sn/<name>.md` and the agent equivalents
+- rewrite `/<name>` references in Makefile, `scripts/orchestrator.py`, and command docs
+- section-merge every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten)
+- backups written next to each merged file as `<path>.pre-upgrade-<utc-ts>.bak`
+
 ## Safety
 
 - Writes to tmp dir + atomic `mv` (crash-safe)
 - Idempotent re-run via `.sn-init-state.json`
 - Add mode refuses to overwrite existing `.claude/` without state file
 - `--dry-run` previews without any FS write
+- `--rename-ns` rewrites before rename so renamed files carry fixed-up content; refuses unless `--upgrade` is also set

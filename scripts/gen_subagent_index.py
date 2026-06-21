@@ -44,12 +44,21 @@ def collect_agents(root: Path) -> Iterator[dict]:
     agents_dir = root / AGENT_DIR
     if not agents_dir.exists():
         return
-    for path in sorted(agents_dir.glob("*.md")):
+    for path in sorted(agents_dir.rglob("*.md")):
         if path.name == "README.md":
             continue
         fm = parse_frontmatter(path.read_text(encoding="utf-8"))
+        rel_parts = path.relative_to(agents_dir).parts
+        # Subdir under .claude/agents/ becomes the Claude Code namespace prefix
+        # (e.g. agents/sn/foo.md → name "sn:foo").
+        bare = fm.get("name", path.stem)
+        if len(rel_parts) > 1:
+            namespace = ":".join(rel_parts[:-1])
+            display_name = f"{namespace}:{bare}"
+        else:
+            display_name = bare
         yield {
-            "name": fm.get("name", path.stem),
+            "name": display_name,
             "description": fm.get("description", ""),
             "tools": fm.get("tools", []),
             "can_modify": fm.get("can_modify", []),

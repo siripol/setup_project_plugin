@@ -6,4 +6,4 @@ args:
   - REQ (required) — REQ id
 ---
 
-Reverse of `/sprint-add`. Useful when re-scoping a sprint before running it. Refuses if the sprint is `running` or `completed`.
+Reverse of `/sn:sprint-add`. Useful when re-scoping a sprint before running it. Refuses if the sprint is `running` or `completed`.
