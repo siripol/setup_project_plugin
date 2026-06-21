@@ -16,5 +16,8 @@ test:
 agent-run:
 	go run ./src
 
+client-run:
+	go run ./src
+
 mcp-server:
 	go run ./mcp_server

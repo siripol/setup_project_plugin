@@ -2,8 +2,10 @@
         claude-local-edit claude-local-show \
         req-new req-import req-rollback req-resume req-replay req-loop \
         sprint-new sprint-add sprint-remove sprint-run sprint-done sprint-status \
+        sprint-concurrent worktree-add worktree-list worktree-remove \
         knowledge-check knowledge-update knowledge-promote knowledge-demote knowledge-tech-matrix \
-        gh-import workflow-status integration-test rate-limit-status check-invariants
+        gh-import gh-close workflow-status integration-test rate-limit-status check-invariants \
+        safety-status safety-reset-rate-limit safety-trip-breaker safety-reset-breaker
 
 help:
 	@echo "make agent      — ant agents apply agents/main.yaml"
@@ -151,6 +153,51 @@ gh-import:
 	@command -v gh >/dev/null || { echo "gh CLI required"; exit 2; }
 	@gh issue list --label req --state open --json number,title,body > /tmp/sn-init-gh.json && \
 	 python3 scripts/req_import.py /tmp/sn-init-gh.json && rm /tmp/sn-init-gh.json
+
+gh-close:
+	@if [ -z "$$REQ" ] || [ -z "$$PR" ]; then echo "Usage: make gh-close REQ=REQ-NNN PR=<pr-number>"; exit 2; fi
+	@command -v gh >/dev/null || { echo "gh CLI required"; exit 2; }
+	@issue="$$(echo $$REQ | sed -E 's/REQ-0*([0-9]+).*/\1/')"; \
+	 gh issue close "$$issue" --comment "Closed by PR #$$PR (sn-init spec-loop)." && \
+	 echo "closed GitHub issue $$issue"
+
+# --- worktree concurrency ---
+
+worktree-add:
+	@if [ -z "$$REQ" ]; then echo "Usage: make worktree-add REQ=REQ-NNN"; exit 2; fi
+	@mkdir -p .sn-init/worktrees
+	@branch="req/$$REQ"; \
+	 git worktree add ".sn-init/worktrees/$$REQ" -b "$$branch" 2>/dev/null || \
+	   git worktree add ".sn-init/worktrees/$$REQ" "$$branch"; \
+	 echo "worktree → .sn-init/worktrees/$$REQ (branch $$branch)"
+
+worktree-list:
+	@git worktree list
+
+worktree-remove:
+	@if [ -z "$$REQ" ]; then echo "Usage: make worktree-remove REQ=REQ-NNN"; exit 2; fi
+	@git worktree remove ".sn-init/worktrees/$$REQ" --force 2>/dev/null && \
+	  echo "removed worktree for $$REQ" || echo "no worktree for $$REQ"
+
+sprint-concurrent:
+	@if [ -z "$$SPRINT" ] || [ -z "$$N" ]; then echo "Usage: make sprint-concurrent SPRINT=SPRINT-NNN N=3"; exit 2; fi
+	@echo "Invoke /sprint-run $$SPRINT with --workflow-concurrent=$$N — orchestrator spawns N worktrees."
+
+# --- safety status ---
+
+safety-status:
+	@python3 scripts/safety.py status 2>/dev/null || echo "(scripts/safety.py not available)"
+
+safety-reset-rate-limit:
+	@python3 scripts/safety.py reset-rate-limit
+
+safety-trip-breaker:
+	@if [ -z "$$REQ" ]; then echo "Usage: make safety-trip-breaker REQ=REQ-NNN"; exit 2; fi
+	@python3 scripts/safety.py trip-breaker $$REQ
+
+safety-reset-breaker:
+	@if [ -z "$$REQ" ]; then echo "Usage: make safety-reset-breaker REQ=REQ-NNN"; exit 2; fi
+	@python3 scripts/safety.py reset-breaker $$REQ
 
 workflow-status:
 	@echo "Active REQs (unassigned):"; \
