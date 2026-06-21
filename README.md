@@ -6,43 +6,66 @@ Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered
 
 ## Install
 
-Three install paths — pick the first one that works for your setup.
+This plugin ships with a `.claude-plugin/marketplace.json` catalog (marketplace name `sn-setup`), so Claude Code can install it through the built-in `/plugin marketplace` flow without any external registry.
 
-### 1. Claude Code marketplace (recommended once published)
+### 1. Claude Code marketplace (recommended)
 
-```bash
-claude plugin install setup-project-plugin
+Run these two slash commands inside any Claude Code session:
+
+```
+/plugin marketplace add siripol/setup_project_plugin
+/plugin install setup-project-plugin@sn-setup
 ```
 
-Resolves the plugin name `setup-project-plugin` (from `.claude-plugin/plugin.json`) against the Claude Code marketplace and installs the latest release. The marketplace flag is set in the manifest under `"marketplace"` — flip `"published": true` and tag a release (`v0.2.0` already exists) when you are ready to publish.
+What each step does:
 
-### 2. Direct from GitHub
+1. `/plugin marketplace add <source>` — registers the marketplace defined by `.claude-plugin/marketplace.json` at the source. Source may be:
+   - GitHub shorthand: `siripol/setup_project_plugin`
+   - Full URL: `https://github.com/siripol/setup_project_plugin`
+   - Local path: `/path/to/setup_project_plugin` (dev mode — auto-picks up `git pull` changes)
+2. `/plugin install <plugin>@<marketplace>` — installs the plugin named `setup-project-plugin` from the `sn-setup` marketplace.
 
-```bash
-claude plugin install https://github.com/siripol/setup_project_plugin
+Manage the marketplace afterwards:
+
+```
+/plugin marketplace list             # show registered marketplaces
+/plugin marketplace update sn-setup  # pull the latest catalog
+/plugin marketplace remove sn-setup  # unregister
 ```
 
-Or pin to a specific tag:
+### 2. Direct from GitHub (no marketplace registration)
 
-```bash
-claude plugin install https://github.com/siripol/setup_project_plugin@v0.2.0
+If you only want this one plugin and prefer not to register a marketplace:
+
+```
+/plugin install https://github.com/siripol/setup_project_plugin
 ```
 
-Useful while the marketplace publish flag is still off, or for installing a pre-release commit.
+Pin to a specific tag for reproducible installs:
+
+```
+/plugin install https://github.com/siripol/setup_project_plugin@v0.2.0
+```
 
 ### 3. Local path (development / unpublished forks)
 
 ```bash
 git clone https://github.com/siripol/setup_project_plugin /path/to/setup_project_plugin
-claude plugin install /path/to/setup_project_plugin
 ```
 
-Or point Claude Code at the directory directly without copying — useful while iterating on the plugin itself.
+Then inside Claude Code:
+
+```
+/plugin marketplace add /path/to/setup_project_plugin
+/plugin install setup-project-plugin@sn-setup
+```
+
+The local-path source watches the directory, so a `git pull` (or a code edit) refreshes the install automatically — useful while iterating on the plugin itself.
 
 ### Verify the install
 
-```bash
-claude plugin list                 # setup-project-plugin should appear
+```
+/plugin list                       # setup-project-plugin should appear
 /sn-setup --help                   # entry slash command resolves
 ```
 
