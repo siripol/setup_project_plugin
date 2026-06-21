@@ -2,121 +2,37 @@
 
 This walks through the full `sn-*` command flow inside a scaffolded project: write a requirement → bundle it into a sprint → run the spec-loop → see it pass the triple-signal gate → archive. Run every command in this guide inside a Claude Code session that has the `setup-project-plugin` installed.
 
-## At a glance — command flow
+## Command flow
 
 ```mermaid
-flowchart TD
-    A([install plugin]) --> B[/sn-setup &lt;name&gt;/]
-    B --> C{REQ source?}
-    C -- write from scratch --> D[/sn-req-new SLUG=.../]
-    C -- import md/pdf/docx --> E[/sn-req-import FILE=.../]
-    C -- pull GitHub issues --> F[/sn-gh-import/]
-    D --> G[edit REQ-NNN.md]
-    E --> G
-    F --> G
-    G --> H[/sn-sprint-new SLUG=.../]
-    H --> I[/sn-sprint-add SPRINT=... REQ=.../]
-    I --> J{more REQs?}
-    J -- yes --> I
-    J -- no --> K[/sn-knowledge-check SPRINT=.../]
-    K --> L{major impact?}
-    L -- yes --> G
-    L -- no --> M[/sn-sprint-run SPRINT=.../]
-    M --> N{triple-signal pass?}
-    N -- no --> O[/sn-req-rollback or fix code]
-    O --> M
-    N -- yes --> P[/sn-sprint-done SPRINT=.../]
-    P --> Q([sn-knowledge-curator → vault])
-    Q --> R([archived in docs/sprints/completed/])
-
-    classDef cmd fill:#dbeafe,stroke:#1d4ed8,color:#0c2858;
-    classDef gate fill:#fef3c7,stroke:#b45309,color:#3b2207;
-    classDef done fill:#dcfce7,stroke:#15803d,color:#0c3a1a;
-    class B,D,E,F,H,I,K,M,P cmd;
-    class C,J,L,N gate;
-    class A,Q,R done;
+flowchart LR
+    A[/sn-setup/] --> B[/sn-req-new/]
+    B --> C[/sn-sprint-new + add/]
+    C --> D[/sn-sprint-run/]
+    D --> E{pass?}
+    E -- no --> D
+    E -- yes --> F[/sn-sprint-done/]
 ```
 
-## Spec-loop subagent sequence
-
-What `/sn-sprint-run` does internally for one REQ. Each phase is one subagent invocation by `scripts/orchestrator.py`; arrows are state transitions; the last three steps form the triple-signal gate.
+## Inside `/sn-sprint-run`
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant U as User
-    participant O as orchestrator.py
-    participant IA as sn-impact-analyzer
-    participant PL as sn-planner
-    participant TD as sn-task-decomposer
-    participant TE as sn-task-executor
-    participant TT as sn-task-tester
-    participant IT as sn-integration-tester
-    participant AD as sn-adversary
-    participant EV as sn-evaluator
-    participant KC as sn-knowledge-curator
-    participant V as Obsidian vault
+    participant O as orchestrator
+    participant S as subagents
+    participant V as vault
 
-    U->>O: /sn-sprint-run SPRINT=...
-    O->>IA: impact phase
-    IA-->>O: impact.md (has_major?)
-    alt has_major
-        O-->>U: AskUserQuestion (proceed/edit/cancel)
+    U->>O: /sn-sprint-run
+    O->>S: impact → plan → tasks → integrate → adversary → evaluate
+    S-->>O: triple-signal verdict
+    alt pass
+        O->>V: curate knowledge
+        O-->>U: done
+    else fail
+        O-->>U: blocked (resume / rollback)
     end
-    O->>PL: plan phase
-    PL-->>O: exec-plans/PLAN-NNN.md
-    O->>TD: decompose phase
-    TD-->>O: tasks/TASK-NNN.md per task
-    loop per task
-        O->>TE: execute phase
-        TE-->>O: code under src/
-        O->>TT: test phase
-        TT-->>O: tests/ + run results
-    end
-    O->>IT: integrate phase
-    IT-->>O: integration.pass
-    O->>AD: adversary phase
-    AD-->>O: tests/adversary/*_test (findings)
-    O->>EV: evaluate phase
-    EV-->>O: eval_score (0-100)
-    Note over O: triple-signal gate<br/>eval ≥ threshold<br/>integration.pass<br/>adversary.findings_resolved
-    alt gate passes
-        O->>KC: curate phase
-        KC->>V: write knowledge facts
-        KC-->>O: vault updated
-        O-->>U: REQ done
-    else gate fails
-        O-->>U: block + safety breaker counters
-    end
-```
-
-## State machine
-
-The orchestrator persists every transition to `.sn-init/workflow-state.json`. The state graph below shows what happens between phases; `/sn-req-resume` re-enters at whichever state is current.
-
-```mermaid
-stateDiagram-v2
-    [*] --> impact
-    impact --> plan: has_major == false
-    impact --> [*]: user cancels
-    plan --> decompose
-    decompose --> execute
-    execute --> test
-    test --> execute: test failed (within task budget)
-    test --> integrate: task done
-    integrate --> execute: integration failed (within budget)
-    integrate --> adversary
-    adversary --> execute: invariant break (within budget)
-    adversary --> evaluate
-    evaluate --> execute: eval < threshold (within budget)
-    evaluate --> curate: triple-signal pass
-    curate --> done
-    done --> [*]
-
-    state "breaker tripped" as br
-    execute --> br: 3 cycles no progress OR<br/>5 cycles same error
-    test --> br: same
-    br --> [*]: needs manual reset
 ```
 
 ## Prerequisites
