@@ -1,7 +1,8 @@
 // Tier 3 — Managed Agents session driver.
 //
-// Stubs the call to client.beta.Sessions.New. Replace the placeholder with the
-// real SDK calls once anthropic-sdk-go is pulled in (`make install`).
+// Opens a session against a Managed Agent and streams events until the
+// session goes idle. Reads AGENT_ID from env; SN_RUN_CLIENT=1 makes this
+// file's init() drive the session at startup.
 package main
 
 import (
@@ -9,25 +10,47 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func RunSession(agentID string) {
+func RunSession(agentID string) error {
 	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		log.Fatal("set ANTHROPIC_API_KEY in env")
+		return fmt.Errorf("set ANTHROPIC_API_KEY in env")
 	}
 	if agentID == "" {
-		log.Fatal("set AGENT_ID in env or pass -agent-id flag")
+		agentID = os.Getenv("AGENT_ID")
 	}
+	if agentID == "" {
+		return fmt.Errorf("set AGENT_ID env var or pass an id to RunSession")
+	}
+
 	ctx := context.Background()
-	_ = ctx
-	// Pseudocode:
-	//   client := anthropic.NewClient()
-	//   session, err := client.Beta.Sessions.New(ctx, anthropic.BetaSessionNewParams{
-	//       AgentID: anthropic.F(agentID),
-	//   })
-	//   if err != nil { log.Fatal(err) }
-	//   for event := range client.Beta.Sessions.EventStream(ctx, session.ID) {
-	//       handle(event)
-	//   }
-	fmt.Printf("client.go stub. Wire up client.Beta.Sessions.New for agent %s.\n", agentID)
+	client := anthropic.NewClient()
+
+	session, err := client.Beta.Sessions.New(ctx, anthropic.BetaSessionNewParams{
+		AgentID: anthropic.F(agentID),
+	})
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	fmt.Printf("session: %s\n", session.ID)
+
+	stream := client.Beta.Sessions.Events.Stream(ctx, session.ID)
+	for stream.Next() {
+		fmt.Println(stream.Current())
+	}
+	if err := stream.Err(); err != nil {
+		return fmt.Errorf("stream: %w", err)
+	}
+	return nil
+}
+
+func init() {
+	if os.Getenv("SN_RUN_CLIENT") != "1" {
+		return
+	}
+	if err := RunSession(os.Getenv("AGENT_ID")); err != nil {
+		log.Fatal(err)
+	}
 }
