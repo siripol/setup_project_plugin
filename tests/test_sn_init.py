@@ -1159,6 +1159,42 @@ def test_makefile_preserves_double_dollar_shell_vars(tmp_path: Path):
         assert token in mk, f"Make recipe mangled by safe_substitute: missing {token!r}"
 
 
+def _make_recipe_reaches_toolchain(tmp_path: Path, lang: str, makefile: str, marker: str):
+    """Helper for lang-overlay smoke tests. Scaffolds + runs `make -f <mk> test`
+    and asserts the recipe reached its toolchain entry-point (no shell
+    mangling). Missing inner tools (e.g. `vitest: command not found` because
+    we did not run `npm install`) are tolerated — they show the recipe
+    parsed and invoked the toolchain wrapper, which is what we are testing."""
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("make"):
+        pytest.skip("make not installed")
+    _run(tmp_path, "demo", f"--lang={lang}", "--no-git", "--no-ci", "--no-obsidian")
+    project = tmp_path / "demo"
+    r = subprocess.run(
+        ["make", "-f", makefile, "test"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    combined = r.stdout + r.stderr
+    # The toolchain wrapper command MUST appear in stdout — i.e. the recipe
+    # actually fired its first command. If the marker is missing the recipe
+    # failed to parse or shell-mangled the call.
+    assert marker in combined, combined
+
+
+def test_integration_scaffold_runs_make_test_go(tmp_path: Path):
+    """Go overlay smoke — `make -f Makefile.go test` invokes `go test`."""
+    _make_recipe_reaches_toolchain(tmp_path, "go", "Makefile.go", "go test")
+
+
+def test_integration_scaffold_runs_make_test_ts(tmp_path: Path):
+    """TS overlay smoke — `make -f Makefile.ts test` invokes `npm test`."""
+    _make_recipe_reaches_toolchain(tmp_path, "ts", "Makefile.ts", "npm test")
+
+
 def test_integration_scaffold_runs_make_test(tmp_path: Path):
     """End-to-end: scaffold a python project then run `make test` inside.
     Validates the full bootstrap path beyond file presence — pyproject

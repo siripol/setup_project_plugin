@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish GitHub release for ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract CHANGELOG section for this tag
+        id: changelog
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md not found"
+            exit 1
+          fi
+          # Pull the lines between `## [<tag>]` and the next `## [` header.
+          notes=$(awk -v tag="$tag" '
+            $0 ~ "^## \\[" tag "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$notes" ]; then
+            echo "::warning::No CHANGELOG section found for ${tag}; falling back to auto-generated notes."
+            notes=""
+          fi
+          # Persist multi-line notes via the heredoc-output trick.
+          {
+            echo "notes<<__END__"
+            echo "$notes"
+            echo "__END__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          notes="${{ steps.changelog.outputs.notes }}"
+          if [ -n "$notes" ]; then
+            printf '%s\n' "$notes" > /tmp/release-notes.md
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file /tmp/release-notes.md \
+              --verify-tag
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --generate-notes \
+              --verify-tag
+          fi

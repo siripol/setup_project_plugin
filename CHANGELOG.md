@@ -8,6 +8,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- `.github/workflows/release.yml` — on `v*.*.*` tag push, extracts the matching `## [<version>]` block from `CHANGELOG.md` and creates a GitHub Release with those notes. Falls back to `--generate-notes` when no matching section is found.
+- `.github/dependabot.yml` — weekly check of GitHub Actions versions; opens PRs with `chore(...)` commit messages and `dependencies` / `github-actions` labels.
+- `pytest-cov` in CI plus `codecov/codecov-action@v4` upload (Python 3.13 only). README gains a Codecov coverage badge alongside the CI + License badges.
+- `.pre-commit-config.yaml` — YAML / TOML / JSON / merge-conflict / large-file checks, ruff on `scripts/` + `tests/` with `--fix`, and a `pre-push` stage that runs the full pytest suite. CONTRIBUTING.md updated with `pre-commit install --hook-type pre-commit --hook-type pre-push`.
+- `.harness/invariants/` seed examples — three concrete invariants ship now instead of an empty README:
+  - `capability-manifest-respected.md` — every Edit/Write hits a path inside the active subagent's `can_modify:` glob list.
+  - `state-file-monotonic.md` — `.sn-init/workflow-state.json` `phase_history` is append-only with monotonic timestamps.
+  - `audit-log-complete.md` — every `PreToolUse` audit record has a matching `PostToolUse` with the same `tool_use_id`.
+- REQ schema validation — `docs/requirements/req-schema.json` (Draft 2020-12) plus `scripts/req_validate.py` that walks every active + assigned REQ file, parses YAML frontmatter, validates it. Optional `PyYAML` + `jsonschema` deps; missing deps print an install hint and exit 0 so contributors who haven't synced their venv aren't blocked. New `make req-validate` target.
+- Lang-overlay smoke tests — `test_integration_scaffold_runs_make_test_go` and `test_integration_scaffold_runs_make_test_ts` extend the existing Python integration test to Go and TypeScript. Scaffold + `make -f Makefile.<lang> test` must reach the lang toolchain entry-point (`go test` / `npm test`) without shell mangling.
 - `.github/workflows/ci.yml` — GitHub Actions workflow runs `pytest` on push and pull request across Python 3.11/3.12/3.13. README gains CI + License badges.
 - `LICENSE` file — explicit MIT text (previously only declared in `plugin.json`).
 - `CONTRIBUTING.md` — code layout, dev workflow, commit-message convention, recipe for adding new `sn-*` commands or subagents, bug-report template.
