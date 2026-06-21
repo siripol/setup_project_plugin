@@ -1,0 +1,16 @@
+# Managed Agent config consumed by `ant agents apply agents/main.yaml`.
+# Reference: docs/references/ant-cli-llms.txt
+name: ${name}
+model: ${model}
+thinking:
+  type: adaptive
+output_config:
+  task_budget:
+    type: tokens
+    total: 200000
+max_tokens: 16000
+system: |
+  ${system_prompt}
+tools: []          # add custom tool refs here
+mcp_servers: []    # see mcp/mcp.json
+skills: []         # project-local Skills uploaded via the Skills API

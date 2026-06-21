@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+"""sn-init — scaffold Claude-powered projects.
+
+Auto-detects mode from cwd:
+  - new mode: cwd empty OR `name` arg given → full scaffold + git init.
+  - add mode: cwd non-empty + no `name` arg → writes only .claude/.
+
+Atomic: writes to tmp dir + mv. State file .sn-init-state.json anchors idempotent re-run.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import random
+import secrets
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from string import Template
+
+try:
+    from . import errors, sn_logging as snlog  # type: ignore
+except ImportError:
+    # Allow running as plain script: `python3 scripts/sn_init.py ...`
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import errors  # type: ignore
+    import sn_logging as snlog  # type: ignore
+
+
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+TEMPLATES = PLUGIN_ROOT / "skills" / "sn-init" / "templates"
+SN_INIT_VERSION = "0.1.0"
+TEMPLATE_VERSION = "2026.06.21"
+
+LANG_CHOICES = ("go", "py", "ts")
+TIER_CHOICES = ("2", "3", "both")
+LICENSE_CHOICES = ("none", "MIT", "Apache-2.0")
+WORKFLOW_CHOICES = ("none", "spec-loop")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="sn-init", description="Scaffold a Claude-powered project.")
+    p.add_argument("name", nargs="?", default=None, help="Project name (creates ./<name>/)")
+    p.add_argument("--lang", choices=LANG_CHOICES, default="go")
+    p.add_argument("--tier", choices=TIER_CHOICES, default="both")
+    p.add_argument("--license", choices=LICENSE_CHOICES, default="none", dest="license_kind")
+    p.add_argument("--no-git", action="store_true")
+    p.add_argument("--install", action="store_true")
+    p.add_argument("--retry", type=int, default=3)
+    p.add_argument("--no-ci", action="store_true")
+    p.add_argument("--devcontainer", action="store_true")
+    p.add_argument("--obsidian", nargs="?", const="__default__", default="__default__")
+    p.add_argument("--no-obsidian", action="store_true")
+    p.add_argument("--prompt", default=None)
+    p.add_argument("--workflow", choices=WORKFLOW_CHOICES, default="spec-loop")
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--verbose", action="store_true")
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as e:
+        return errors.EXIT_USAGE if e.code else errors.EXIT_OK
+
+    try:
+        return run(args)
+    except errors.SnInitError as e:
+        print(f"sn-init: {e}", file=sys.stderr)
+        return e.exit_code
+    except Exception as e:  # pragma: no cover - defensive
+        print(f"sn-init: internal error: {e!r}", file=sys.stderr)
+        return errors.EXIT_INTERNAL
+
+
+# ---------------------------------------------------------------------------
+# mode detect
+
+
+def detect_mode(cwd: Path, name: str | None) -> tuple[str, Path]:
+    """Return (mode, target). mode in {'new', 'add'}."""
+    if name is not None:
+        target = (cwd / name).resolve()
+        if target.exists() and any(target.iterdir()):
+            raise errors.TargetNonEmptyError(
+                f"target '{target}' is non-empty; refuse to scaffold over existing files"
+            )
+        return "new", target
+
+    if not any(cwd.iterdir()):
+        return "new", cwd.resolve()
+
+    return "add", cwd.resolve()
+
+
+# ---------------------------------------------------------------------------
+# scaffold
+
+
+def run(args: argparse.Namespace) -> int:
+    cwd = Path.cwd()
+    mode, target = detect_mode(cwd, args.name)
+    logger = snlog.StepLogger(target=target if not args.dry_run else None, verbose=args.verbose)
+    logger.info(f"mode: {mode}")
+    logger.info(f"target: {target}")
+
+    if mode == "new":
+        return _run_new(args, target, logger)
+    else:
+        return _run_add(args, target, logger)
+
+
+def _run_new(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -> int:
+    files = _plan_new_files(args, target)
+    if args.dry_run:
+        _print_tree(target, files)
+        return errors.EXIT_OK
+
+    # Make sure target's parent exists (for nested name paths).
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp = target.parent / f"{target.name}.tmp-{secrets.token_hex(4)}"
+    logger.set_target(tmp)
+    try:
+        _materialize(tmp, files, logger)
+        # Atomic-ish swap. If target exists and is empty, drop it so rename succeeds.
+        if target.exists():
+            try:
+                target.rmdir()
+            except OSError:
+                raise errors.TargetNonEmptyError(
+                    f"target '{target}' became non-empty mid-scaffold"
+                )
+        tmp.rename(target)
+    except Exception:
+        if tmp.exists():
+            shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    logger.set_target(target)
+
+    _write_state(target, args, mode="new", files=[str(p) for p, _ in files])
+
+    if not args.no_git and not args.dry_run:
+        _git_init_commit(target, logger)
+
+    _print_summary(target, args, mode="new")
+    return errors.EXIT_OK
+
+
+def _run_add(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -> int:
+    claude_dir = target / ".claude"
+    state_path = target / ".sn-init-state.json"
+    if claude_dir.exists() and not state_path.exists():
+        raise errors.ClaudeExistsNoStateError(
+            ".claude/ exists without sn-init state file. Refusing to overwrite. "
+            "Pass --dry-run to preview, or remove the .claude/ dir first."
+        )
+
+    files = _plan_add_files(args, target)
+    if args.dry_run:
+        _print_tree(target, files)
+        return errors.EXIT_OK
+
+    # Patch sub-mode: only write missing files.
+    written: list[str] = []
+    for rel, content in files:
+        path = target / rel
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with logger.step("write", rel):
+            path.write_text(content, encoding="utf-8")
+        written.append(rel)
+
+    _append_gitignore(target, [".claude/CLAUDE.local.md", ".claude/settings.local.json"], logger)
+    _write_state(target, args, mode="add", files=written)
+    _print_summary(target, args, mode="add", patched=written)
+    return errors.EXIT_OK
+
+
+# ---------------------------------------------------------------------------
+# file planning
+
+
+def _plan_new_files(args: argparse.Namespace, target: Path) -> list[tuple[str, str]]:
+    """Return list of (relative_path, content) tuples for a fresh project."""
+    project_name = target.name
+    files: list[tuple[str, str]] = []
+
+    files.extend(_render_base(args, project_name))
+    files.extend(_render_lang(args, project_name))
+    files.extend(_render_claude(args, project_name))
+
+    if args.license_kind != "none":
+        files.append(("LICENSE", _read_template(f"licenses/{args.license_kind}.txt")))
+
+    if not args.no_ci:
+        files.append((".github/workflows/ci.yml", _render_ci(args, project_name)))
+
+    if args.devcontainer:
+        files.append((".devcontainer/devcontainer.json", _render_devcontainer(args)))
+
+    return files
+
+
+def _plan_add_files(args: argparse.Namespace, target: Path) -> list[tuple[str, str]]:
+    """Return list of (relative_path, content) tuples for add mode (.claude/ only)."""
+    project_name = target.name
+    return _render_claude(args, project_name)
+
+
+def _render_base(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
+    base = TEMPLATES / "managed-agent-base"
+    files: list[tuple[str, str]] = []
+    ctx = {
+        "name": project_name,
+        "lang": args.lang,
+        "tier": args.tier,
+        "model": "claude-opus-4-8",
+        "system_prompt": args.prompt or "You are a helpful agent. Refine this prompt for your task.",
+        "date": _today(),
+    }
+    for path in sorted(base.rglob("*")):
+        if path.is_dir():
+            continue
+        rel = path.relative_to(base)
+        content = path.read_text(encoding="utf-8")
+        content = _substitute(content, ctx)
+        files.append((str(rel), content))
+    return files
+
+
+def _render_lang(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
+    lang_dir = TEMPLATES / "lang" / args.lang
+    if not lang_dir.exists():
+        raise errors.UsageError(f"no template overlay for --lang={args.lang}")
+    files: list[tuple[str, str]] = []
+    ctx = {
+        "name": project_name,
+        "lang": args.lang,
+        "model": "claude-opus-4-8",
+    }
+    for path in sorted(lang_dir.rglob("*")):
+        if path.is_dir():
+            continue
+        rel = path.relative_to(lang_dir)
+        content = path.read_text(encoding="utf-8")
+        content = _substitute(content, ctx)
+        files.append((str(rel), content))
+    return files
+
+
+def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
+    claude = TEMPLATES / "claude"
+    files: list[tuple[str, str]] = []
+    ctx = {
+        "name": project_name,
+        "lang": args.lang,
+        "model": "claude-opus-4-8",
+    }
+    for path in sorted(claude.rglob("*")):
+        if path.is_dir():
+            continue
+        rel = Path(".claude") / path.relative_to(claude)
+        content = path.read_text(encoding="utf-8")
+        content = _substitute(content, ctx)
+        files.append((str(rel), content))
+    return files
+
+
+def _render_ci(args: argparse.Namespace, project_name: str) -> str:
+    tmpl = _read_template("ci/github-actions.yml.tmpl")
+    return _substitute(tmpl, {"name": project_name, "lang": args.lang})
+
+
+def _render_devcontainer(args: argparse.Namespace) -> str:
+    tmpl = _read_template("devcontainer/devcontainer.json.tmpl")
+    return _substitute(tmpl, {"lang": args.lang})
+
+
+def _read_template(rel: str) -> str:
+    path = TEMPLATES / rel
+    if not path.exists():
+        raise errors.SnInitError(f"missing template: {rel}")
+    return path.read_text(encoding="utf-8")
+
+
+def _substitute(content: str, ctx: dict) -> str:
+    # Only substitute when the file uses our ${var} marker syntax. Files without ${...}
+    # are passed through verbatim — this preserves Makefile/TS `$$VAR` and `${literal}`
+    # usages that aren't template variables.
+    if "${" not in content:
+        return content
+    try:
+        return Template(content).safe_substitute(ctx)
+    except Exception:
+        return content
+
+
+# ---------------------------------------------------------------------------
+# materialize
+
+
+def _materialize(root: Path, files: list[tuple[str, str]], logger: snlog.StepLogger) -> None:
+    for rel, content in files:
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with logger.step("write", rel):
+            path.write_text(content, encoding="utf-8")
+
+
+def _append_gitignore(target: Path, lines: list[str], logger: snlog.StepLogger) -> None:
+    gi = target / ".gitignore"
+    existing = gi.read_text(encoding="utf-8").splitlines() if gi.exists() else []
+    additions = [ln for ln in lines if ln not in existing]
+    if not additions:
+        return
+    with logger.step("append", ".gitignore"):
+        with gi.open("a", encoding="utf-8") as fh:
+            if existing and not existing[-1] == "":
+                fh.write("\n")
+            for ln in additions:
+                fh.write(ln + "\n")
+
+
+def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[str]) -> None:
+    state = {
+        "sn_init_version": SN_INIT_VERSION,
+        "template_version": TEMPLATE_VERSION,
+        "mode": mode,
+        "lang": args.lang,
+        "tier": args.tier,
+        "flags": {
+            "license": args.license_kind,
+            "ci": not args.no_ci,
+            "devcontainer": args.devcontainer,
+            "obsidian": (args.obsidian if args.obsidian != "__default__" else "default") if not args.no_obsidian else "off",
+            "workflow": args.workflow,
+            "install": args.install,
+            "git": not args.no_git,
+        },
+        "files_written": files,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    (target / ".sn-init-state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+
+
+def _git_init_commit(target: Path, logger: snlog.StepLogger) -> None:
+    try:
+        with logger.step("git init"):
+            subprocess.run(["git", "init", "-q"], cwd=target, check=True)
+        with logger.step("git add"):
+            subprocess.run(["git", "add", "-A"], cwd=target, check=True)
+        with logger.step("git commit"):
+            subprocess.run(
+                ["git", "commit", "-q", "-m", "init: scaffold via sn-init"],
+                cwd=target,
+                check=True,
+                env={**os.environ, "GIT_COMMITTER_NAME": os.environ.get("GIT_COMMITTER_NAME", "sn-init"),
+                     "GIT_COMMITTER_EMAIL": os.environ.get("GIT_COMMITTER_EMAIL", "sn-init@local")},
+            )
+    except FileNotFoundError:
+        # git not installed; skip silently
+        logger.info("git not found, skipping init+commit")
+    except subprocess.CalledProcessError as e:
+        logger.info(f"git step failed: {e}")
+
+
+def _print_tree(target: Path, files: list[tuple[str, str]]) -> None:
+    print(f"[dry-run] would create {len(files)} files under {target}/")
+    for rel, content in sorted(files):
+        size = len(content.encode("utf-8"))
+        print(f"  {rel}  ({size} bytes)")
+
+
+def _print_summary(target: Path, args: argparse.Namespace, mode: str, patched: list[str] | None = None) -> None:
+    print(f"sn-init: {mode} scaffold complete at {target}")
+    if patched is not None:
+        if patched:
+            print(f"  patched {len(patched)} missing file(s): {', '.join(patched[:5])}{'...' if len(patched) > 5 else ''}")
+        else:
+            print("  no missing files (already up to date)")
+    print(f"  lang={args.lang}  tier={args.tier}  workflow={args.workflow}")
+
+
+def _today() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

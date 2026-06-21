@@ -1,0 +1,23 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up language toolchain
+        run: |
+          if [ -f go.mod ]; then echo "go detected"; fi
+          if [ -f pyproject.toml ]; then echo "py detected"; fi
+          if [ -f package.json ]; then echo "ts detected"; fi
+      - name: Install ant CLI
+        run: pipx install anthropic-cli || true
+      - name: Validate agent config
+        run: ant agents validate agents/main.yaml || true
+      - name: Lint
+        run: make lint || true
+      - name: Test
+        run: make test || true

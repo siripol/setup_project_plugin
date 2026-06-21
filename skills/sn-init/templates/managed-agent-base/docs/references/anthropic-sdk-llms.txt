@@ -1,0 +1,24 @@
+Anthropic SDK quick reference for LLM context.
+
+Python:
+  pip install claude-agent-sdk anthropic
+  from claude_agent_sdk import query, ClaudeAgentOptions, AgentDefinition, HookMatcher
+  async for msg in query(prompt="...", options=ClaudeAgentOptions(allowed_tools=[...])): ...
+
+TypeScript:
+  npm install @anthropic-ai/claude-agent-sdk @anthropic-ai/sdk
+  import { query } from "@anthropic-ai/claude-agent-sdk"
+  for await (const msg of query({ prompt, options: { allowedTools: [...] } })) { ... }
+
+Go (Tier 2 via BetaToolRunner; no official Agent SDK):
+  go get github.com/anthropics/anthropic-sdk-go
+  runner := toolrunner.NewBetaToolRunner(client, tools)
+  out, err := runner.Run(ctx, prompt)
+
+Defaults:
+  model: claude-opus-4-8
+  thinking: {type: "adaptive"}
+  max_tokens: 16000 (non-streaming) / 64000 (streaming)
+  task_budget.total: see agents/main.yaml
+
+See https://docs.claude.com for the full reference. Refresh this file via `make docs-refresh`.

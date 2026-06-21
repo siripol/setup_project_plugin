@@ -1,0 +1,19 @@
+Managed Agents API quick reference.
+
+Beta header: `managed-agents-2026-04-01` (auto-set by SDKs).
+
+Endpoints (called via SDK / ant CLI):
+  POST /v1/agents                    — create/update agent
+  POST /v1/sessions                  — start a session
+  GET  /v1/sessions/:id/events       — stream events (SSE)
+  POST /v1/sessions/:id/messages     — send user message
+  POST /v1/vaults                    — credential vault
+  POST /v1/memory_stores             — long-term memory
+  POST /v1/deployments               — scheduled cron runs
+
+SDK shape (Python):
+  agent = client.beta.agents.create(...)        # once, persistent
+  session = client.beta.sessions.create(agent_id=agent.id)
+  for event in client.beta.sessions.events.stream(session.id): ...
+
+Refresh via `make docs-refresh`.

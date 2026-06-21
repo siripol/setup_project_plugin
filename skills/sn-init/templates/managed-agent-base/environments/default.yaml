@@ -1,0 +1,5 @@
+name: default
+vars: {}
+secrets:
+  ANTHROPIC_API_KEY:
+    from_env: ANTHROPIC_API_KEY

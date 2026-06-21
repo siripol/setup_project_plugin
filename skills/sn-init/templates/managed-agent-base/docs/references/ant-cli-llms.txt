@@ -1,0 +1,16 @@
+ant CLI quick reference for LLM context.
+
+Install:
+  pipx install anthropic-cli
+
+Common commands:
+  ant agents apply agents/main.yaml         # create or update Managed Agent
+  ant agents validate agents/main.yaml      # static check
+  ant sessions create --agent-id <id>       # start a session
+  ant sessions stream --session-id <id>     # stream events
+  ant environments apply environments/default.yaml
+
+Auth:
+  Set ANTHROPIC_API_KEY in env. `ant login` for interactive flow.
+
+See `docs/references/managed-agents-api-llms.txt` for the underlying API surface.

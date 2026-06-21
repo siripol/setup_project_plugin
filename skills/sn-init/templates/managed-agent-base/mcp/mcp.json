@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "name": "local-stub",
+      "command": "make",
+      "args": ["mcp-server"],
+      "description": "Project-local MCP server stub. See mcp_server/main.*"
+    }
+  ]
+}

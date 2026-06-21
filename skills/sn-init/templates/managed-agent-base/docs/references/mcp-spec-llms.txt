@@ -1,0 +1,18 @@
+Model Context Protocol (MCP) quick reference.
+
+Spec:
+  https://modelcontextprotocol.io
+
+Server SDKs:
+  Python: `mcp` or `fastmcp` package
+  TypeScript: `@modelcontextprotocol/sdk`
+  Go: github.com/modelcontextprotocol/go-sdk
+
+Server transport:
+  stdio (default) — agent spawns the server as a subprocess
+  HTTP/SSE — agent connects over network
+
+Tool surface:
+  tools/list, tools/call, resources/list, prompts/list, etc.
+
+Refresh via `make docs-refresh`.
