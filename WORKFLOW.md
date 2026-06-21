@@ -110,6 +110,18 @@ eval_threshold: 70
 
 One bullet per acceptance criterion. Keep them testable.
 
+### Validate the REQ frontmatter
+
+Before assigning a REQ to a sprint, run:
+
+```bash
+make req-validate
+```
+
+`scripts/req_validate.py` reads `docs/requirements/req-schema.json` (Draft 2020-12) and checks every active + assigned REQ has well-formed frontmatter — `id` matches `^REQ-[0-9]{3}$`, `priority in {high, medium, low}`, `acceptance` is a non-empty list, `eval_threshold` in 0..100, etc. Exit code `2` lists every offence with `::error file=…:: <path>: <message>` so a CI run catches malformed REQs before the orchestrator picks them up.
+
+Optional deps: `pyyaml`, `jsonschema`. Missing deps print an install hint and exit 0.
+
 ## 2. Group requirements into a sprint
 
 A sprint is a folder under `docs/sprints/active/` that bundles related REQs to run together.
@@ -198,7 +210,18 @@ Manual inspection:
 make safety-status                  # rate limit + breaker state
 make logs-tail                      # JSONL audit log of every subagent call
 make logs-stats                     # tool + token usage summary per session
+make check-invariants               # list .harness/invariants/ + their test files
 ```
+
+### Harness invariants (`.harness/invariants/`)
+
+The scaffold ships three seed invariants the `sn-adversary` subagent must respect — each is a small `.md` file with a paired test:
+
+- `capability-manifest-respected.md` — every Edit/Write hits a path inside the active subagent's `can_modify:` glob list. Replays the JSONL audit log.
+- `state-file-monotonic.md` — `.sn-init/workflow-state.json` `phase_history` is append-only with monotonic UTC timestamps. Underpins safe `/sn-req-resume`.
+- `audit-log-complete.md` — every `PreToolUse` audit record has a matching `PostToolUse` with the same `tool_use_id`. Catches killed shells, hook crashes, log corruption.
+
+Add a new invariant when a sprint adds an architectural rule that the codebase must keep honouring. The adversary will read your invariant body during the next sprint and try to falsify it.
 
 ## 6. Archive the sprint
 
@@ -404,14 +427,15 @@ Same shape as sprint 1 with two REQs and the optional knowledge-check skipped. B
 ```
 git tag -a v1.0.0 -m "v1.0.0 — auth + invoicing"
 git push origin v1.0.0
-gh release create v1.0.0 --generate-notes
 ```
 
 What happens:
 
 - `git tag -a` lays down an annotated tag at the current `HEAD`. Every commit on this branch since the last tag was made under the scaffolded `commit-msg` git hook, so the subjects already contain `REQ-NNN` markers (e.g. `feat(REQ-001): wire login flow`).
 - `git push origin v1.0.0` publishes the tag to GitHub.
-- `gh release create v1.0.0 --generate-notes` opens a release tied to the new tag. The `--generate-notes` flag reads every commit since the previous tag and renders them as the release body, so the `REQ-NNN`-tagged commit subjects become readable bullets in the release notes for free.
+- The `.github/workflows/release.yml` workflow fires on the tag push. It extracts the matching `## [v1.0.0]` block from `CHANGELOG.md` via an awk window and runs `gh release create v1.0.0 --notes-file <slice>`. If the CHANGELOG has no matching section, it falls back to `gh release create --generate-notes` so commit subjects still appear in the release body. No manual `gh release create` step.
+
+Maintain `CHANGELOG.md` `## [Unreleased]` while you work; rename the section to `## [v1.0.0] — YYYY-MM-DD` right before tagging so the workflow picks up your hand-written notes.
 
 ### One-shot script
 
