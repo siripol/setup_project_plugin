@@ -21,43 +21,49 @@ jobs:
         id: changelog
         shell: bash
         run: |
+          set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
           if [ ! -f CHANGELOG.md ]; then
             echo "::error::CHANGELOG.md not found"
             exit 1
           fi
-          # Pull the lines between `## [<tag>]` and the next `## [` header.
-          notes=$(awk -v tag="$tag" '
+          # Pull lines between `## [<tag>]` (anywhere in the line, allows trailing date)
+          # and the next `## [` header. Write to file — never interpolate notes via
+          # `${{ steps.x.outputs.notes }}` because GitHub Actions injects the raw text
+          # into the shell script, and bash will try to interpret backticks, `$(...)`,
+          # and special chars in the CHANGELOG body as commands.
+          mkdir -p /tmp/release
+          awk -v tag="$tag" '
             $0 ~ "^## \\[" tag "\\]" { found=1; next }
             found && /^## \[/ { exit }
             found { print }
-          ' CHANGELOG.md)
-          if [ -z "$notes" ]; then
-            echo "::warning::No CHANGELOG section found for ${tag}; falling back to auto-generated notes."
-            notes=""
-          fi
-          # Persist multi-line notes via the heredoc-output trick.
-          {
-            echo "notes<<__END__"
-            echo "$notes"
-            echo "__END__"
-          } >> "$GITHUB_OUTPUT"
+          ' CHANGELOG.md > /tmp/release/notes.md
 
-      - name: Create GitHub release
+          if [ -s /tmp/release/notes.md ]; then
+            echo "have_notes=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "have_notes=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No CHANGELOG section found for ${tag}; falling back to auto-generated notes."
+          fi
+
+      - name: Create GitHub release (CHANGELOG notes)
+        if: steps.changelog.outputs.have_notes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          notes="${{ steps.changelog.outputs.notes }}"
-          if [ -n "$notes" ]; then
-            printf '%s\n' "$notes" > /tmp/release-notes.md
-            gh release create "${GITHUB_REF_NAME}" \
-              --title "${GITHUB_REF_NAME}" \
-              --notes-file /tmp/release-notes.md \
-              --verify-tag
-          else
-            gh release create "${GITHUB_REF_NAME}" \
-              --title "${GITHUB_REF_NAME}" \
-              --generate-notes \
-              --verify-tag
-          fi
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file /tmp/release/notes.md \
+            --verify-tag
+
+      - name: Create GitHub release (auto-generated notes fallback)
+        if: steps.changelog.outputs.have_notes == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
