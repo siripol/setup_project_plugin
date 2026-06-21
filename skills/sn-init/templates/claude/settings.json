@@ -23,7 +23,14 @@
     ],
     "deny": []
   },
-  "hooks": {},
+  "hooks": {
+    "PreToolUse":       [{"matcher": ".*", "command": ".claude/hooks/audit.sh"}],
+    "PostToolUse":      [{"matcher": ".*", "command": ".claude/hooks/audit.sh"}],
+    "UserPromptSubmit": [{"command": ".claude/hooks/audit.sh"}],
+    "SessionStart":     [{"command": ".claude/hooks/audit.sh"}],
+    "SessionEnd":       [{"command": ".claude/hooks/audit.sh"}],
+    "Stop":             [{"command": ".claude/hooks/audit.sh"}]
+  },
   "env": {},
   "setting_sources": ["project", "user"]
 }
