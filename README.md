@@ -1,8 +1,11 @@
 # setup-project-plugin
 
+[![CI](https://github.com/siripol/setup_project_plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/siripol/setup_project_plugin/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
 
-90 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
+96 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
 
 ```mermaid
 flowchart LR

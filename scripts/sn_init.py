@@ -744,10 +744,15 @@ def _read_template(rel: str) -> str:
 
 
 def _substitute(content: str, ctx: dict) -> str:
-    # Only substitute when the file uses our ${var} marker syntax. Files without ${...}
-    # are passed through verbatim — this preserves Makefile/TS `$$VAR` and `${literal}`
-    # usages that aren't template variables.
-    if "${" not in content:
+    # Only substitute when at least one of our template variables (${name},
+    # ${lang}, ${model}, ...) actually appears in the file. Files like Makefile
+    # contain `${next:-000}` (shell-side default expansion) and `$$VAR` (Make
+    # `$$` → shell `$VAR`) which look like Python Template syntax but are not.
+    # `string.Template.safe_substitute` would (correctly per its spec) halve
+    # the `$$` escapes to `$`, breaking every recipe that referenced a Make
+    # variable. We sidestep the trap by only running substitution when we know
+    # the file is one of ours.
+    if not any(f"${{{key}}}" in content for key in ctx):
         return content
     try:
         return Template(content).safe_substitute(ctx)

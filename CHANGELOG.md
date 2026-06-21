@@ -4,6 +4,26 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [Unreleased]
+
+### Added
+
+- `.github/workflows/ci.yml` — GitHub Actions workflow runs `pytest` on push and pull request across Python 3.11/3.12/3.13. README gains CI + License badges.
+- `LICENSE` file — explicit MIT text (previously only declared in `plugin.json`).
+- `CONTRIBUTING.md` — code layout, dev workflow, commit-message convention, recipe for adding new `sn-*` commands or subagents, bug-report template.
+- `.github/PULL_REQUEST_TEMPLATE.md` — auto-populates PR description with scope / tests / docs / migration checklists.
+- Orchestrator promise emission — `scripts/orchestrator.py` and the scaffolded `templates/managed-agent-base/scripts/orchestrator.py` now emit `DONE: <SPRINT-id> triple-signal pass` on full-pass and `BLOCKED: <SPRINT-id> <reason>` on phase failures / breaker trips. Makes the `WORKFLOW.md` "Autonomous mode" pattern with `/ralph-loop` real — Ralph can now pattern-match the orchestrator's stdout instead of relying on documented-only behaviour.
+- 6 new tests (96 total): `test_makefile_preserves_double_dollar_shell_vars`, `test_makefile_targets_runnable`, `test_integration_scaffold_runs_make_test`, `test_orchestrator_emits_done_promise_on_pass`, `test_orchestrator_emits_blocked_promise_on_phase_failure`, `test_orchestrator_promise_strings_match_ralph_contract`.
+
+### Fixed
+
+- `_substitute` in `scripts/sn_init.py` no longer runs `string.Template.safe_substitute` on files that don't reference one of the known context keys (`${name}`, `${lang}`, `${model}`, `${tier}`, `${system_prompt}`, `${date}`). Previously any file with `${...}` in it triggered substitution, which halved every `$$VAR` shell escape to `$VAR` and silently broke every `make` recipe (most visibly `make req-new SLUG=...`, `make sprint-add SPRINT=... REQ=...`, `make sprint-concurrent SPRINT=... N=...`). The Makefile contains `$${next:-000}` for shell-side default expansion, which was enough to trip the original heuristic.
+- `CLAUDE.local.md` template — `"initial scaffold from sn-init"` → `"initial scaffold from sn-setup"` (last stale `sn-init` user-facing branding).
+
+### Chore
+
+- Removed leftover `~/.claude/plugins/cache/temp_local_*` entries that surfaced the `setup-project-plugin:sn-setup` skill twice in autocomplete.
+
 ## [0.2.0] — 2026-06-21
 
 ### Renamed
