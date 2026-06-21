@@ -7,3 +7,8 @@ __pycache__/
 .venv/
 .tox/
 .sn-init/
+
+# Claude Code local session data (transcripts, summaries, runtime state)
+.claude/
+.idea/
+.vscode/
