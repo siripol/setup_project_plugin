@@ -130,7 +130,9 @@ make session                   # start a Managed Agent session
   [--dry-run] [--verbose]
 ```
 
-Defaults shown in **bold**. See `commands/sn-setup.md` for the complete table.
+Defaults shown in **bold**. See [`commands/sn-setup.md`](commands/sn-setup.md) for the complete table.
+
+For the end-to-end usage walkthrough (REQ → sprint → spec-loop → triple-signal gate → archive), see [`workflow.md`](workflow.md). The per-command reference (one section per `sn-*` slash command, plus the Make-target mirror table) is in [`Commands.md`](Commands.md).
 
 ## Three tiers, three langs
 
