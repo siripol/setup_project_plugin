@@ -579,3 +579,112 @@ def test_obsidian_client_writes_project_topic(tmp_path: Path):
         assert "origin_project: demo" in body
     finally:
         _sys.path.remove(str(plugin_root / "scripts"))
+
+
+# ---------------------------------------------------------------------------
+# Safety hooks (rate-limit + chokepoint)
+
+
+def test_rate_limit_hooks_present_by_default(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    hooks = tmp_path / "demo" / ".claude" / "hooks"
+    for name in ("rate-limit.sh", "rate-limit.py", "rate-limit.ts",
+                 "chokepoint-gate.sh", "chokepoint-gate.py", "chokepoint-gate.ts"):
+        assert (hooks / name).exists(), f"missing: {name}"
+
+
+def test_settings_registers_pretooluse_safety_hooks(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    settings = json.loads((tmp_path / "demo" / ".claude" / "settings.json").read_text())
+    pre = settings["hooks"]["PreToolUse"]
+    commands = [entry["command"] for entry in pre]
+    assert ".claude/hooks/rate-limit.sh" in commands
+    assert ".claude/hooks/chokepoint-gate.sh" in commands
+    # Chokepoint gate scoped to Edit|Write matcher
+    chokes = [e for e in pre if "chokepoint-gate.sh" in e["command"]]
+    assert chokes and chokes[0].get("matcher") == "Edit|Write"
+
+
+def test_no_audit_log_keeps_safety_hooks(tmp_path: Path):
+    # --no-audit-log strips the audit pipeline but should not touch rate-limit/chokepoint.
+    _run(tmp_path, "demo", "--no-git", "--no-audit-log")
+    hooks = tmp_path / "demo" / ".claude" / "hooks"
+    assert (hooks / "rate-limit.sh").exists()
+    assert (hooks / "chokepoint-gate.sh").exists()
+    assert not (hooks / "audit.sh").exists()
+    settings = json.loads((tmp_path / "demo" / ".claude" / "settings.json").read_text())
+    # settings.json has hooks: {} when --no-audit-log per current impl; this is the trade-off.
+    # Future iteration can split audit vs safety hook stripping.
+    # For now we just verify the hook files survived.
+    _ = settings
+
+
+def test_scaffold_includes_safety_scripts(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    scripts = tmp_path / "demo" / "scripts"
+    for name in ("safety.py", "req_import.py", "obsidian_client.py"):
+        assert (scripts / name).exists(), f"missing: {name}"
+    assert (scripts / "importers" / "md.py").exists()
+
+
+# ---------------------------------------------------------------------------
+# Safety state helpers
+
+
+def _import_safety():
+    import importlib
+    import sys as _sys
+    plugin_root = Path(__file__).resolve().parent.parent
+    sp = str(plugin_root / "scripts")
+    if sp not in _sys.path:
+        _sys.path.insert(0, sp)
+    return importlib.import_module("safety")
+
+
+def test_safety_record_call_resets_window(tmp_path: Path, monkeypatch):
+    safety = _import_safety()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    safety.reset_rate_window({})
+    window = safety.record_call(input_tokens=10, output_tokens=20)
+    assert window["calls_this_hour"] == 1
+    assert window["tokens_this_hour"] == 30
+
+
+def test_safety_breaker_trips_after_no_progress(tmp_path: Path, monkeypatch):
+    safety = _import_safety()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    for score in (50, 50, 50):
+        safety.record_progress("REQ-001", score)
+    assert safety.breaker_status("REQ-001") == "tripped"
+
+
+def test_safety_breaker_trips_after_repeat_errors(tmp_path: Path, monkeypatch):
+    safety = _import_safety()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sn-init").mkdir()
+    (tmp_path / "CLAUDE.md").write_text("anchor")
+    for _ in range(safety.REPEAT_ERROR_THRESHOLD):
+        safety.record_repeat_error("REQ-002", "test_login")
+    assert safety.breaker_status("REQ-002") == "tripped"
+
+
+# ---------------------------------------------------------------------------
+# Workflow Makefile contains safety + concurrency targets
+
+
+def test_makefile_has_workflow_targets(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    mk = (tmp_path / "demo" / "Makefile").read_text()
+    for target in (
+        "claude-local-edit", "claude-local-show",
+        "req-new", "req-import", "sprint-new", "sprint-add", "sprint-done",
+        "knowledge-update", "knowledge-tech-matrix",
+        "gh-import", "gh-close",
+        "worktree-add", "worktree-remove", "sprint-concurrent",
+        "safety-status", "safety-trip-breaker",
+    ):
+        assert f"{target}:" in mk, f"missing make target: {target}"

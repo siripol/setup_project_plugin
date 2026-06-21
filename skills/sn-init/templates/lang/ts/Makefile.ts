@@ -1,11 +1,11 @@
 # Appended to the project Makefile by sn-init for --lang=ts.
-.PHONY: install fmt lint test mcp-server agent-run build
+.PHONY: install fmt lint test mcp-server agent-run client-run build
 
 install:
 	npm install
 
 fmt:
-	npx prettier --write "src/**/*.ts" "mcp_server/**/*.ts" "tests/**/*.ts"
+	npx prettier --write "src/**/*.ts" "mcp_server/**/*.ts" "tests/**/*.ts" ".claude/hooks/*.ts"
 
 lint:
 	npx tsc --noEmit
@@ -18,6 +18,9 @@ build:
 
 agent-run:
 	npm run agent
+
+client-run:
+	npm run client
 
 mcp-server:
 	npm run mcp-server

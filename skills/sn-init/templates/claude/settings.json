@@ -24,7 +24,11 @@
     "deny": []
   },
   "hooks": {
-    "PreToolUse":       [{"matcher": ".*", "command": ".claude/hooks/audit.sh"}],
+    "PreToolUse": [
+      {"matcher": ".*",         "command": ".claude/hooks/rate-limit.sh"},
+      {"matcher": "Edit|Write", "command": ".claude/hooks/chokepoint-gate.sh"},
+      {"matcher": ".*",         "command": ".claude/hooks/audit.sh"}
+    ],
     "PostToolUse":      [{"matcher": ".*", "command": ".claude/hooks/audit.sh"}],
     "UserPromptSubmit": [{"command": ".claude/hooks/audit.sh"}],
     "SessionStart":     [{"command": ".claude/hooks/audit.sh"}],
