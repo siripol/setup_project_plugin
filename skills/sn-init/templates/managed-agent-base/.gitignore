@@ -1,0 +1,17 @@
+# Anthropic project gitignore
+.env
+.env.*
+!.env.example
+
+# sn-init runtime
+.sn-init/logs/*.jsonl
+.sn-init.log
+.sn-init-state.json.bak
+
+# Local memory
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

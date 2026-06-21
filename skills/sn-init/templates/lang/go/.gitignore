@@ -1,0 +1,7 @@
+# Go
+*.test
+*.out
+*.prof
+/bin/
+/dist/
+vendor/

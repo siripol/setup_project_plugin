@@ -1,0 +1,9 @@
+{
+  "_comment": "Local overrides for .claude/settings.json. Gitignored.",
+  "permissions": {
+    "allow": [],
+    "deny": []
+  },
+  "hooks": {},
+  "env": {}
+}
