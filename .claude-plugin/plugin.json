@@ -1,11 +1,11 @@
 {
-  "name": "init-project-plugin",
-  "version": "0.1.0",
+  "name": "setup-project-plugin",
+  "version": "0.2.0",
   "description": "Scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.",
   "author": "siripoln.media@gmail.com",
   "license": "MIT",
-  "commands": ["commands/sn-init.md"],
-  "skills": ["skills/sn-init/SKILL.md"],
+  "commands": ["commands/sn-setup.md"],
+  "skills": ["skills/sn-setup/SKILL.md"],
   "entry": "scripts/sn_init.py",
   "marketplace": {
     "published": false

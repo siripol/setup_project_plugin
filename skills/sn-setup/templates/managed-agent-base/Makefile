@@ -145,14 +145,14 @@ knowledge-tech-matrix: ## Regenerate cross-project tech matrix
 
 gh-import: ## Import GitHub issues labeled `req` as REQ files
 	@command -v gh >/dev/null || { echo "gh CLI required"; exit 2; }
-	@gh issue list --label req --state open --json number,title,body > /tmp/sn-init-gh.json && \
-	 python3 scripts/req_import.py /tmp/sn-init-gh.json && rm /tmp/sn-init-gh.json
+	@gh issue list --label req --state open --json number,title,body > /tmp/sn-setup-gh.json && \
+	 python3 scripts/req_import.py /tmp/sn-setup-gh.json && rm /tmp/sn-setup-gh.json
 
 gh-close: ## Close GitHub issue (REQ=... PR=...)
 	@if [ -z "$$REQ" ] || [ -z "$$PR" ]; then echo "Usage: make gh-close REQ=REQ-NNN PR=<pr-number>"; exit 2; fi
 	@command -v gh >/dev/null || { echo "gh CLI required"; exit 2; }
 	@issue="$$(echo $$REQ | sed -E 's/REQ-0*([0-9]+).*/\1/')"; \
-	 gh issue close "$$issue" --comment "Closed by PR #$$PR (sn-init spec-loop)." && \
+	 gh issue close "$$issue" --comment "Closed by PR #$$PR (sn-setup spec-loop)." && \
 	 echo "closed GitHub issue $$issue"
 
 # --- worktree concurrency ---
