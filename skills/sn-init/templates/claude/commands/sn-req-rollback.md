@@ -1,5 +1,5 @@
 ---
-name: req-rollback
+name: sn-req-rollback
 description: Reset the working tree to the pre-REQ-NNN git snapshot tag. Discards any commits made for that REQ.
 args:
   - REQ (required) — REQ id (e.g. REQ-003)

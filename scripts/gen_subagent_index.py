@@ -48,17 +48,10 @@ def collect_agents(root: Path) -> Iterator[dict]:
         if path.name == "README.md":
             continue
         fm = parse_frontmatter(path.read_text(encoding="utf-8"))
-        rel_parts = path.relative_to(agents_dir).parts
-        # Subdir under .claude/agents/ becomes the Claude Code namespace prefix
-        # (e.g. agents/sn/foo.md → name "sn:foo").
-        bare = fm.get("name", path.stem)
-        if len(rel_parts) > 1:
-            namespace = ":".join(rel_parts[:-1])
-            display_name = f"{namespace}:{bare}"
-        else:
-            display_name = bare
+        # The frontmatter `name:` is authoritative — files prefixed `sn-`
+        # already carry their full callable name (e.g. `sn-knowledge-curator`).
         yield {
-            "name": display_name,
+            "name": fm.get("name", path.stem),
             "description": fm.get("description", ""),
             "tools": fm.get("tools", []),
             "can_modify": fm.get("can_modify", []),

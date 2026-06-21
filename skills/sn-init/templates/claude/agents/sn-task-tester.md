@@ -1,5 +1,5 @@
 ---
-name: task-tester
+name: sn-task-tester
 description: Writes (TDD mode) or runs (default mode) unit tests for one TASK. Fails loudly when coverage drops.
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 can_modify: [tests/**, src/**/*_test.* , src/**/test_*]

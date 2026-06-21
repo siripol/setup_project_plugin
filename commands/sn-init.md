@@ -34,7 +34,7 @@ Scaffold a Claude-powered project at Tier 2 (Agent SDK) and/or Tier 3 (Managed A
 | `--dry-run` | off | Print planned tree + diffs, no FS writes |
 | `--verbose` | off | Per-step log to target's `.sn-init.log` |
 | `--upgrade` | off | Patch-only: pull missing template files into an existing scaffold and bump `template_version`. Never overwrites edited files. |
-| `--rename-ns` | off | (Use with `--upgrade`) Relocate generated commands/agents to `.claude/commands/sn/` and `.claude/agents/sn/` (so they show as `/sn:<name>`), rewrite cross-references in Makefile/orchestrator.py/docs, and section-merge every `CLAUDE*.md` against the latest template (backups written next to each file). |
+| `--rename-ns` | off | (Use with `--upgrade`) Rename generated commands/agents to `sn-<name>` so they show as `/sn-<name>`. Handles both legacy layouts: flat bare names (`.claude/commands/<cmd>.md`) and the mid-2026 colon namespace (`.claude/commands/sn/<cmd>.md`). Rewrites cross-references in Makefile/orchestrator.py/docs and section-merges every `CLAUDE*.md` against the latest template (backups written next to each file). |
 
 ## Behavior contract
 

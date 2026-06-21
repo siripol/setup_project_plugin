@@ -1,5 +1,5 @@
 ---
-name: req-replay
+name: sn-req-replay
 description: Re-run a completed REQ's tasks on a throwaway branch for regression check.
 args:
   - REQ (required) — REQ id (e.g. REQ-003)

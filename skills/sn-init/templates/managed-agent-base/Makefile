@@ -80,8 +80,8 @@ req-replay: ## Open replay/REQ-NNN branch for regression check
 	@git checkout -b "replay/$$REQ" || git checkout "replay/$$REQ"
 	@echo "switched to replay branch; re-run sprint-run to replay"
 
-req-loop: ## Hint: run /sn:sprint-run inside Claude session
-	@echo "Invoke /sn:sprint-run for the active sprint to start the spec-loop cycle."
+req-loop: ## Hint: run /sn-sprint-run inside Claude session
+	@echo "Invoke /sn-sprint-run for the active sprint to start the spec-loop cycle."
 
 sprint-new: ## Create docs/sprints/active/SPRINT-NNN-<SLUG>/
 	@if [ -z "$$SLUG" ]; then echo "Usage: make sprint-new SLUG=<slug>"; exit 2; fi
@@ -108,9 +108,9 @@ sprint-remove: ## Move REQ out of SPRINT back to requirements/active
 	 mv "$$src" docs/requirements/active/; \
 	 echo "moved back to docs/requirements/active/"
 
-sprint-run: ## Hint: kick off /sn:sprint-run SPRINT=... in Claude
+sprint-run: ## Hint: kick off /sn-sprint-run SPRINT=... in Claude
 	@if [ -z "$$SPRINT" ]; then echo "Usage: make sprint-run SPRINT=SPRINT-NNN"; exit 2; fi
-	@echo "Invoke /sn:sprint-run $$SPRINT in your Claude Code session — the orchestrator runs sn:impact-analyzer → sn:planner → sn:task-* → sn:adversary → sn:evaluator."
+	@echo "Invoke /sn-sprint-run $$SPRINT in your Claude Code session — the orchestrator runs sn-impact-analyzer → sn-planner → sn-task-* → sn-adversary → sn-evaluator."
 
 sprint-done: ## Archive SPRINT-NNN to docs/sprints/completed/
 	@if [ -z "$$SPRINT" ]; then echo "Usage: make sprint-done SPRINT=SPRINT-NNN"; exit 2; fi
@@ -127,21 +127,21 @@ sprint-status: ## List active + completed sprints
 
 knowledge-check: ## Run impact-analyzer for SPRINT
 	@if [ -z "$$SPRINT" ]; then echo "Usage: make knowledge-check SPRINT=SPRINT-NNN"; exit 2; fi
-	@echo "Invoke /sn:knowledge-check $$SPRINT — sn:impact-analyzer runs without sprint-run side-effects."
+	@echo "Invoke /sn-knowledge-check $$SPRINT — sn-impact-analyzer runs without sprint-run side-effects."
 
 knowledge-update: ## Refresh Obsidian knowledge buckets
-	@echo "Invoke /sn:knowledge-update — sn:knowledge-curator refreshes Obsidian buckets."
+	@echo "Invoke /sn-knowledge-update — sn-knowledge-curator refreshes Obsidian buckets."
 
 knowledge-promote: ## Promote TOPIC to global/shared
 	@if [ -z "$$TOPIC" ]; then echo "Usage: make knowledge-promote TOPIC=<topic>"; exit 2; fi
-	@echo "Invoke /sn:knowledge-promote $$TOPIC — moves projects/<p>/$$TOPIC.md → global/shared/."
+	@echo "Invoke /sn-knowledge-promote $$TOPIC — moves projects/<p>/$$TOPIC.md → global/shared/."
 
 knowledge-demote: ## Demote TOPIC back to project scope
 	@if [ -z "$$TOPIC" ]; then echo "Usage: make knowledge-demote TOPIC=<topic>"; exit 2; fi
-	@echo "Invoke /sn:knowledge-demote $$TOPIC — moves global/shared/$$TOPIC.md → projects/<p>/."
+	@echo "Invoke /sn-knowledge-demote $$TOPIC — moves global/shared/$$TOPIC.md → projects/<p>/."
 
 knowledge-tech-matrix: ## Regenerate cross-project tech matrix
-	@echo "Invoke /sn:knowledge-tech-matrix — regenerates <vault>/knowledge/global/tech/README.md."
+	@echo "Invoke /sn-knowledge-tech-matrix — regenerates <vault>/knowledge/global/tech/README.md."
 
 gh-import: ## Import GitHub issues labeled `req` as REQ files
 	@command -v gh >/dev/null || { echo "gh CLI required"; exit 2; }
@@ -173,9 +173,9 @@ worktree-remove: ## Remove worktree for REQ
 	@git worktree remove ".sn-init/worktrees/$$REQ" --force 2>/dev/null && \
 	  echo "removed worktree for $$REQ" || echo "no worktree for $$REQ"
 
-sprint-concurrent: ## Hint: run /sn:sprint-run with --workflow-concurrent=N
+sprint-concurrent: ## Hint: run /sn-sprint-run with --workflow-concurrent=N
 	@if [ -z "$$SPRINT" ] || [ -z "$$N" ]; then echo "Usage: make sprint-concurrent SPRINT=SPRINT-NNN N=3"; exit 2; fi
-	@echo "Invoke /sn:sprint-run $$SPRINT with --workflow-concurrent=$$N — orchestrator spawns N worktrees."
+	@echo "Invoke /sn-sprint-run $$SPRINT with --workflow-concurrent=$$N — orchestrator spawns N worktrees."
 
 # --- safety status ---
 

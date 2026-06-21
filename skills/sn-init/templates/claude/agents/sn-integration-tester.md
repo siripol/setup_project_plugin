@@ -1,5 +1,5 @@
 ---
-name: integration-tester
+name: sn-integration-tester
 description: Runs the full integration suite after all REQ tasks complete. Reports pass/fail with reproducible commands.
 tools: [Read, Bash, Glob]
 can_modify: []

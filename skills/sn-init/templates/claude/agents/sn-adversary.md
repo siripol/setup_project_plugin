@@ -1,5 +1,5 @@
 ---
-name: adversary
+name: sn-adversary
 description: Tries to break the invariants listed in .harness/invariants/. Writes failing tests when it succeeds.
 tools: [Read, Write, Glob, Grep, Bash]
 can_modify: [tests/adversary/**]

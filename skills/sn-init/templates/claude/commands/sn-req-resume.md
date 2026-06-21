@@ -1,5 +1,5 @@
 ---
-name: req-resume
+name: sn-req-resume
 description: Resume an interrupted sprint-run cycle from .sn-init/workflow-state.json.
 ---
 

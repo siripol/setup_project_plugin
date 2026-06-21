@@ -39,11 +39,11 @@ See plugin `README.md` for install instructions.
 
 ## Namespace
 
-Generated commands and subagents land under an `sn/` subdir (`.claude/commands/sn/`, `.claude/agents/sn/`) so Claude Code surfaces them as `/sn:<name>` and `sn:<name>` — distinct from user-authored commands. The entry command itself stays `/sn-init`.
+Generated commands and subagents land at the top of `.claude/commands/` and `.claude/agents/` with a flat `sn-` prefix on the filename (`sn-knowledge-update.md`, `sn-knowledge-curator.md`, …) so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands. The entry command itself stays `/sn-init`.
 
-For projects scaffolded before this layout, run `/sn-init --upgrade --rename-ns` to:
-- relocate existing `.claude/commands/<name>.md` → `.claude/commands/sn/<name>.md` and the agent equivalents
-- rewrite `/<name>` references in Makefile, `scripts/orchestrator.py`, and command docs
+For projects scaffolded under earlier layouts (bare flat names or the mid-2026 `sn/` colon namespace), run `/sn-init --upgrade --rename-ns` to:
+- rename existing `.claude/commands/<name>.md` and `.claude/commands/sn/<name>.md` → `.claude/commands/sn-<name>.md`, agent equivalents the same way
+- rewrite `/<name>` and `/sn:<name>` references in Makefile, `scripts/orchestrator.py`, and command docs to `/sn-<name>`
 - section-merge every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten)
 - backups written next to each merged file as `<path>.pre-upgrade-<utc-ts>.bak`
 

@@ -1,5 +1,5 @@
 ---
-name: task-decomposer
+name: sn-task-decomposer
 description: Splits a PLAN into atomic, executable tasks. Maps each acceptance criterion to >=1 task. Builds traceability matrix.
 tools: [Read, Write, Glob, Grep]
 can_modify: [docs/sprints/active/**, docs/generated/traceability.md]

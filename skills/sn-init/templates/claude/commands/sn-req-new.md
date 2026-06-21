@@ -1,5 +1,5 @@
 ---
-name: req-new
+name: sn-req-new
 description: Scaffold a new REQ-NNN file under docs/requirements/active/. Auto-increments NNN.
 args:
   - SLUG (required) — short kebab-case identifier

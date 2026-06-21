@@ -1,5 +1,5 @@
 ---
-name: gh-import
+name: sn-gh-import
 description: Pull GitHub issues labeled `req` into docs/requirements/active/ as REQ-NNN files.
 ---
 

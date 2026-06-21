@@ -37,7 +37,7 @@ except ImportError:
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = PLUGIN_ROOT / "skills" / "sn-init" / "templates"
 SN_INIT_VERSION = "0.1.0"
-TEMPLATE_VERSION = "2026.06.22"
+TEMPLATE_VERSION = "2026.06.23"
 
 LANG_CHOICES = ("go", "py", "ts")
 TIER_CHOICES = ("2", "3", "both")
@@ -261,6 +261,12 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
                 src_path.rename(dst_path)
             renamed.append(f"{src} -> {dst}")
 
+        # Clean up the empty `sn/` subdir left behind by the mid-2026
+        # colon-namespace layout.
+        for sub in (target / ".claude/commands/sn", target / ".claude/agents/sn"):
+            if sub.exists() and sub.is_dir() and not any(sub.iterdir()):
+                sub.rmdir()
+
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         for rel, existing, template_text in merge_plan:
             path = target / rel
@@ -360,27 +366,44 @@ class _RenamePlan:
 
 
 def _plan_rename_ns(target: Path) -> "_RenamePlan":
-    """Return the set of file moves + files to rewrite for --rename-ns."""
+    """Return the set of file moves + files to rewrite for --rename-ns.
+
+    Handles two legacy layouts in one pass:
+      * flat bare names: `.claude/commands/<cmd>.md`
+      * colon namespace (mid-2026 attempt): `.claude/commands/sn/<cmd>.md`
+    Both converge on the new dash-prefix flat layout:
+      `.claude/commands/sn-<cmd>.md`.
+    """
     plan = _RenamePlan()
 
     for cmd in RENAMED_COMMANDS:
-        src = Path(".claude/commands") / f"{cmd}.md"
-        dst = Path(".claude/commands/sn") / f"{cmd}.md"
-        if (target / src).exists() and not (target / dst).exists():
-            plan.renames.append((str(src), str(dst)))
+        dst = Path(".claude/commands") / f"sn-{cmd}.md"
+        if (target / dst).exists():
+            continue
+        for src in (
+            Path(".claude/commands") / f"{cmd}.md",
+            Path(".claude/commands/sn") / f"{cmd}.md",
+        ):
+            if (target / src).exists():
+                plan.renames.append((str(src), str(dst)))
+                break
 
     for agent in RENAMED_AGENTS:
-        src = Path(".claude/agents") / f"{agent}.md"
-        dst = Path(".claude/agents/sn") / f"{agent}.md"
-        if (target / src).exists() and not (target / dst).exists():
-            plan.renames.append((str(src), str(dst)))
+        dst = Path(".claude/agents") / f"sn-{agent}.md"
+        if (target / dst).exists():
+            continue
+        for src in (
+            Path(".claude/agents") / f"{agent}.md",
+            Path(".claude/agents/sn") / f"{agent}.md",
+        ):
+            if (target / src).exists():
+                plan.renames.append((str(src), str(dst)))
+                break
 
-    # Files known to carry stale `/<cmd>` or bare-agent references.
     candidates = [
         "Makefile",
         *_AGENT_REWRITE_TARGETS,
     ]
-    # Plus every command file (descriptions cross-reference other commands).
     cmd_dir = target / ".claude/commands"
     if cmd_dir.exists():
         for path in cmd_dir.rglob("*.md"):
@@ -401,19 +424,19 @@ def _rewrite_ns_refs(text: str) -> str:
     out = text
     for cmd in RENAMED_COMMANDS:
         out = re.sub(rf"(?<![A-Za-z0-9_:])/{re.escape(cmd)}(?![A-Za-z0-9_-])",
-                     f"/sn:{cmd}", out)
+                     f"/sn-{cmd}", out)
     for agent in RENAMED_AGENTS:
         # Backtick-wrapped bare-name (prose / docs).
-        out = re.sub(rf"`{re.escape(agent)}`", f"`sn:{agent}`", out)
+        out = re.sub(rf"`{re.escape(agent)}`", f"`sn-{agent}`", out)
         # Dict/YAML *value* position only — preceded by `:` so we don't touch
         # keys that happen to share the agent's name (e.g. PHASE "adversary").
         out = re.sub(
             rf'(:\s*)"{re.escape(agent)}"',
-            rf'\1"sn:{agent}"', out,
+            rf'\1"sn-{agent}"', out,
         )
         out = re.sub(
             rf"(:\s*)'{re.escape(agent)}'",
-            rf"\1'sn:{agent}'", out,
+            rf"\1'sn-{agent}'", out,
         )
     return out
 
@@ -625,7 +648,7 @@ def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[st
 
         # --- subagent filter: keep top-level base files, gate optional + workflow.
         if parts and parts[0] == "agents":
-            # Drop the optional/ and workflow/ subdir prefix and gate by flags.
+            # Drop the optional/ subdir prefix and gate by flags.
             if len(parts) == 1 and parts[0] == "agents":
                 pass  # not possible — rglob yields files only
             elif len(parts) >= 2 and parts[1] == "optional":
@@ -633,29 +656,27 @@ def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[st
                 if name not in subagents:
                     continue
                 rel_native = Path("agents") / parts[-1]
-            elif len(parts) >= 2 and parts[1] == "sn":
-                if not workflow_on:
-                    continue
-                # Preserve sn/ subdir → Claude Code surfaces as `sn:<name>`.
-                rel_native = Path("agents") / "sn" / parts[-1]
             elif len(parts) == 2:
-                # Top-level agents/foo.md — README ships always; subagent files
-                # ship only when listed in the resolved subagent set.
+                # Top-level agents/<file>.md — README ships always; sn-prefixed
+                # workflow files gate on workflow_on; everything else gates by
+                # subagent membership.
                 stem = Path(parts[-1]).stem
                 if stem == "README":
                     pass
+                elif stem.startswith("sn-"):
+                    if not workflow_on:
+                        continue
                 elif stem in subagents:
                     pass
                 else:
                     continue
 
-        # --- command filter: gate sn/ + subagents/ subdirs.
+        # --- command filter: gate sn-prefixed + subagents/ subdirs.
         if parts and parts[0] == "commands":
-            if len(parts) >= 2 and parts[1] == "sn":
+            if len(parts) == 2 and Path(parts[-1]).stem.startswith("sn-"):
                 if not workflow_on:
                     continue
-                # Preserve sn/ subdir → Claude Code shows as `/sn:<name>`.
-                rel_native = Path("commands") / "sn" / parts[-1]
+                rel_native = Path("commands") / parts[-1]
             elif len(parts) >= 2 and parts[1] == "subagents":
                 stem = Path(parts[-1]).stem  # e.g. "review"
                 owner = _shortcut_owner(stem)

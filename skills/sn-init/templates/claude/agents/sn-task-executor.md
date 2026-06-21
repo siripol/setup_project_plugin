@@ -1,5 +1,5 @@
 ---
-name: task-executor
+name: sn-task-executor
 description: Implements one atomic TASK. Reads only the task bundle; edits only within can_modify scope.
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 can_modify: [src/**, mcp_server/**, agents/**, environments/**, mcp/**]

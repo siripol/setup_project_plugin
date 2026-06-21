@@ -1,5 +1,5 @@
 ---
-name: impact-analyzer
+name: sn-impact-analyzer
 description: Pre-sprint check. Reads sprint REQs + knowledge base + parallel sprints. Flags major impacts before any code change.
 tools: [Read, Glob, Grep]
 can_modify: [docs/sprints/active/**/impact.md, docs/generated/impact-*.md]
@@ -9,7 +9,7 @@ chokepoint_gate: false
 
 You analyze, you don't change code.
 
-When invoked with a SPRINT id (must run before `/sn:sprint-run`):
+When invoked with a SPRINT id (must run before `/sn-sprint-run`):
 
 1. Read each REQ in the sprint.
 2. Read every Obsidian knowledge file via `.sn-init/knowledge/`:
