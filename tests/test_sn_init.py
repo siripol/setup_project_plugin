@@ -889,6 +889,90 @@ def test_commit_msg_hook_accepts_chore_and_req(tmp_path: Path):
     assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
 
 
+_AUTHOR_TRAILER = "Author: Siripol <siripoln.media@gmail.com>"
+
+
+def test_commit_msg_hook_strips_claude_coauthor(tmp_path: Path):
+    import subprocess
+    _run(tmp_path, "demo", "--no-git")
+    hook = tmp_path / "demo" / ".githooks" / "commit-msg"
+    msg_file = tmp_path / "msg.txt"
+    msg_file.write_text(
+        "feat(REQ-001): x\n"
+        "\n"
+        "Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>\n"
+    )
+    result = subprocess.run([str(hook), str(msg_file)], capture_output=True, text=True)
+    assert result.returncode == 0
+    body = msg_file.read_text()
+    assert "Claude" not in body
+    assert "noreply@anthropic" not in body
+
+    # Casing variant — confirms the explicit char-class regex matches on BSD sed.
+    msg_file.write_text(
+        "feat(REQ-001): x\n"
+        "\n"
+        "co-authored-by: CLAUDE Sonnet <noreply@anthropic.com>\n"
+    )
+    assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
+    assert "CLAUDE" not in msg_file.read_text()
+
+
+def test_commit_msg_hook_appends_author_trailer_when_missing(tmp_path: Path):
+    import subprocess
+    _run(tmp_path, "demo", "--no-git")
+    hook = tmp_path / "demo" / ".githooks" / "commit-msg"
+    msg_file = tmp_path / "msg.txt"
+    msg_file.write_text("feat(REQ-001): x\n")
+    assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
+    body = msg_file.read_text()
+    assert body.rstrip().endswith(_AUTHOR_TRAILER)
+
+
+def test_commit_msg_hook_is_idempotent_on_author_trailer(tmp_path: Path):
+    import subprocess
+    _run(tmp_path, "demo", "--no-git")
+    hook = tmp_path / "demo" / ".githooks" / "commit-msg"
+    msg_file = tmp_path / "msg.txt"
+    msg_file.write_text("feat(REQ-001): x\n")
+    for _ in range(2):
+        assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
+    assert msg_file.read_text().count(_AUTHOR_TRAILER) == 1
+
+    # A different Author: line for a real co-contributor must be preserved
+    # (we match on the full Siripol identity, not on any `^Author:`).
+    msg_file.write_text(
+        "feat(REQ-002): pair work\n"
+        "\n"
+        "Author: Pair Programmer <pair@example.com>\n"
+    )
+    assert subprocess.run([str(hook), str(msg_file)]).returncode == 0
+    body = msg_file.read_text()
+    assert "Author: Pair Programmer <pair@example.com>" in body
+    assert _AUTHOR_TRAILER in body
+
+
+def test_in_repo_commit_msg_hook_strip_and_stamp(tmp_path: Path):
+    """The in-repo .githooks/commit-msg (no REQ-id enforcement) must mirror
+    the scaffold-template strip+stamp behavior. Guards against the two hooks
+    silently diverging."""
+    import subprocess
+    repo_root = Path(__file__).resolve().parent.parent
+    hook = repo_root / ".githooks" / "commit-msg"
+    assert hook.exists(), f"in-repo hook missing at {hook}"
+    msg_file = tmp_path / "msg.txt"
+    msg_file.write_text(
+        "feat(scaffold): tweak\n"
+        "\n"
+        "Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>\n"
+    )
+    result = subprocess.run([str(hook), str(msg_file)], capture_output=True, text=True)
+    assert result.returncode == 0
+    body = msg_file.read_text()
+    assert "Claude" not in body
+    assert body.rstrip().endswith(_AUTHOR_TRAILER)
+
+
 # ---------------------------------------------------------------------------
 # Real SDK wire-up in lang overlays
 

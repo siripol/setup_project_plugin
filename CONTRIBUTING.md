@@ -62,7 +62,16 @@ commits where useful.
 
 Common types we use here: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `style`. Scope is usually the touched area: `sn-setup`, `sn-init`, `WORKFLOW`, `README`, `plugin`, `scaffold`, etc.
 
-We do not append a `Co-Authored-By:` trailer for AI-assisted commits; commits are credited to the human author.
+### Attribution
+
+- Commits are attributed to `Siripol <siripoln.media@gmail.com>` in the git Author field.
+- Every commit body ends with the trailer `Author: Siripol <siripoln.media@gmail.com>`. The `.githooks/commit-msg` hook appends it automatically if missing, and preserves any additional `Author: <other-contributor>` lines you add manually.
+- The `Co-Authored-By: Claude*` trailer is **stripped automatically** by the same hook. Do not add it manually either.
+- Activate the hook **per clone** (git hook config is not committed):
+  ```
+  git config core.hooksPath .githooks
+  ```
+  The same hook (with an extra REQ-id subject check) ships to every project scaffolded by `sn-setup`; activate it there with `make hooks-install`.
 
 ## Adding a new generated `sn-*` command
 

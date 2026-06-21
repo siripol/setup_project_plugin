@@ -827,19 +827,58 @@ def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[
     (target / ".sn-init-state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
 
+_DEFAULT_IDENTITY_NAME = "Siripol"
+_DEFAULT_IDENTITY_EMAIL = "siripoln.media@gmail.com"
+
+
+def _resolve_identity(target: Path) -> tuple[str, str]:
+    """Three-tier identity fallback (used for both author and committer):
+      1. Env vars (GIT_AUTHOR_NAME / GIT_AUTHOR_EMAIL) — CI override path.
+      2. `git config user.name` / `user.email` from the target dir — picks up
+         the contributor's local identity once `git init` has run.
+      3. Hard-coded Siripol — last-resort default.
+    """
+    name = os.environ.get("GIT_AUTHOR_NAME") or os.environ.get("GIT_COMMITTER_NAME")
+    email = os.environ.get("GIT_AUTHOR_EMAIL") or os.environ.get("GIT_COMMITTER_EMAIL")
+    if not (name and email):
+        try:
+            cfg_name = subprocess.run(
+                ["git", "config", "user.name"], cwd=target, capture_output=True, text=True, check=False
+            ).stdout.strip()
+            cfg_email = subprocess.run(
+                ["git", "config", "user.email"], cwd=target, capture_output=True, text=True, check=False
+            ).stdout.strip()
+        except FileNotFoundError:
+            cfg_name = cfg_email = ""
+        name = name or cfg_name or _DEFAULT_IDENTITY_NAME
+        email = email or cfg_email or _DEFAULT_IDENTITY_EMAIL
+    return name, email
+
+
 def _git_init_commit(target: Path, logger: snlog.StepLogger) -> None:
     try:
         with logger.step("git init"):
             subprocess.run(["git", "init", "-q"], cwd=target, check=True)
         with logger.step("git add"):
             subprocess.run(["git", "add", "-A"], cwd=target, check=True)
+        name, email = _resolve_identity(target)
+        commit_message = (
+            "init: scaffold via sn-init\n"
+            "\n"
+            f"Author: {name} <{email}>\n"
+        )
         with logger.step("git commit"):
             subprocess.run(
-                ["git", "commit", "-q", "-m", "init: scaffold via sn-init"],
+                ["git", "commit", "-q", "-m", commit_message],
                 cwd=target,
                 check=True,
-                env={**os.environ, "GIT_COMMITTER_NAME": os.environ.get("GIT_COMMITTER_NAME", "sn-init"),
-                     "GIT_COMMITTER_EMAIL": os.environ.get("GIT_COMMITTER_EMAIL", "sn-init@local")},
+                env={
+                    **os.environ,
+                    "GIT_AUTHOR_NAME": name,
+                    "GIT_AUTHOR_EMAIL": email,
+                    "GIT_COMMITTER_NAME": name,
+                    "GIT_COMMITTER_EMAIL": email,
+                },
             )
     except FileNotFoundError:
         # git not installed; skip silently
@@ -863,6 +902,7 @@ def _print_summary(target: Path, args: argparse.Namespace, mode: str, patched: l
         else:
             print("  no missing files (already up to date)")
     print(f"  lang={args.lang}  tier={args.tier}  workflow={args.workflow}")
+    print("  Run 'make hooks-install' to activate commit-msg + post-merge hooks.")
     _print_agent_sdk_verify_hint(args)
 
 

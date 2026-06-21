@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Normalize commit attribution, then reject commits whose subject doesn't
-# reference a REQ id (unless explicitly marked as chore/wip/docs/merge/revert).
+# In-repo commit-msg hook for setup_project_plugin itself.
 #
-# Normalization passes (run before the REQ check, so the modified body is what
-# is committed):
+# Normalization passes (idempotent, runs on every commit):
 #   1. Strip any "Co-Authored-By: ...Claude..." trailer line. Explicit char
 #      classes keep the match case-insensitive on both BSD sed (darwin) and
 #      GNU sed (Linux CI) without relying on the GNU-only `I` flag.
@@ -11,6 +9,11 @@
 #      that exact identity is not already present. Match on the full identity
 #      so a contributor can still add `Author: Someone Else <...>` lines
 #      without us clobbering them.
+#
+# This repo does NOT enforce REQ-id subjects (that constraint belongs to
+# downstream scaffolded projects via the sn-setup template variant).
+#
+# Activate per clone: `git config core.hooksPath .githooks`.
 
 set -eu
 
@@ -23,16 +26,4 @@ if ! grep -qE '^Author: Siripol <siripoln\.media@gmail\.com>' "$msg_file"; then
     printf 'Author: Siripol <siripoln.media@gmail.com>\n' >> "$msg_file"
 fi
 
-subject="$(head -1 "$msg_file")"
-
-case "$subject" in
-    chore:*|wip:*|docs:*|merge\ *|Revert\ *) exit 0 ;;
-esac
-
-if echo "$subject" | grep -qE 'REQ-[0-9]{3,}'; then
-    exit 0
-fi
-
-echo "commit-msg: subject must reference a REQ id (e.g. 'feat(REQ-007): ...'). " >&2
-echo "Prefix with 'chore:', 'wip:', or 'docs:' if intentional." >&2
-exit 1
+exit 0
