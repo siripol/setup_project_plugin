@@ -42,6 +42,6 @@ ${lang}
 
 Also load `CLAUDE.local.md` for per-developer notes and project-fresh additions. Treat anything there as an override of this file unless contradictory.
 
-## What sn-init created
+## What sn-setup created
 
-(Auto-populated by sn-init: lang, tier, flags, file count, timestamp.)
+(Auto-populated by sn-setup: lang, tier, flags, file count, timestamp.)

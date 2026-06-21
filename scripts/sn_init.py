@@ -35,7 +35,7 @@ except ImportError:
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATES = PLUGIN_ROOT / "skills" / "sn-init" / "templates"
+TEMPLATES = PLUGIN_ROOT / "skills" / "sn-setup" / "templates"
 SN_INIT_VERSION = "0.1.0"
 TEMPLATE_VERSION = "2026.06.23"
 
@@ -72,7 +72,7 @@ SUBAGENT_SHORTCUTS = {
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="sn-init", description="Scaffold a Claude-powered project.")
+    p = argparse.ArgumentParser(prog="sn-setup", description="Scaffold a Claude-powered project.")
     p.add_argument("name", nargs="?", default=None, help="Project name (creates ./<name>/)")
     p.add_argument("--lang", choices=LANG_CHOICES, default="go")
     p.add_argument("--tier", choices=TIER_CHOICES, default="both")
@@ -97,10 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Patch-only: pull missing template files into an existing scaffold and "
                         "bump .sn-init-state.json template_version. Never overwrites edited files.")
     p.add_argument("--rename-ns", action="store_true", dest="rename_ns",
-                   help="During --upgrade: relocate generated commands and agents under the "
-                        "`sn/` namespace subdir (so they show as `/sn:<name>`), rewrite "
-                        "cross-references in Makefile/orchestrator.py/docs, and section-merge "
-                        "every CLAUDE*.md against the latest template. Refuses unless --upgrade.")
+                   help="During --upgrade: rename generated commands and agents to the flat "
+                        "`sn-<name>` prefix layout (so they show as `/sn-<name>`). Handles both "
+                        "legacy layouts (bare flat names and the mid-2026 `sn/` colon namespace). "
+                        "Rewrites cross-references in Makefile/orchestrator.py/docs and "
+                        "section-merges every CLAUDE*.md against the latest template. Refuses "
+                        "unless --upgrade.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     return p
@@ -130,10 +132,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return run(args)
     except errors.SnInitError as e:
-        print(f"sn-init: {e}", file=sys.stderr)
+        print(f"sn-setup: {e}", file=sys.stderr)
         return e.exit_code
     except Exception as e:  # pragma: no cover - defensive
-        print(f"sn-init: internal error: {e!r}", file=sys.stderr)
+        print(f"sn-setup: internal error: {e!r}", file=sys.stderr)
         return errors.EXIT_INTERNAL
 
 
@@ -196,7 +198,7 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
     prev_version = state.get("template_version", "")
     rename_ns = bool(getattr(args, "rename_ns", False))
     if prev_version == TEMPLATE_VERSION and not rename_ns:
-        print(f"sn-init: already at template version {TEMPLATE_VERSION}; nothing to do.")
+        print(f"sn-setup: already at template version {TEMPLATE_VERSION}; nothing to do.")
         return errors.EXIT_OK
 
     # Reuse the flags persisted in state when args weren't passed explicitly.
@@ -318,7 +320,7 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
     state.setdefault("upgrades", []).append(upgrade_entry)
     state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     summary = (
-        f"sn-init: upgraded {prev_version or '(none)'} → {TEMPLATE_VERSION}; "
+        f"sn-setup: upgraded {prev_version or '(none)'} → {TEMPLATE_VERSION}; "
         f"added {len(added)} file(s)"
     )
     if rename_ns:
@@ -848,7 +850,7 @@ def _print_tree(target: Path, files: list[tuple[str, str]]) -> None:
 
 
 def _print_summary(target: Path, args: argparse.Namespace, mode: str, patched: list[str] | None = None) -> None:
-    print(f"sn-init: {mode} scaffold complete at {target}")
+    print(f"sn-setup: {mode} scaffold complete at {target}")
     if patched is not None:
         if patched:
             print(f"  patched {len(patched)} missing file(s): {', '.join(patched[:5])}{'...' if len(patched) > 5 else ''}")

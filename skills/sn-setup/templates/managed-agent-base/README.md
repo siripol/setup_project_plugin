@@ -1,6 +1,6 @@
 # ${name}
 
-Claude-powered project scaffolded by **sn-init** (Tier 2 Agent SDK + Tier 3 Managed Agents).
+Claude-powered project scaffolded by **sn-setup** (Tier 2 Agent SDK + Tier 3 Managed Agents).
 
 ## Folder map
 

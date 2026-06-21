@@ -1,6 +1,6 @@
 # Commands — `sn-*` reference
 
-Every plugin-provided slash command starts with `sn-`. `/sn-init` is the entry command at the plugin level. The other 17 commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-init` and only show up inside scaffolded projects.
+Every plugin-provided slash command starts with `sn-`. `/sn-setup` is the entry command at the plugin level. The other 17 commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
 
 Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispatched by the spec-loop orchestrator; users normally do not invoke them directly.
 
@@ -8,7 +8,7 @@ Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispat
 
 | Family | Count | Slash commands |
 |---|---|---|
-| Entry | 1 | `/sn-init` |
+| Entry | 1 | `/sn-setup` |
 | Sprint lifecycle | 6 | `/sn-sprint-new` `/sn-sprint-add` `/sn-sprint-remove` `/sn-sprint-run` `/sn-sprint-done` `/sn-sprint-status` |
 | REQ lifecycle | 5 | `/sn-req-new` `/sn-req-import` `/sn-req-rollback` `/sn-req-resume` `/sn-req-replay` |
 | Knowledge (Obsidian) | 5 | `/sn-knowledge-check` `/sn-knowledge-update` `/sn-knowledge-promote` `/sn-knowledge-demote` `/sn-knowledge-tech-matrix` |
@@ -20,7 +20,7 @@ Total: **18 slash commands** (1 entry + 17 generated) + **8 subagents**.
 
 ## Entry command
 
-### `/sn-init [name] [flags]`
+### `/sn-setup [name] [flags]`
 
 Scaffold a Claude-powered project, or add `.claude/` scaffolding into an existing repo. Auto-detects mode from the current working directory.
 
@@ -28,7 +28,7 @@ Scaffold a Claude-powered project, or add `.claude/` scaffolding into an existin
 - **new** — `name` given OR cwd is empty → creates a full project tree at `<cwd>/<name>/` (or in cwd if empty).
 - **add** — cwd non-empty and no `name` → writes only `.claude/` into cwd. Idempotent — patches missing files using `.sn-init-state.json`.
 
-**Main flags** (see `commands/sn-init.md` for the complete table)
+**Main flags** (see `commands/sn-setup.md` for the complete table)
 
 | Flag | Default | Purpose |
 |---|---|---|
@@ -47,25 +47,25 @@ Scaffold a Claude-powered project, or add `.claude/` scaffolding into an existin
 | `--upgrade` | off | Patch-only: pull missing template files into an existing scaffold, bump `template_version`. Never overwrites edited files |
 | `--rename-ns` | off | (Use with `--upgrade`) Rename generated commands/agents to `sn-<name>` so they show as `/sn-<name>`. Handles both legacy layouts: flat bare names and the mid-2026 `sn/` colon namespace. Rewrites cross-references and section-merges every `CLAUDE*.md` |
 | `--dry-run` | off | Print planned tree + diffs, no FS writes |
-| `--verbose` | off | Per-step log to target's `.sn-init.log` |
+| `--verbose` | off | Per-step log to target's `.sn-setup.log` |
 
 **Examples**
 
 ```bash
 # New project, default Go stack
-/sn-init demo
+/sn-setup demo
 
 # Python, no git, no CI
-/sn-init demo --lang=py --no-git --no-ci
+/sn-setup demo --lang=py --no-git --no-ci
 
 # Add .claude/ to existing repo
-cd existing-repo && /sn-init
+cd existing-repo && /sn-setup
 
 # Migrate older project layout to sn- flat prefix
-cd existing-sn-init-project && /sn-init --upgrade --rename-ns
+cd existing-sn-init-project && /sn-setup --upgrade --rename-ns
 
 # Preview an upgrade without writing
-/sn-init --upgrade --rename-ns --dry-run
+/sn-setup --upgrade --rename-ns --dry-run
 ```
 
 **Exit codes**: `0` ok, `2` usage / bad flag, `3` target dir non-empty + name given, `4` `.claude/` exists in add mode without state file, `5` Obsidian vault unwritable (only when explicit), `6` `--install` failed after retries, `7` validation gate failed, `8` template version mismatch, `99` internal error.
@@ -327,14 +327,14 @@ If you scaffolded a project before this layout (either the original bare-name fl
 
 ```bash
 cd <existing-sn-init-project>
-/sn-init --upgrade --rename-ns
+/sn-setup --upgrade --rename-ns
 ```
 
 This:
 
 1. Renames files from either legacy layout into `.claude/{commands,agents}/sn-<name>.md`.
 2. Rewrites `/cmd` and `/sn:cmd` references in `Makefile`, `scripts/orchestrator.py`, and every command doc into `/sn-<cmd>`.
-3. Section-merges every `CLAUDE*.md` against the latest template (user sections kept, template-only sections appended, `## Tracking` and `## What sn-init created` overwritten).
+3. Section-merges every `CLAUDE*.md` against the latest template (user sections kept, template-only sections appended, `## Tracking` and `## What sn-setup created` overwritten).
 4. Removes the empty `sn/` subdir left over from the colon layout.
 5. Writes `<file>.pre-upgrade-<utc-ts>.bak` backups next to each merged `CLAUDE*.md`.
 6. Records `renamed[]`, `rewritten[]`, `merged_files[]` in `.sn-init-state.json` under `upgrades[]`.
@@ -342,7 +342,7 @@ This:
 Preview before applying:
 
 ```bash
-/sn-init --upgrade --rename-ns --dry-run
+/sn-setup --upgrade --rename-ns --dry-run
 ```
 
 Refuses to run without `--upgrade`. Refuses to start in a directory that has no `.sn-init-state.json`.
@@ -351,7 +351,7 @@ Refuses to run without `--upgrade`. Refuses to start in a directory that has no 
 
 ## See also
 
-- `commands/sn-init.md` — full flag table for the entry command (machine-parseable form).
-- `skills/sn-init/SKILL.md` — when the skill triggers and what defaults it applies.
+- `commands/sn-setup.md` — full flag table for the entry command (machine-parseable form).
+- `skills/sn-setup/SKILL.md` — when the skill triggers and what defaults it applies.
 - `README.md` — top-level overview, file tree, safety rails, Obsidian KB layout.
-- `skills/sn-init/templates/managed-agent-base/Makefile` — every Make target shipped to a scaffolded project.
+- `skills/sn-setup/templates/managed-agent-base/Makefile` — every Make target shipped to a scaffolded project.

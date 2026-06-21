@@ -1,8 +1,8 @@
 # init-project-plugin
 
-Claude Code plugin shipping the **`sn-init`** skill — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
+Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
 
-84 pytest cases. Repo: `https://github.com/siripol/init_project_plugin`.
+84 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
 
 ## Install
 
@@ -14,7 +14,7 @@ Or point Claude Code at the directory directly.
 
 ## Commands
 
-- `/sn-init [name] [flags]` — auto-detects mode from cwd.
+- `/sn-setup [name] [flags]` — auto-detects mode from cwd.
   - **new mode** — empty cwd OR `name` arg → full scaffold + git init + commit.
   - **add mode** — non-empty cwd + no `name` → patches missing `.claude/` files only (idempotent via `.sn-init-state.json`).
   - **upgrade mode** — `--upgrade` re-runs the scaffold over an existing project, adds files that didn't exist yet, never overwrites user edits.
@@ -23,7 +23,7 @@ Or point Claude Code at the directory directly.
 
 ```bash
 mkdir my-agent && cd my-agent
-/sn-init demo                  # default lang=go, tier=both, workflow=spec-loop
+/sn-setup demo                  # default lang=go, tier=both, workflow=spec-loop
 cd demo
 make help                      # show all generated Makefile targets
 make agent                     # ant agents apply agents/main.yaml
@@ -56,7 +56,7 @@ make session                   # start a Managed Agent session
 ## Flag reference
 
 ```
-/sn-init [name]
+/sn-setup [name]
   --lang=**go**|py|ts                           # stack overlay
   --tier=2|3|**both**                           # Anthropic tier
   --license=**none**|MIT|Apache-2.0
@@ -73,7 +73,7 @@ make session                   # start a Managed Agent session
   [--dry-run] [--verbose]
 ```
 
-Defaults shown in **bold**. See `commands/sn-init.md` for the complete table.
+Defaults shown in **bold**. See `commands/sn-setup.md` for the complete table.
 
 ## Three tiers, three langs
 
@@ -97,11 +97,11 @@ Each carries a capability manifest (`tools:`, `can_modify:`, `can_delegate:`, `c
 
 ## Namespace
 
-Generated commands and subagents are scaffolded with a flat `sn-` filename prefix (no subdir), so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands while keeping `/`-autocomplete a single sweep through the `sn-` block. The entry command itself stays `/sn-init`.
+Generated commands and subagents are scaffolded with a flat `sn-` filename prefix (no subdir), so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands while keeping `/`-autocomplete a single sweep through the `sn-` block. The entry command itself stays `/sn-setup`.
 
 Examples: `/sn-knowledge-update`, `/sn-sprint-run`, `/sn-req-new`, subagent `sn-knowledge-curator`.
 
-Projects scaffolded under earlier layouts (bare flat names, or the mid-2026 `sn/` colon namespace) can be migrated with `/sn-init --upgrade --rename-ns` — it renames files, rewrites cross-references in Makefile/orchestrator/docs, and section-merges every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten; backups written next to each merged file).
+Projects scaffolded under earlier layouts (bare flat names, or the mid-2026 `sn/` colon namespace) can be migrated with `/sn-setup --upgrade --rename-ns` — it renames files, rewrites cross-references in Makefile/orchestrator/docs, and section-merges every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-setup created` overwritten; backups written next to each merged file).
 
 ## Spec-loop workflow
 
@@ -170,11 +170,11 @@ Repo layout:
 ```
 init_project_plugin/
   .claude-plugin/plugin.json
-  commands/sn-init.md
+  commands/sn-setup.md
   hooks/README.md
   scripts/{sn_init,errors,sn_logging,safety,orchestrator,obsidian_client,req_import,gen_subagent_index}.py
   scripts/importers/{md,txt,json,docx,pdf}.py
-  skills/sn-init/SKILL.md + templates/
+  skills/sn-setup/SKILL.md + templates/
   tests/test_sn_init.py
   LICENSE  CHANGELOG.md  README.md
 ```

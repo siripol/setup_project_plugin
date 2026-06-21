@@ -1,16 +1,16 @@
 ---
-name: sn-init
-description: Scaffold a Claude-powered project (Tier 2 Agent SDK + Tier 3 Managed Agents) or add .claude/ scaffolding into an existing repo. Auto-detects mode from cwd. Use when user invokes /sn-init or asks to "init a project".
+name: sn-setup
+description: Scaffold a Claude-powered project (Tier 2 Agent SDK + Tier 3 Managed Agents) or add .claude/ scaffolding into an existing repo. Auto-detects mode from cwd. Use when user invokes /sn-setup or asks to "init a project".
 model: claude-opus-4-8
 ---
 
-# sn-init
+# sn-setup
 
 Slash-command skill that scaffolds Claude-powered projects following Anthropic conventions (Agent SDK + Managed Agents) and OpenAI harness engineering principles.
 
 ## When to use this skill
 
-- User invokes `/sn-init`
+- User invokes `/sn-setup`
 - User asks: "init a project", "scaffold a new Claude project", "set up Managed Agent project"
 - User wants `.claude/` added to an existing repo
 
@@ -23,9 +23,9 @@ Slash-command skill that scaffolds Claude-powered projects following Anthropic c
 
 ## Dispatch
 
-This skill is a thin wrapper. The slash command `commands/sn-init.md` dispatches to `scripts/sn_init.py` in the plugin root. The script handles argv parsing, mode detection, template copy, and state file management.
+This skill is a thin wrapper. The slash command `commands/sn-setup.md` dispatches to `scripts/sn_init.py` in the plugin root. The script handles argv parsing, mode detection, template copy, and state file management.
 
-See `commands/sn-init.md` for the complete flag table.
+See `commands/sn-setup.md` for the complete flag table.
 See plugin `README.md` for install instructions.
 
 ## Defaults
@@ -39,12 +39,12 @@ See plugin `README.md` for install instructions.
 
 ## Namespace
 
-Generated commands and subagents land at the top of `.claude/commands/` and `.claude/agents/` with a flat `sn-` prefix on the filename (`sn-knowledge-update.md`, `sn-knowledge-curator.md`, …) so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands. The entry command itself stays `/sn-init`.
+Generated commands and subagents land at the top of `.claude/commands/` and `.claude/agents/` with a flat `sn-` prefix on the filename (`sn-knowledge-update.md`, `sn-knowledge-curator.md`, …) so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands. The entry command itself stays `/sn-setup`.
 
-For projects scaffolded under earlier layouts (bare flat names or the mid-2026 `sn/` colon namespace), run `/sn-init --upgrade --rename-ns` to:
+For projects scaffolded under earlier layouts (bare flat names or the mid-2026 `sn/` colon namespace), run `/sn-setup --upgrade --rename-ns` to:
 - rename existing `.claude/commands/<name>.md` and `.claude/commands/sn/<name>.md` → `.claude/commands/sn-<name>.md`, agent equivalents the same way
 - rewrite `/<name>` and `/sn:<name>` references in Makefile, `scripts/orchestrator.py`, and command docs to `/sn-<name>`
-- section-merge every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-init created` overwritten)
+- section-merge every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-setup created` overwritten)
 - backups written next to each merged file as `<path>.pre-upgrade-<utc-ts>.bak`
 
 ## Safety
