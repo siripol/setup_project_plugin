@@ -1,0 +1,17 @@
+{
+  "name": "sn-setup",
+  "owner": {
+    "name": "siripol",
+    "email": "siripoln.media@gmail.com"
+  },
+  "description": "Scaffold Claude-powered projects (Agent SDK + Managed Agents) following Anthropic conventions.",
+  "plugins": [
+    {
+      "name": "setup-project-plugin",
+      "source": "./",
+      "description": "Scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.",
+      "category": "scaffolding",
+      "tags": ["scaffold", "agent-sdk", "managed-agents", "project-template"]
+    }
+  ]
+}
