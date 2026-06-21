@@ -12,6 +12,8 @@
 CLAUDE.local.md
 .claude/settings.local.json
 
-# OS
+# OS — recurse into every directory of the scaffolded project.
 .DS_Store
+**/.DS_Store
 Thumbs.db
+**/Thumbs.db
