@@ -41,6 +41,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 - Untracked `.DS_Store` at the plugin repo root — the file was committed before the gitignore covered it.
 
+### Vault (`obsidian_sharedknowledge`)
+
+Knowledge mirror updates that ship alongside this plugin release. Vault commits are in a separate repo (`siripol/obsidian_sharedknowledge`).
+
+- `eeba428` (`chore: untrack Obsidian UI state, extend gitignore to nested vaults`) — untracks `AllSharedKnowledge/.obsidian/workspace.json` and extends `.gitignore` with `**/.obsidian/workspace*`, `**/.obsidian/cache`, `**/.trash/` so nested vaults are covered automatically.
+- `9755b30` (`knowledge: rename project bucket init_project_plugin → setup_project_plugin (batch 15)`) — folder rename via `git mv`, frontmatter `origin_project:` + `bucket:` rewritten in 11 topic files, `sn-init-skill.md` → `sn-setup-skill.md` with a naming-history table, vault README index updated to `[[sn-setup-skill]]`, `implementation-log.md` Batch 15 entry recording the rename.
+- `9464705` (`knowledge: roll back sn: colon namespace to sn- flat prefix (init_project_plugin batch 14)`) — `sn-namespace.md` rewritten as the flat `sn-` decision; `sn-init-skill.md` Generated-names table flipped to `.claude/commands/sn-<name>.md`; `implementation-log.md` Batch 14 entry.
+- `6a7a236` (`knowledge: sn: namespace + claude-md merger (init_project_plugin batch 13)`) — adds `sn-namespace.md` and `claude-md-merger.md` topics, updates `sn-init-skill.md` to surface the generated `/sn:` names, vault README index updated, `implementation-log.md` Batch 13 entry.
+
 ## [0.1.0] — 2026-06-21
 
 ### Added
