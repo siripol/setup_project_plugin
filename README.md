@@ -4,6 +4,18 @@ Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered
 
 90 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
 
+```mermaid
+flowchart LR
+    A[/sn-setup/] --> B[/sn-req-new/]
+    B --> C[/sn-sprint-new + add/]
+    C --> D[/sn-sprint-run/]
+    D --> E{pass?}
+    E -- no --> D
+    E -- yes --> F[/sn-sprint-done/]
+```
+
+Full walkthrough in [`WORKFLOW.md`](WORKFLOW.md). Per-command reference in [`COMMANDS.md`](COMMANDS.md).
+
 ## Install
 
 This plugin ships with a `.claude-plugin/marketplace.json` catalog (marketplace name `sn-setup`), so Claude Code can install it through the built-in `/plugin marketplace` flow without any external registry.
