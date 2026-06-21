@@ -22,5 +22,8 @@ agent-run:
 client-run:
 	npm run client
 
+orchestrator-run:
+	npm run orchestrator -- $(SPRINT)
+
 mcp-server:
 	npm run mcp-server

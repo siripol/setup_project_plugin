@@ -6,6 +6,7 @@
   "scripts": {
     "agent": "tsx src/agent.ts",
     "client": "tsx src/client.ts",
+    "orchestrator": "tsx src/orchestrator.ts",
     "mcp-server": "tsx mcp_server/main.ts",
     "build": "tsc -p .",
     "test": "vitest run",

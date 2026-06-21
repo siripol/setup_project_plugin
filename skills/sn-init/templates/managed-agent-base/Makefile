@@ -5,7 +5,8 @@
         sprint-concurrent worktree-add worktree-list worktree-remove \
         knowledge-check knowledge-update knowledge-promote knowledge-demote knowledge-tech-matrix \
         gh-import gh-close workflow-status integration-test rate-limit-status check-invariants \
-        safety-status safety-reset-rate-limit safety-trip-breaker safety-reset-breaker
+        safety-status safety-reset-rate-limit safety-trip-breaker safety-reset-breaker \
+        hooks-install hooks-uninstall orchestrate
 
 help:
 	@echo "make agent      — ant agents apply agents/main.yaml"
@@ -216,6 +217,27 @@ rate-limit-status:
 check-invariants:
 	@find .harness/invariants -name '*.md' | xargs -I {} echo "check {}"
 	@echo "Run lang-specific test target to execute paired invariant tests."
+
+# --- git hooks ---
+
+hooks-install:
+	@git config core.hooksPath .githooks && \
+	 chmod +x .githooks/* 2>/dev/null; \
+	 echo "git hooks → .githooks/"
+
+hooks-uninstall:
+	@git config --unset core.hooksPath || true; \
+	 echo "git hooks reset to default"
+
+# --- orchestrator wrapper ---
+
+orchestrate:
+	@if [ -z "$$SPRINT" ]; then echo "Usage: make orchestrate SPRINT=SPRINT-NNN"; exit 2; fi
+	@if [ -f src/orchestrator.py ] || [ -f src/orchestrator.ts ] || [ -f src/cmd/orchestrator/main.go ]; then \
+	   $(MAKE) orchestrator-run SPRINT=$$SPRINT; \
+	 else \
+	   python3 scripts/orchestrator.py run $$SPRINT; \
+	 fi
 
 # Lang-specific targets live in Makefile.<lang> (e.g. Makefile.go) and are merged here.
 -include Makefile.*

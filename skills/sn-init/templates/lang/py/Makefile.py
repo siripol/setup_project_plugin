@@ -19,6 +19,9 @@ agent-run:
 client-run:
 	uv run python src/client.py
 
+orchestrator-run:
+	uv run python src/orchestrator.py $(SPRINT)
+
 mcp-server:
 	uv run python mcp_server/main.py
 

@@ -222,6 +222,11 @@ def _run_add(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -
         path.parent.mkdir(parents=True, exist_ok=True)
         with logger.step("write", rel):
             path.write_text(content, encoding="utf-8")
+        if _should_be_executable(rel):
+            try:
+                path.chmod(0o755)
+            except OSError:
+                pass
         written.append(rel)
 
     _append_gitignore(target, [".claude/CLAUDE.local.md", ".claude/settings.local.json"], logger)
@@ -436,6 +441,20 @@ def _materialize(root: Path, files: list[tuple[str, str]], logger: snlog.StepLog
         path.parent.mkdir(parents=True, exist_ok=True)
         with logger.step("write", rel):
             path.write_text(content, encoding="utf-8")
+        if _should_be_executable(rel):
+            try:
+                path.chmod(0o755)
+            except OSError:
+                pass
+
+
+def _should_be_executable(rel: str) -> bool:
+    # Hooks under .claude/hooks/ and .githooks/ + any *.sh need the +x bit.
+    return (
+        rel.endswith(".sh")
+        or rel.startswith(".githooks/")
+        or rel.startswith(".claude/hooks/")
+    )
 
 
 def _append_gitignore(target: Path, lines: list[str], logger: snlog.StepLogger) -> None:
