@@ -1,6 +1,6 @@
 # Commands — `sn-*` reference
 
-Every plugin-provided slash command starts with `sn-`. `/sn-setup` is the entry command at the plugin level. The other 18 commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
+Every plugin-provided slash command starts with `sn-`. `/sn-setup` and `/sn-session-report` are entry commands at the plugin level. The other 18 generated commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
 
 Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispatched by the spec-loop orchestrator; users normally do not invoke them directly.
 
@@ -8,14 +8,14 @@ Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispat
 
 | Family | Count | Slash commands |
 |---|---|---|
-| Entry | 1 | `/sn-setup` |
+| Entry | 2 | `/sn-setup` `/sn-session-report` |
 | Sprint lifecycle | 6 | `/sn-sprint-new` `/sn-sprint-add` `/sn-sprint-remove` `/sn-sprint-run` `/sn-sprint-done` `/sn-sprint-status` |
 | REQ lifecycle | 5 | `/sn-req-new` `/sn-req-import` `/sn-req-rollback` `/sn-req-resume` `/sn-req-replay` |
 | Knowledge (Obsidian) | 5 | `/sn-knowledge-check` `/sn-knowledge-update` `/sn-knowledge-promote` `/sn-knowledge-demote` `/sn-knowledge-tech-matrix` |
 | GitHub | 1 | `/sn-gh-import` |
 | Verification | 1 | `/sn-verify` |
 
-Total: **19 slash commands** (1 entry + 18 generated) + **9 subagents**.
+Total: **20 slash commands** (2 entry + 18 generated) + **9 subagents**.
 
 ---
 
@@ -68,7 +68,42 @@ cd existing-sn-setup-project && /sn-setup --upgrade
 /sn-setup --upgrade --dry-run
 ```
 
-**Exit codes**: `0` ok, `2` usage / bad flag, `3` target dir non-empty + name given, `4` `.claude/` exists in add mode without state file, `5` Obsidian vault unwritable (only when explicit), `6` `--install` failed after retries, `7` validation gate failed, `8` template version mismatch, `99` internal error.
+**Exit codes**: `0` ok, `2` usage / bad flag, `3` target dir non-empty + name given, `4` `.claude/` exists in add mode without state file, `5` Obsidian vault unwritable (only when explicit), `6` `--install` failed after retries, `7` validation gate failed, `8` template version mismatch, `9` upstream dep missing, `99` internal error.
+
+---
+
+### `/sn-session-report [since] [flags]`
+
+Render a Markdown session-usage report for the current project into the Obsidian vault. Wraps Anthropic's upstream `session-report` analyzer (`analyze-sessions.mjs`), filters its JSON to the current project, writes Markdown to `<vault>/projects/<project>/session-reports/YYYY-MM-DD_HHMM.md`, then commits + pushes the vault.
+
+**Flags**
+
+| Flag | Default | Description |
+|---|---|---|
+| `[since]` (positional) | `7d` | Window: `24h`, `7d`, `30d`, `all`, or ISO timestamp. |
+| `--analyzer=<path>` | auto | Override the analyzer path (else `$SN_SESSION_REPORT_ANALYZER` → glob under `~/.claude/plugins/`). |
+| `--vault=<path>` | auto | Override vault root (else `$OBSIDIAN_VAULT` → `<repo>/.sn-init/knowledge` → `<repo>/session-reports/`). |
+| `--project=<key>` | auto | Override the analyzer's encoded project key. |
+| `--dry-run` | off | Print would-be report to stdout, no file or git writes. |
+| `--no-push` | off | Write + commit, but skip `git push`. |
+| `--verbose` | off | Per-step trace to stderr. |
+
+**Examples**
+
+```bash
+# Default: last 7 days, write to vault, commit + push
+/sn-session-report
+
+# Last 24 hours, dry-run preview
+/sn-session-report 24h --dry-run
+
+# Write to vault but skip git push
+/sn-session-report 7d --no-push
+```
+
+**Dependencies**: `node` ≥ v18 on `PATH` + the upstream `session-report` plugin installed (`/plugin marketplace add anthropics/claude-plugins-official` then `/plugin install session-report@claude-plugins-official`). Missing analyzer → rc `9` with install hint.
+
+**Exit codes**: `0` ok, `2` usage, `5` vault unwritable, `9` analyzer not found, `99` internal.
 
 ---
 

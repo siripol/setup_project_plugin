@@ -8,6 +8,7 @@ EXIT_VAULT_UNWRITABLE = 5
 EXIT_INSTALL_FAILED = 6
 EXIT_VALIDATION_FAILED = 7
 EXIT_TEMPLATE_VERSION_MISMATCH = 8
+EXIT_MISSING_DEP = 9
 EXIT_INTERNAL = 99
 
 
@@ -48,3 +49,7 @@ class ValidationFailedError(SnInitError):
 
 class TemplateVersionMismatchError(SnInitError):
     exit_code = EXIT_TEMPLATE_VERSION_MISMATCH
+
+
+class MissingAnalyzerError(SnInitError):
+    exit_code = EXIT_MISSING_DEP

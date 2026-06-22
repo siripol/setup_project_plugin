@@ -13,7 +13,7 @@ uv pip install pytest pytest-cov pre-commit
 pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-All 111 cases must pass before you push.
+All 120 cases must pass before you push.
 
 If you touched a scaffolded `src/agent.{py,ts,go}` overlay (or expect to), also run the Agent SDK rule checker against a fresh scaffold:
 
