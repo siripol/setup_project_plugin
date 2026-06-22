@@ -4,6 +4,19 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [0.5.1] — 2026-06-22
+
+### Fixed
+
+- `/sn-session-report` — **vault directory name mismatch**. The renderer's `_human_project()` derived the display name from the lossy encoded project key (the upstream analyzer encodes both `/` and `_` as `-`), so a cwd of `setup_project_plugin` produced an output directory of `setup-project-plugin` (dash) and orphaned reports next to the real `projects/setup_project_plugin/` (underscore) folder. The wrapper now uses `Path.cwd().name` (the actual directory basename) for both the vault path and the frontmatter; the encoded form is kept only for matching against the analyzer's `by_project` JSON keys. The renderer accepts a new keyword-only `project_name` argument; `_human_project` is retained as a fallback for callers that don't pass one.
+- `/sn-session-report` — **vault commit skipped when `.git` is a parent of the resolved vault path**. The previous `commit_and_push` only checked `vault_root / ".git"`, but Obsidian vaults commonly nest the knowledge tree under a repo root (e.g. `<repo>/AllSharedKnowledge/knowledge/`). The new `find_git_root()` walks up from the resolved vault path until it finds the enclosing `.git`; `git -C` is then invoked against that root with relative paths computed from it. Falls back to a `[commit] no enclosing git repo found` notice when no ancestor has `.git`.
+
+### Tests
+
+- 2 new pytest cases (120 → 122):
+  - `test_session_report_render_uses_explicit_project_name` — confirms `project_name` kwarg overrides the lossy derivation in frontmatter, body, tags.
+  - `test_session_report_find_git_root_walks_up` — exercises `find_git_root` for the nested-vault, root, and no-repo cases.
+
 ## [0.5.0] — 2026-06-22
 
 ### Added
