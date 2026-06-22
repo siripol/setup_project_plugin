@@ -76,6 +76,8 @@ cd existing-sn-setup-project && /sn-setup --upgrade
 
 Render a Markdown session-usage report for the current project into the Obsidian vault. Wraps Anthropic's upstream `session-report` analyzer (`analyze-sessions.mjs`), filters its JSON to the current project, writes Markdown to `<vault>/projects/<project>/session-reports/YYYY-MM-DD_HHMM.md`, then commits + pushes the vault.
 
+Since v0.6.0 the report is tuned for **actionability**: top-prompts table is sorted by a 0-100 `tunability_score` (composite of repeat count, cache-miss share, subagent fan-out, API-call thrash, cache-break recurrence), each row carries a `reason` code (`repeat` / `subagent-heavy` / `loop-thrash` / `cache-miss` / `cold-start` / `low-output` / `expensive`), repeated prompts are surfaced in a dedicated section, and Optimizations is a per-prompt punch list with a concrete suggested action per row. See `commands/sn-session-report.md` for the full reading guide.
+
 **Flags**
 
 | Flag | Default | Description |

@@ -21,11 +21,12 @@ A single Markdown file at `<vault>/projects/<project>/session-reports/YYYY-MM-DD
 - Headline table (total tokens, cache-hit %, sessions, API calls, wall-clock + active hours, subagent calls).
 - Anomalies (up to 5 Obsidian `> [!warning|info|success]` callouts) — cache-hit < 85%, prompt > 2% of total, subagent > 1M tokens / call, cache-break clustering.
 - Token breakdown table (uncached / cache-create / cache-read / output).
-- Top prompts table (top 10 for this project, % of project total).
+- **Top prompts (by tunability)** — top 10 for this project, sorted by a 0-100 composite `tunability_score`, NOT raw tokens. Each row carries a `reason` code (`repeat`, `subagent-heavy`, `loop-thrash`, `cache-miss`, `cold-start`, `low-output`, `expensive`), the cache-hit % for that prompt, cache-break count, repeat count, plus the usual API/subagent counts. Tells you which prompt is *worth* tuning, not just which was expensive.
+- **Repeated prompts** — fuzzy-grouped (normalized: lowercased, whitespace-collapsed, first 80 chars, trailing-punctuation-stripped) and counted; surfaces prompts typed ≥ 3 times with total token spend. Highest-ROI tuning targets — type once, save N× tokens by promoting to a `/sn-<slug>` skill or CLAUDE.md macro.
 - Subagent activity (cross-project — upstream analyzer doesn't split by project).
 - Skill invocations (cross-project, with caveat).
 - Cache-break events filtered to this project, with the originating prompt.
-- Optimizations (up to 4 `> [!tip]` callouts) tied to specific rows.
+- **Optimizations (per-prompt action list)** — top-5 highest-tunability rows, each one a `> [!tip]` callout pairing the `reason` code with a concrete recipe (e.g. `repeat` → promote to skill; `subagent-heavy` → scope fewer parallel agents; `loop-thrash` → lower `max_turns`; `cache-miss` → pin CLAUDE.md before commits).
 - See-also cross-links to `[[implementation-log]]`, `[[project-requirements]]`, and the upstream skill card.
 
 The vault's `session-reports/README.md` index is appended on each run; an Obsidian-linked entry shows up automatically.

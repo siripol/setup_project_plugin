@@ -138,8 +138,14 @@ def run(args: argparse.Namespace) -> int:
             print("...")
         return errors.EXIT_OK
 
-    vault_root = resolve_vault_path(args.vault, cwd)
-    out_dir = vault_root / "projects" / project_name / "session-reports"
+    vault_root, is_fallback = resolve_vault_path(args.vault, cwd)
+    # In fallback mode the resolved path is already `<cwd>/session-reports/`
+    # — writing directly to it avoids the triple-nested
+    # `session-reports/projects/<proj>/session-reports/` path.
+    if is_fallback:
+        out_dir = vault_root
+    else:
+        out_dir = vault_root / "projects" / project_name / "session-reports"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M")
@@ -239,18 +245,26 @@ def resolve_project_key(want: str, payload: dict) -> str:
 # ----- vault path -------------------------------------------------------
 
 
-def resolve_vault_path(explicit: str | None, cwd: Path) -> Path:
+def resolve_vault_path(explicit: str | None, cwd: Path) -> tuple[Path, bool]:
+    """Return ``(root, is_fallback)`` for the report's output location.
+
+    When ``is_fallback`` is True, callers should write the report directly
+    into ``root`` (no ``projects/<project>/session-reports/`` infix). That
+    avoids triple-nesting like
+    ``<cwd>/session-reports/projects/<cwd>/session-reports/`` when no
+    Obsidian vault is configured.
+    """
     if explicit:
         p = Path(explicit).expanduser().resolve()
         if not p.exists():
             raise errors.VaultUnwritableError(f"vault path does not exist: {p}")
-        return p
+        return p, False
 
     env = os.environ.get("OBSIDIAN_VAULT")
     if env:
         p = Path(env).expanduser().resolve()
         if p.exists():
-            return p
+            return p, False
 
     symlink = cwd / ".sn-init" / "knowledge"
     if symlink.exists():
@@ -258,13 +272,13 @@ def resolve_vault_path(explicit: str | None, cwd: Path) -> Path:
         # The symlink points at <vault>/knowledge — climb one to vault root,
         # but only if the parent looks like a vault (has .git or AllShared* dir).
         if target.name == "knowledge" and (target.parent / ".git").exists():
-            return target.parent
-        return target
+            return target.parent, False
+        return target, False
 
     # Last-resort fallback: write reports inside the repo itself.
     fallback = cwd / "session-reports"
     fallback.mkdir(parents=True, exist_ok=True)
-    return fallback
+    return fallback, True
 
 
 # ----- write + index + commit -------------------------------------------

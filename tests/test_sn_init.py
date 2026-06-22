@@ -1746,3 +1746,247 @@ def test_session_report_find_git_root_walks_up(tmp_path: Path):
     # Guard by checking the tmp_path tree.
     if not any((p / ".git").exists() for p in [tmp_path, *tmp_path.parents]):
         assert session_report.find_git_root(no_repo) is None
+
+
+# ---------------------------------------------------------------------------
+# v0.6.0 — tunability enhancements (E1..E7)
+
+
+def _load_session_fixture():
+    import session_report_render  # noqa: F401 - import for monkey-patch context
+
+    fixture_path = (
+        Path(__file__).resolve().parent / "fixtures" / "session-report-payload.json"
+    )
+    return json.loads(fixture_path.read_text())
+
+
+def test_session_report_normalize_prompt_text_collapses_variants():
+    """E5 — repeat detection groups whitespace / case / punctuation variants."""
+    from session_report_render import _normalize_prompt_text
+
+    base = "Commit and push."
+    assert _normalize_prompt_text(base) == _normalize_prompt_text("commit and push")
+    assert _normalize_prompt_text(base) == _normalize_prompt_text("  commit and push  ")
+    assert _normalize_prompt_text(base) == _normalize_prompt_text("commit and push!!!")
+    # Different prompts stay distinct.
+    assert _normalize_prompt_text("commit and push") != _normalize_prompt_text("audit them")
+
+
+def test_session_report_compute_repeat_groups_counts():
+    """E5 — repeat grouping counts the right buckets."""
+    from session_report_render import _compute_repeat_groups
+
+    prompts = [
+        {"text": "commit and push"},
+        {"text": "Commit and push."},
+        {"text": "commit and push!"},
+        {"text": "audit them"},
+        {"text": ""},  # empty drops out
+    ]
+    g = _compute_repeat_groups(prompts)
+    assert g["commit and push"] == 3
+    assert g["audit them"] == 1
+
+
+def test_session_report_cache_hit_pct():
+    """E3 — cache hit % derives from input.{uncached,cache_create,cache_read}."""
+    from session_report_render import _cache_hit_pct
+
+    high = {"input": {"uncached": 10, "cache_create": 0, "cache_read": 990}}
+    low = {"input": {"uncached": 800, "cache_create": 100, "cache_read": 100}}
+    assert _cache_hit_pct(high) == pytest.approx(99.0)
+    assert _cache_hit_pct(low) == pytest.approx(10.0)
+    # Empty input returns 100% (no input = no miss).
+    assert _cache_hit_pct({"input": {}}) == 100.0
+
+
+def test_session_report_cache_break_count_links_by_ts_text():
+    """E4 — cache_break_count_for_prompt matches the `here:true` context entry."""
+    from session_report_render import _cache_break_count_for_prompt
+
+    prompt = {"ts": "2026-06-21T16:38:00Z", "text": "commit and push"}
+    cache_breaks = [
+        {
+            "context": [
+                {"ts": "2026-06-21T16:37:00Z", "text": "/plugin", "here": False},
+                {"ts": "2026-06-21T16:38:00Z", "text": "commit and push", "here": True},
+            ]
+        },
+        # Different prompt, no link
+        {
+            "context": [
+                {"ts": "2026-06-22T10:00:00Z", "text": "audit them", "here": True},
+            ]
+        },
+    ]
+    assert _cache_break_count_for_prompt(prompt, cache_breaks) == 1
+
+
+def test_session_report_determine_reason_priority():
+    """E2 — reason code priority: repeat > subagent-heavy > loop-thrash > cache-miss > cold-start > low-output > expensive."""
+    from session_report_render import _determine_reason
+
+    base = {"text": "x", "api_calls": 1, "subagent_calls": 0}
+    # repeat wins over everything else
+    assert _determine_reason(base, 100.0, 0, 5, 1, 0.5) == "repeat"
+    # subagent-heavy next
+    assert _determine_reason({**base, "subagent_calls": 3}, 100.0, 0, 1, 1, 0.5) == "subagent-heavy"
+    # loop-thrash when api_calls ≥ 2× median
+    assert _determine_reason({**base, "api_calls": 10}, 100.0, 0, 1, 4, 0.5) == "loop-thrash"
+    # cache-miss
+    assert _determine_reason(base, 30.0, 0, 1, 1, 0.5) == "cache-miss"
+    # cold-start
+    assert _determine_reason(base, 100.0, 1, 1, 1, 0.5) == "cold-start"
+    # low-output
+    assert _determine_reason(base, 100.0, 0, 1, 1, 0.0001) == "low-output"
+    # default fallback
+    assert _determine_reason(base, 100.0, 0, 1, 1, 0.5) == "expensive"
+
+
+def test_session_report_tunability_score_bounded():
+    """E1 — score is 0..100 and rewards multiple signals additively."""
+    from session_report_render import _tunability_score
+
+    # Worst-case all-signals prompt — should be high but capped at 100.
+    worst = {"subagent_calls": 10, "api_calls": 100}
+    score = _tunability_score(worst, cache_hit_pct=0.0, cache_break_count=5, repeat_count=10, median_api_calls=1)
+    assert 0 <= score <= 100
+    assert score >= 80  # very tunable
+
+    # Clean prompt — minimum signal.
+    clean = {"subagent_calls": 0, "api_calls": 1}
+    low = _tunability_score(clean, cache_hit_pct=99.0, cache_break_count=0, repeat_count=1, median_api_calls=1)
+    assert low < 10
+
+
+def test_session_report_suggested_action_repeat_inlines_count():
+    """E6 — repeat suggestions inline the count to make the action concrete."""
+    from session_report_render import _suggested_action
+
+    action = _suggested_action({"text": "x"}, "repeat", 4)
+    assert "4×" in action
+    assert "skill" in action.lower()
+
+
+def test_session_report_render_includes_tunability_columns():
+    """E1+E2+E3+E4+E5 — rendered Markdown includes the new top-prompts columns."""
+    from session_report_render import render_markdown
+
+    payload = _load_session_fixture()
+    md = render_markdown(
+        payload,
+        "-Users-test-Claude-setup-project-plugin",
+        "7d",
+        "2026-06-22",
+        project_name="setup_project_plugin",
+    )
+    # New section heading
+    assert "## Top prompts (by tunability)" in md
+    # Column headers present
+    for col in ("Score", "Reason", "Cache-hit", "Cache breaks", "Repeats"):
+        assert col in md
+    # Repeats section appears with the actual count from the fixture
+    assert "## Repeated prompts" in md
+    assert "3×" in md
+    # Optimizations now references the reason code and is per-prompt
+    assert "`cache-miss`" in md or "`repeat`" in md or "`subagent-heavy`" in md
+    # Old generic optimization phrasing must NOT appear
+    assert "Scope or cache the top prompt" not in md
+
+
+def test_session_report_resolve_vault_path_signals_fallback(tmp_path: Path, monkeypatch):
+    """v0.6.0 — resolve_vault_path returns (path, is_fallback).
+
+    Fallback is True only for the last-resort `<cwd>/session-reports/`
+    branch (no --vault, no $OBSIDIAN_VAULT, no .sn-init/knowledge symlink).
+    In that case the wrapper writes the report directly into the returned
+    dir to avoid the triple-nested
+    `<cwd>/session-reports/projects/<proj>/session-reports/` path.
+    """
+    import session_report
+
+    monkeypatch.delenv("OBSIDIAN_VAULT", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    # Last-resort fallback signals True
+    root, is_fallback = session_report.resolve_vault_path(None, tmp_path)
+    assert is_fallback is True
+    assert root == tmp_path / "session-reports"
+
+    # Explicit --vault is NOT fallback
+    explicit = tmp_path / "vault"
+    explicit.mkdir()
+    root, is_fallback = session_report.resolve_vault_path(str(explicit), tmp_path)
+    assert is_fallback is False
+    assert root == explicit.resolve()
+
+    # $OBSIDIAN_VAULT is NOT fallback
+    env_vault = tmp_path / "env-vault"
+    env_vault.mkdir()
+    monkeypatch.setenv("OBSIDIAN_VAULT", str(env_vault))
+    root, is_fallback = session_report.resolve_vault_path(None, tmp_path)
+    assert is_fallback is False
+    assert root == env_vault.resolve()
+
+
+def test_session_report_fallback_writes_flat_path(tmp_path: Path, monkeypatch, capsys):
+    """v0.6.0 — fallback mode writes directly to `<cwd>/session-reports/`
+    instead of nesting under `projects/<project>/session-reports/`.
+
+    Previously a `make session-report` in a scaffolded project without a
+    real vault produced `session-reports/projects/<proj>/session-reports/<ts>.md`
+    (triple-nested + visually broken). The fix collapses the fallback
+    output to a flat `<cwd>/session-reports/<ts>.md`.
+    """
+    import session_report
+
+    # Make analyzer detection succeed by pointing at a fake mjs.
+    fake = tmp_path / "analyze-sessions.mjs"
+    fake.write_text(
+        '#!/usr/bin/env node\n'
+        'const payload = {root: ".", overall: {sessions: 0, api_calls: 0, '
+        'input_tokens: {uncached: 0, cache_create: 0, cache_read: 0, total: 0}, '
+        'output_tokens: 0, human_messages: 0, hours: {wall_clock: 0, active: 0}, '
+        'cache_breaks_over_100k: 0, subagent: {calls: 0, total_tokens: 0, '
+        'avg_tokens_per_call: 0}, skill_invocations: {}, span: null}, '
+        'cache_breaks: [], by_project: {}, by_subagent_type: {}, by_skill: {}, '
+        'top_prompts: [], by_day: []};\n'
+        'process.stdout.write(JSON.stringify(payload));\n'
+    )
+    monkeypatch.setenv("SN_SESSION_REPORT_ANALYZER", str(fake))
+    monkeypatch.delenv("OBSIDIAN_VAULT", raising=False)
+
+    project_dir = tmp_path / "demo-project"
+    project_dir.mkdir()
+    monkeypatch.chdir(project_dir)
+
+    rc = session_report.main(["24h", "--no-push"])
+    assert rc == 0, capsys.readouterr().err
+
+    # File must land at <cwd>/session-reports/<ts>.md, NOT
+    # <cwd>/session-reports/projects/demo-project/session-reports/<ts>.md.
+    files = list((project_dir / "session-reports").glob("*.md"))
+    assert any(f.name != "README.md" for f in files), \
+        f"no report file in flat path; files: {files}"
+    assert not (project_dir / "session-reports" / "projects").exists(), \
+        "fallback mode must not create projects/ subtree"
+
+
+def test_session_report_dedup_collapses_repeated_rows():
+    """E5 — top-prompts table shows ONE row per logical intent even if the
+    prompt was typed multiple times in the window."""
+    from session_report_render import render_markdown
+
+    payload = _load_session_fixture()
+    md = render_markdown(
+        payload,
+        "-Users-test-Claude-setup-project-plugin",
+        "7d",
+        "2026-06-22",
+        project_name="setup_project_plugin",
+    )
+    # `commit and push` appears 3× in fixture; should collapse to ONE row in the
+    # tunability table (count surfaced in the Repeats column = 3).
+    top_section = md.split("## Top prompts")[1].split("## Repeated prompts")[0]
+    assert top_section.count("commit and push") == 1, top_section
