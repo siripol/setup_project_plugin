@@ -28,14 +28,13 @@ Expect `verify_agent_sdk: 1 file(s) OK`. A failure means the overlay drifted out
 
 - `commands/sn-setup.md` — plugin entry slash command (frontmatter + body).
 - `scripts/sn_init.py` — scaffolder logic (argv parse, mode detect, atomic write).
-- `scripts/claude_md_merger.py` — pure section-aware merge for `CLAUDE*.md` during `--upgrade --rename-ns`.
 - `scripts/gen_subagent_index.py` — regenerates `docs/design-docs/subagents.md` from agent frontmatter.
 - `skills/sn-setup/templates/` — everything the scaffolder copies into a target project.
   - `claude/commands/sn-*.md` — 18 generated slash commands.
   - `claude/agents/sn-*.md` — 9 generated subagents.
   - `managed-agent-base/` — language-agnostic project scaffold (`Makefile`, `CLAUDE.md`, `.harness/`, `scripts/`, `docs/`).
   - `lang/{go,py,ts}/` — per-stack overlay (`src/`, `mcp_server/`, `tests/`, build config).
-- `tests/test_sn_init.py` — 111 pytest cases covering scaffold, upgrade, rename-ns, merger, importers, safety, Makefile rendering, orchestrator promise emission, Go/TS lang-overlay smoke tests, `/sn-verify` exit-code contract, `sn-agent-sdk-reviewer` subagent shape.
+- `tests/test_sn_init.py` — pytest cases covering scaffold, upgrade, importers, safety, Makefile rendering, orchestrator promise emission, Go/TS lang-overlay smoke tests, `/sn-verify` exit-code contract, `sn-agent-sdk-reviewer` subagent shape.
 - `.claude-plugin/{plugin.json,marketplace.json}` — Claude Code manifest + marketplace catalog.
 
 ## Workflow
@@ -77,24 +76,23 @@ Common types we use here: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `p
 
 1. Create `skills/sn-setup/templates/claude/commands/sn-<name>.md` with frontmatter `name: sn-<name>` (matching the filename stem). Body documents args, behaviour, and side-effects.
 2. If the command takes args via a Make wrapper, add a target to `skills/sn-setup/templates/managed-agent-base/Makefile` next to the related family.
-3. Add `<name>` to `RENAMED_COMMANDS` in `scripts/sn_init.py` so `/sn-setup --upgrade --rename-ns` migrates older scaffolds.
-4. Document the command in `COMMANDS.md` under the right family heading and update the totals in the header.
-5. Add a `WORKFLOW.md` section if the command joins the spec-loop flow.
-6. Add tests under `tests/test_sn_init.py`: file presence, frontmatter, key body strings, Make target (if any), `RENAMED_COMMANDS` membership.
+3. Document the command in `COMMANDS.md` under the right family heading and update the totals in the header.
+4. Add a `WORKFLOW.md` section if the command joins the spec-loop flow.
+5. Add tests under `tests/test_sn_init.py`: file presence, frontmatter, key body strings, Make target (if any).
 
 ## Adding a new generated subagent
 
 1. Create `skills/sn-setup/templates/claude/agents/sn-<name>.md` with the standard capability manifest in frontmatter (`tools`, `can_modify`, `can_delegate`, `chokepoint_gate`).
 2. Wire it into `PHASE_TO_SUBAGENT` in `skills/sn-setup/templates/managed-agent-base/scripts/orchestrator.py` if it joins a spec-loop phase.
 3. Update the subagent table in `README.md` and the orchestrator phase table in `WORKFLOW.md`.
-4. Add it to `RENAMED_AGENTS` in `scripts/sn_init.py` and update the workflow-files test in `tests/test_sn_init.py`.
+4. Update the workflow-files test in `tests/test_sn_init.py`.
 
 ## Reporting bugs
 
 Issue with a scaffolded project? Include:
 
 - Output of `python --version` (or the equivalent for the lang overlay you used).
-- The full `/sn-setup` (or `/sn-setup --upgrade --rename-ns`) invocation.
+- The full `/sn-setup` (or `/sn-setup --upgrade`) invocation.
 - Contents of `.sn-init-state.json` from the affected project.
 - `make safety-status` output if the breaker tripped.
 - A minimal repro path, ideally a fresh scaffold under `/tmp` that reproduces the symptom.

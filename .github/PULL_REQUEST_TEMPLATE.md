@@ -44,7 +44,7 @@ targets, flags, or template-version bumps.
 <!--
 If this is a breaking change, describe the migration path:
 - Does `/sn-setup --upgrade` cover it?
-- Does it need `--rename-ns` or a new flag?
+- Does it need a new flag?
 - What state files / git tags are affected?
 -->
 

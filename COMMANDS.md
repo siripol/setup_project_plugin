@@ -46,7 +46,6 @@ Scaffold a Claude-powered project, or add `.claude/` scaffolding into an existin
 | `--workflow=spec-loop\|none` | `spec-loop` | Spec-driven autonomous dev loop scaffold |
 | `--prompt="..."` | placeholder | Seed `agents/main.yaml` system block |
 | `--upgrade` | off | Patch-only: pull missing template files into an existing scaffold, bump `template_version`. Never overwrites edited files |
-| `--rename-ns` | off | (Use with `--upgrade`) Rename generated commands/agents to `sn-<name>` so they show as `/sn-<name>`. Handles both legacy layouts: flat bare names and the mid-2026 `sn/` colon namespace. Rewrites cross-references and section-merges every `CLAUDE*.md` |
 | `--dry-run` | off | Print planned tree + diffs, no FS writes |
 | `--verbose` | off | Per-step log to target's `.sn-setup.log` |
 
@@ -62,11 +61,11 @@ Scaffold a Claude-powered project, or add `.claude/` scaffolding into an existin
 # Add .claude/ to existing repo
 cd existing-repo && /sn-setup
 
-# Migrate older project layout to sn- flat prefix
-cd existing-sn-setup-project && /sn-setup --upgrade --rename-ns
+# Pull newer template files into an existing scaffold
+cd existing-sn-setup-project && /sn-setup --upgrade
 
 # Preview an upgrade without writing
-/sn-setup --upgrade --rename-ns --dry-run
+/sn-setup --upgrade --dry-run
 ```
 
 **Exit codes**: `0` ok, `2` usage / bad flag, `3` target dir non-empty + name given, `4` `.claude/` exists in add mode without state file, `5` Obsidian vault unwritable (only when explicit), `6` `--install` failed after retries, `7` validation gate failed, `8` template version mismatch, `99` internal error.
@@ -346,34 +345,6 @@ The scaffolded `Makefile` exposes a thin wrapper for every command (so you can r
 | `make verify` | `/sn-verify` |
 
 See the scaffolded `Makefile` for the `safety-*`, `worktree-*`, `hooks-*`, `logs-*`, and `orchestrate` targets too — they don't have matching slash commands.
-
----
-
-## Migrating older scaffolds to the `sn-` prefix
-
-If you scaffolded a project before this layout (either the original bare-name flat layout, or the mid-2026 `sn:` colon namespace), migrate it in one shot:
-
-```bash
-cd <existing-sn-setup-project>
-/sn-setup --upgrade --rename-ns
-```
-
-This:
-
-1. Renames files from either legacy layout into `.claude/{commands,agents}/sn-<name>.md`.
-2. Rewrites `/cmd` and `/sn:cmd` references in `Makefile`, `scripts/orchestrator.py`, and every command doc into `/sn-<cmd>`.
-3. Section-merges every `CLAUDE*.md` against the latest template (user sections kept, template-only sections appended, `## Tracking` and `## What sn-setup created` overwritten).
-4. Removes the empty `sn/` subdir left over from the colon layout.
-5. Writes `<file>.pre-upgrade-<utc-ts>.bak` backups next to each merged `CLAUDE*.md`.
-6. Records `renamed[]`, `rewritten[]`, `merged_files[]` in `.sn-init-state.json` under `upgrades[]`.
-
-Preview before applying:
-
-```bash
-/sn-setup --upgrade --rename-ns --dry-run
-```
-
-Refuses to run without `--upgrade`. Refuses to start in a directory that has no `.sn-init-state.json`.
 
 ---
 

@@ -41,16 +41,9 @@ See plugin `README.md` for install instructions.
 
 Generated commands and subagents land at the top of `.claude/commands/` and `.claude/agents/` with a flat `sn-` prefix on the filename (`sn-knowledge-update.md`, `sn-knowledge-curator.md`, …) so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands. The entry command itself stays `/sn-setup`.
 
-For projects scaffolded under earlier layouts (bare flat names or the mid-2026 `sn/` colon namespace), run `/sn-setup --upgrade --rename-ns` to:
-- rename existing `.claude/commands/<name>.md` and `.claude/commands/sn/<name>.md` → `.claude/commands/sn-<name>.md`, agent equivalents the same way
-- rewrite `/<name>` and `/sn:<name>` references in Makefile, `scripts/orchestrator.py`, and command docs to `/sn-<name>`
-- section-merge every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-setup created` overwritten)
-- backups written next to each merged file as `<path>.pre-upgrade-<utc-ts>.bak`
-
 ## Safety
 
 - Writes to tmp dir + atomic `mv` (crash-safe)
 - Idempotent re-run via `.sn-init-state.json`
 - Add mode refuses to overwrite existing `.claude/` without state file
 - `--dry-run` previews without any FS write
-- `--rename-ns` rewrites before rename so renamed files carry fixed-up content; refuses unless `--upgrade` is also set
