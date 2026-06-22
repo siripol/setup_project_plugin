@@ -59,11 +59,30 @@ Body of this command dispatches to `scripts/session_report.py`. The script:
 1. **Locates the upstream analyzer** (resolution order in `skills/session-report/SKILL.md`). If none found, prints install hint + exits `9`.
 2. **Runs the analyzer** as `node <analyzer> --json --since <window>` and parses stdout as JSON.
 3. **Resolves the project key** from cwd (encodes `/` and `_` as `-`). Falls back to longest-suffix match.
-4. **Renders Markdown** via the pure function `scripts/session_report_render.py::render_markdown`.
-5. **Atomic-writes** the report to `<vault>/projects/<project>/session-reports/YYYY-MM-DD_HHMM.md`.
-6. **Updates** the local `README.md` index in the same dir.
-7. **Commits + pushes** the vault (skipped when `--no-push` or vault isn't a git repo).
-8. **Prints** the absolute report path to stdout (does NOT open the file).
+4. **Augments each top prompt** with `tunability_score` (0-100), `reason` code (`repeat` / `subagent-heavy` / `loop-thrash` / `cache-miss` / `cold-start` / `low-output` / `expensive`), `cache_hit_pct`, `cache_break_count`, `repeat_count`, and a `suggested_action` recipe.
+5. **Renders Markdown** via the pure function `scripts/session_report_render.py::render_markdown` — top prompts sorted by tunability score, dedup'd by normalized text, plus a Repeated-prompts section grouping fuzzy matches with count ≥ 3.
+6. **Atomic-writes** the report to `<vault>/projects/<project>/session-reports/YYYY-MM-DD_HHMM.md` (or flat `<cwd>/session-reports/<ts>.md` when the resolved path is the last-resort fallback — see `resolve_vault_path()`).
+7. **Updates** the local `README.md` index in the same dir.
+8. **Commits + pushes** the vault (skipped when `--no-push` or no enclosing `.git/` ancestor; `find_git_root()` walks up from the resolved vault path).
+9. **Prints** the absolute report path to stdout (does NOT open the file).
+
+## Reading the output
+
+Top-prompts table is sorted by **`tunability_score`** (not raw tokens), so the first row is always the highest-ROI tuning target. Each row carries a `reason` code that maps to a concrete fix:
+
+| Reason | What it means | What to do |
+|---|---|---|
+| `repeat` | Same text typed ≥ 3 times this window | Promote to a `/sn-<slug>` skill or CLAUDE.md macro |
+| `subagent-heavy` | One prompt fanned out ≥ 3 subagents | Scope to fewer parallel agents; smaller model per call |
+| `loop-thrash` | API calls ≥ 2× project median | Tighten plan, lower `max_turns`, reduce tool-use chains |
+| `cache-miss` | Per-prompt cache-hit < 60% | System-prompt churn — pin CLAUDE.md, reduce hook noise |
+| `cold-start` | Linked to ≥ 1 cache-break event | Avoid `/clear` mid-task; resume sessions |
+| `low-output` | output/input ratio < 0.1% | Loaded big context for tiny output — use targeted Read |
+| `expensive` | Costly with no clear waste signal | Right-size the question; split into smaller tasks |
+
+The **Repeated prompts (skill candidates)** section is the highest-leverage data point: a prompt typed 4× isn't 4× more useful, it's 4× wasted cache. Bake into a skill, save the tokens forever.
+
+The **Optimizations** section is a top-5 punch list — pick from the top.
 
 ## Dependencies
 

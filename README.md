@@ -4,7 +4,10 @@
 [![codecov](https://codecov.io/gh/siripol/setup_project_plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/siripol/setup_project_plugin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Claude Code plugin shipping the **`sn-setup`** skill — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
+Claude Code plugin shipping two entry skills:
+
+- **`sn-setup`** — scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.
+- **`sn-session-report`** — render a Markdown session-usage report for the current project into the Obsidian vault. Tunability-first: top prompts sorted by a 0-100 score (not raw tokens) with reason codes (`repeat` / `subagent-heavy` / `loop-thrash` / `cache-miss` / `cold-start` / `low-output` / `expensive`) and a per-prompt suggested action. Tells you which prompt is worth tuning, not just which was expensive.
 
 134 pytest cases. Repo: `https://github.com/siripol/setup_project_plugin`.
 
