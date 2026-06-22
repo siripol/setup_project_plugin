@@ -4,6 +4,17 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [0.6.1] — 2026-06-23
+
+### Docs
+
+- Cross-reference `/sn-session-report` (v0.6.0) across the remaining user-facing surfaces so the plugin no longer reads as scaffolder-only:
+  - `WORKFLOW.md` — command-flow diagram extended with `/sn-session-report` after `/sn-sprint-done`; new `## 9. Session-usage analysis — /sn-session-report (v0.6.0+)` section with the reading guide (7 reason codes, Repeats as skill-candidate generator, Optimizations as per-prompt punch list, upstream-install dependency).
+  - `skills/sn-setup/SKILL.md` — Companion-skill line pointing at `../session-report/SKILL.md` so Claude surfaces the second entry skill when `sn-setup` triggers.
+  - `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` — description, keywords, and tags advertise `session-report` + `observability`. Marketplace catalogs now show the plugin as a two-skill bundle.
+
+No code or template changes. Tests still 134 green.
+
 ## [0.6.0] — 2026-06-23
 
 ### Fixed (caught in pre-release regression sweep)
