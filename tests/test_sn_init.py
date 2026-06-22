@@ -1692,6 +1692,34 @@ def test_session_report_render_uses_explicit_project_name():
     assert "bucket: projects/setup-project-plugin" not in md
 
 
+def test_sprint_status_returns_zero_when_completed_empty(tmp_path: Path):
+    """v0.5.2 fix — `make sprint-status` previously exited rc=2 when the
+    `docs/sprints/completed/` glob was empty because the bash `for` loop
+    iterated over the literal pattern and the trailing `[ -d ]` returned 1.
+
+    The fix prepends `shopt -s nullglob` so unmatched globs disappear.
+    """
+    import shutil as _shutil
+    import subprocess
+    if not _shutil.which("make"):
+        pytest.skip("make not installed")
+
+    _run(tmp_path, "demo", "--lang=py", "--no-git", "--no-ci", "--no-obsidian")
+    project = tmp_path / "demo"
+
+    # No active and no completed sprints — sprint-status must still exit 0.
+    r = subprocess.run(
+        ["make", "sprint-status"],
+        cwd=project, capture_output=True, text=True,
+    )
+    assert r.returncode == 0, (
+        f"sprint-status rc={r.returncode} when empty\n"
+        f"stdout: {r.stdout}\nstderr: {r.stderr}"
+    )
+    assert "ACTIVE sprints:" in r.stdout
+    assert "COMPLETED sprints:" in r.stdout
+
+
 def test_session_report_find_git_root_walks_up(tmp_path: Path):
     """v0.5.1 fix — vault commit step walks up from the knowledge dir until it
     finds the enclosing git repo. Obsidian vaults nest the knowledge tree
