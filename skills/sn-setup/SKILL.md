@@ -14,6 +14,8 @@ Slash-command skill that scaffolds Claude-powered projects following Anthropic c
 - User asks: "init a project", "scaffold a new Claude project", "set up Managed Agent project"
 - User wants `.claude/` added to an existing repo
 
+Companion skill: [`/sn-session-report`](../session-report/SKILL.md) is the plugin's second entry surface (v0.6.0+). After scaffolding and running sprints, use it to render a tunability-ranked Markdown usage report into the Obsidian vault — finds repeat prompts, cache-misses, subagent-heavy turns, and loop-thrash so the next sprint can target the highest-ROI tuning candidates.
+
 ## Two modes (auto-detected from cwd)
 
 | Mode | Trigger | Result |

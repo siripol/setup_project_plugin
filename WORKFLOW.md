@@ -12,7 +12,10 @@ flowchart LR
     D --> E{pass?}
     E -- no --> D
     E -- yes --> F[/sn-sprint-done/]
+    F --> G[/sn-session-report/]
 ```
+
+`/sn-session-report` (v0.6.0+) closes the loop — after a sprint lands, it renders a tunability-ranked usage report into the Obsidian vault so the next sprint can target the highest-ROI prompts. See [§9](#9-session-usage-analysis--sn-session-report-v060).
 
 ## Inside `/sn-sprint-run`
 
@@ -261,6 +264,26 @@ If your REQs live as GitHub issues labeled `req`:
 Runs `gh issue list --label req --state open --json number,title,body`, converts each issue into a REQ scaffold, and writes them to `docs/requirements/active/`. Requires the `gh` CLI to be authenticated.
 
 `make gh-close REQ=REQ-001 PR=42` then closes the matching GitHub issue when the PR merges.
+
+## 9. Session-usage analysis — `/sn-session-report` (v0.6.0+)
+
+After a sprint (or any session burn), render a project-scoped usage report into the vault to see **which prompts to tune**, not just which were expensive:
+
+```
+/sn-session-report 7d           # default window; auto-commits the vault
+/sn-session-report 24h --dry-run
+/sn-session-report --no-push    # write + commit but don't push
+```
+
+The report lands at `<vault>/projects/<project>/session-reports/YYYY-MM-DD_HHMM.md` and includes:
+
+- **Top prompts (by tunability)** — sorted by a 0-100 composite score (repeat count + cache-miss share + subagent fan-out + API-call thrash + cache-break recurrence), NOT raw tokens. Each row tagged with a `reason` code: `repeat`, `subagent-heavy`, `loop-thrash`, `cache-miss`, `cold-start`, `low-output`, `expensive`.
+- **Repeated prompts (skill candidates)** — prompts typed ≥ 3 times this window. Highest-ROI tuning targets: promote each to a `/sn-<slug>` skill or CLAUDE.md macro and you stop paying the cache-miss tax on every replay.
+- **Optimizations** — top-5 per-prompt punch list pairing the reason code with one concrete fix (e.g. `repeat` → promote to skill; `subagent-heavy` → scope fewer parallel agents; `loop-thrash` → lower `max_turns`; `cache-miss` → pin CLAUDE.md before commits).
+
+Wraps Anthropic's upstream [`session-report`](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/session-report) plugin's analyzer (`analyze-sessions.mjs`); install it once via `/plugin marketplace add anthropics/claude-plugins-official` then `/plugin install session-report@claude-plugins-official`. Missing analyzer → exit 9 with install hint. See `commands/sn-session-report.md` for the full reading guide and `skills/session-report/SKILL.md` for the 9-step flow.
+
+Scaffolded projects ship the same `/sn-session-report` command + a `make session-report` Make target (with `SINCE=24h|7d|30d|all` env override).
 
 ## End-to-end example — one terminal session
 

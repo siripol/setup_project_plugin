@@ -4,14 +4,14 @@
     "name": "siripol",
     "email": "siripoln.media@gmail.com"
   },
-  "description": "Scaffold Claude-powered projects (Agent SDK + Managed Agents) following Anthropic conventions.",
+  "description": "Scaffold Claude-powered projects (Agent SDK + Managed Agents) and render tunability-ranked session-usage reports into Obsidian.",
   "plugins": [
     {
       "name": "setup-project-plugin",
       "source": "./",
-      "description": "Scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles.",
+      "description": "Scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles. Also ships /sn-session-report for tunability-ranked Markdown usage reports into the Obsidian vault.",
       "category": "scaffolding",
-      "tags": ["scaffold", "agent-sdk", "managed-agents", "project-template"]
+      "tags": ["scaffold", "agent-sdk", "managed-agents", "project-template", "session-report", "observability"]
     }
   ]
 }
