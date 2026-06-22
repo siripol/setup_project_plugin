@@ -133,7 +133,8 @@ sprint-done: ## Archive SPRINT-NNN to docs/sprints/completed/
 	 echo "archived $$SPRINT → docs/sprints/completed/"
 
 sprint-status: ## List active + completed sprints
-	@echo "ACTIVE sprints:"; \
+	@shopt -s nullglob; \
+	 echo "ACTIVE sprints:"; \
 	 for d in docs/sprints/active/SPRINT-*; do [ -d "$$d" ] && echo "  $$(basename $$d)"; done; \
 	 echo "COMPLETED sprints:"; \
 	 for d in docs/sprints/completed/SPRINT-*; do [ -d "$$d" ] && echo "  $$(basename $$d)"; done

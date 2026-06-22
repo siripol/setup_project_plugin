@@ -4,6 +4,33 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [0.5.2] — 2026-06-22
+
+### Fixed
+
+- Scaffolded `Makefile` — `make sprint-status` returned exit code 2 (and tripped Make's error reporting) whenever `docs/sprints/completed/` was empty. The bash `for` loop iterated over the literal unmatched glob, the trailing `[ -d ]` test failed, and the recipe inherited rc 1. The fix prepends `shopt -s nullglob` so unmatched globs collapse to zero iterations; both ACTIVE + COMPLETED loops now return 0 cleanly. Affects every freshly-scaffolded project regardless of lang.
+
+### Tests
+
+- 1 new pytest case (122 → 123): `test_sprint_status_returns_zero_when_completed_empty` — scaffolds a fresh project and asserts `make sprint-status` returns rc 0 even when both sprint dirs are empty.
+
+### Regression-test sweep
+
+Full end-to-end pass against the plugin + scaffolded projects (py, ts, go):
+
+| Surface | Status |
+|---|---|
+| 122-case pytest | ✓ green |
+| Plugin `/sn-session-report --dry-run` | ✓ writes correct frontmatter |
+| Scaffolder (`/sn-setup demo-{py,ts,go}`) | ✓ tree present, scripts copied incl. `session_report.py`, `session_report_render.py` |
+| `make help` | ✓ ~30 targets |
+| `make verify` (Agent SDK 6 mechanical rules) | ✓ py/ts: `1 file(s) OK`, go: `2 file(s) OK` |
+| `make req-validate` (PyYAML missing case) | ✓ friendly skip |
+| `make req-new SLUG=…` | ✓ writes REQ-NNN |
+| `make sprint-new SLUG=…` / `sprint-add` / `sprint-remove` / `sprint-done` | ✓ |
+| `make safety-status` | ✓ JSON shape |
+| `make sprint-status` | ✗ rc 2 on empty — **fixed in this release** |
+
 ## [0.5.1] — 2026-06-22
 
 ### Fixed
