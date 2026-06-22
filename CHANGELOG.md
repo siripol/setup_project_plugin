@@ -4,6 +4,50 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [0.6.0] — 2026-06-23
+
+### Added — `/sn-session-report` tunability enhancements
+
+The session report now tells you **which prompts to tune**, not just which were expensive. Big prompts on hard tasks are fine; small prompts repeated 30× cold-cache are bleeding. The enhancements surface that distinction directly in the Markdown output and in the underlying renderer's per-prompt augmentation.
+
+- **`tunability_score` (0-100) per prompt** — composite of repeat count, cache-miss share, subagent fan-out, API-call thrash vs project median, and cache-break recurrence. Top prompts now sort by this score (not raw tokens), so the table's top row is the highest-ROI tuning target rather than just the most-expensive one.
+- **`reason` code per prompt** — one of `repeat`, `subagent-heavy`, `loop-thrash`, `cache-miss`, `cold-start`, `low-output`, `expensive`. Priority-ordered: the dominant signal wins. Renders as a code-formatted column in the top-prompts table and as the heading of every per-prompt optimization callout.
+- **`cache-hit %` per prompt** — `cache_read / total_input * 100` per row. Surfaces which specific prompts blew cache (vs the global project cache-hit % in the headline).
+- **`cache breaks` count per prompt** — counts cache-break events whose `context[here:true]` entry matches the prompt by `(ts, text)`. Cold-start cost made concrete per row.
+- **`repeats` count per prompt + dedicated Repeats section** — prompts grouped by `_normalize_prompt_text` (lowercased, whitespace-collapsed, trailing-punctuation-stripped, first 80 chars). Top-prompts table collapses repeated rows into one (token totals summed, repeat count surfaced). New "Repeated prompts (skill candidates)" section lists every group with count ≥ 3 sorted by total spend — these are the highest-ROI tuning targets.
+- **Per-prompt `suggested_action`** — one-line recipe keyed off the reason code: `repeat` → promote to a `/sn-<slug>` skill or CLAUDE.md macro; `subagent-heavy` → scope fewer parallel agents; `loop-thrash` → tighter plan / lower `max_turns`; `cache-miss` → pin CLAUDE.md before commits; `cold-start` → group related work, avoid `/clear` mid-task; `low-output` → targeted Read instead of spraying files; `expensive` → split / right-size.
+- **Optimizations section reshaped** — was 1-4 generic `> [!tip]` callouts. Now top-5 highest-tunability prompts as `> [!tip] **[<score>] \`<reason>\`** — <prompt-text> (<tokens> tokens). <suggested-action>`. Reads as a punch list.
+
+### Tunability heuristics + thresholds
+
+| Constant | Default | Used by |
+|---|---|---|
+| `REPEAT_MIN_COUNT` | 3 | Repeats section + `repeat` reason code + `_REASON_TO_ACTION["repeat"]` |
+| `LOW_OUTPUT_RATIO` | 0.001 (0.1%) | `low-output` reason code |
+| `PROMPT_CACHE_TARGET` | 60.0% | `cache-miss` reason code (note: project-wide target is still 85%) |
+
+### Tests
+
+9 new pytest cases (123 → 132):
+
+- `test_session_report_normalize_prompt_text_collapses_variants` — whitespace/case/punctuation normalization for repeat grouping.
+- `test_session_report_compute_repeat_groups_counts` — group counting + empty filter.
+- `test_session_report_cache_hit_pct` — formula correctness for high/low/empty input.
+- `test_session_report_cache_break_count_links_by_ts_text` — `(ts, text)` matching against `here:true` context.
+- `test_session_report_determine_reason_priority` — reason priority order across all 7 codes.
+- `test_session_report_tunability_score_bounded` — worst-case ≥ 80, clean prompt < 10, always ∈ [0, 100].
+- `test_session_report_suggested_action_repeat_inlines_count` — repeat suggestions surface the count.
+- `test_session_report_render_includes_tunability_columns` — Markdown output has the new columns + sections + reason codes.
+- `test_session_report_dedup_collapses_repeated_rows` — table shows ONE row per logical intent even when the prompt appears N times in the analyzer payload.
+
+### Fixture
+
+`tests/fixtures/session-report-payload.json` extended with synthetic prompts that exercise every reason code: `cache-miss` (`/clear`), `loop-thrash` (`scan this project…`), `repeat` (`commit and push` × 3), `subagent-heavy` (`build the whole feature…`), plus a cross-project prompt for filter verification.
+
+### Verified end-to-end against real data
+
+Real 7d run on the user's transcripts surfaced the actual top tuning candidates: `all of them` (4×, 44.8M tokens, score 37), `ok` (3×, 23.9M tokens, score 24) — combined 68.7M wasted tokens promotable to a skill or macro.
+
 ## [0.5.2] — 2026-06-22
 
 ### Fixed
