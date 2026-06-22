@@ -1284,10 +1284,6 @@ def test_makefile_verify_target_ships(tmp_path: Path):
     assert "verify_agent_sdk.py" in mk
 
 
-def test_verify_in_renamed_commands():
-    assert "verify" in sn_init.RENAMED_COMMANDS
-
-
 def test_verify_agent_sdk_passes_on_compliant_py_overlay(tmp_path: Path):
     """The scaffolded python overlay (src/agent.py) MUST pass the verifier
     out of the box. If we ship code that fails our own rules the doc is a lie."""
@@ -1337,10 +1333,6 @@ def test_sn_agent_sdk_reviewer_subagent_ships(tmp_path: Path):
     # Must scope to the prose-analysis rules only.
     assert "Rule 4" in body and "Rule 7" in body and "Rule 8" in body
     assert "Rule 10" in body and "Rule 11" in body and "Rule 12" in body
-
-
-def test_agent_sdk_reviewer_in_renamed_agents():
-    assert "agent-sdk-reviewer" in sn_init.RENAMED_AGENTS
 
 
 def test_verify_agent_sdk_fails_on_hardcoded_key(tmp_path: Path):
@@ -1479,173 +1471,6 @@ def test_makefile_targets_runnable(tmp_path: Path):
     )
     assert r.returncode == 0, r.stderr
     assert "/sn-sprint-run SPRINT-001 with --workflow-concurrent=3" in r.stdout
-
-
-# ---------------------------------------------------------------------------
-# sn: namespace + --rename-ns migration
-
-
-def _import_claude_md_merger():
-    import importlib
-    import sys as _sys
-    plugin_root = Path(__file__).resolve().parent.parent
-    sp = str(plugin_root / "scripts")
-    if sp not in _sys.path:
-        _sys.path.insert(0, sp)
-    return importlib.import_module("claude_md_merger")
-
-
-def test_claude_md_merger_preserves_custom_section():
-    merger = _import_claude_md_merger()
-    existing = (
-        "# proj\n\n"
-        "Some intro.\n\n"
-        "## Tier\nuser tier\n\n"
-        "## My custom notes\n- keep me\n"
-    )
-    template = (
-        "# template\n\n"
-        "## Tier\ntemplate tier (should not win)\n\n"
-        "## Commands\n| col | val |\n\n"
-        "## Tracking\nfresh tracking\n"
-    )
-    out = merger.merge(existing, template, overwrite_sections={"Tracking"})
-    assert "user tier" in out
-    assert "My custom notes" in out
-    assert "## Commands" in out
-    assert "fresh tracking" in out
-    assert "template tier" not in out
-
-
-def test_claude_md_merger_overwrites_whitelisted_section():
-    merger = _import_claude_md_merger()
-    existing = "# p\n\n## Tracking\nstale\n\n## Notes\nkeep\n"
-    template = "# t\n\n## Tracking\nfresh\n"
-    out = merger.merge(existing, template, overwrite_sections={"Tracking"})
-    assert "fresh" in out
-    assert "stale" not in out
-    assert "Notes" in out
-
-
-def test_rename_ns_refuses_without_upgrade(tmp_path: Path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    rc = sn_init.main(["--rename-ns"])
-    assert rc == errors.EXIT_USAGE
-
-
-def _make_old_layout(target: Path) -> None:
-    target.mkdir(parents=True, exist_ok=True)
-    (target / ".sn-init-state.json").write_text(json.dumps({
-        "template_version": "2025.01.01",
-        "lang": "py",
-        "tier": "both",
-        "flags": {
-            "workflow": "spec-loop",
-            "subagents": ["code-reviewer", "test-writer"],
-            "ci": False,
-            "devcontainer": False,
-            "license": "none",
-            "audit_log": True,
-        },
-    }) + "\n")
-    (target / ".claude" / "commands").mkdir(parents=True)
-    (target / ".claude" / "agents").mkdir(parents=True)
-    (target / "scripts").mkdir(parents=True)
-
-    (target / ".claude" / "commands" / "knowledge-update.md").write_text(
-        "---\nname: knowledge-update\ndescription: x\n---\n"
-        "Hint: run /sprint-run after /knowledge-update.\n"
-    )
-    (target / ".claude" / "commands" / "sprint-run.md").write_text(
-        "---\nname: sprint-run\ndescription: x\n---\n"
-    )
-    (target / ".claude" / "agents" / "knowledge-curator.md").write_text(
-        "---\nname: knowledge-curator\n---\n"
-    )
-    (target / ".claude" / "agents" / "adversary.md").write_text(
-        "---\nname: adversary\n---\n"
-    )
-    (target / "Makefile").write_text(
-        '.PHONY: x\nx:\n\t@echo "Invoke /knowledge-update"\n\t@echo "Invoke /sprint-run"\n'
-    )
-    (target / "scripts" / "orchestrator.py").write_text(
-        'PHASE_TO_SUBAGENT = {\n'
-        '    "impact": "impact-analyzer",\n'
-        '    "curate": "knowledge-curator",\n'
-        '    "adversary": "adversary",\n'
-        '}\n'
-    )
-    (target / "CLAUDE.md").write_text(
-        "# proj — Claude memory\n\n"
-        "## Tier\ncustom tier value\n\n"
-        "## My custom notes\n- keep me\n"
-    )
-
-
-def test_rename_ns_dry_run_reports_plan(tmp_path: Path, monkeypatch, capsys):
-    _make_old_layout(tmp_path)
-    monkeypatch.chdir(tmp_path)
-    rc = sn_init.main(["--upgrade", "--rename-ns", "--dry-run"])
-    assert rc == errors.EXIT_OK
-    out = capsys.readouterr().out
-    assert "would rename" in out
-    assert ".claude/commands/knowledge-update.md → .claude/commands/sn-knowledge-update.md" in out
-    assert ".claude/agents/knowledge-curator.md → .claude/agents/sn-knowledge-curator.md" in out
-    assert "would rewrite refs" in out
-    assert "would section-merge" in out
-    # Dry-run must not move anything.
-    assert (tmp_path / ".claude" / "commands" / "knowledge-update.md").exists()
-    assert not (tmp_path / ".claude" / "commands" / "sn-knowledge-update.md").exists()
-
-
-def test_rename_ns_applies_migration(tmp_path: Path, monkeypatch):
-    _make_old_layout(tmp_path)
-    monkeypatch.chdir(tmp_path)
-    rc = sn_init.main(["--upgrade", "--rename-ns"])
-    assert rc == errors.EXIT_OK
-
-    # Files renamed with sn- prefix at the flat top level.
-    assert (tmp_path / ".claude" / "commands" / "sn-knowledge-update.md").exists()
-    assert (tmp_path / ".claude" / "commands" / "sn-sprint-run.md").exists()
-    assert (tmp_path / ".claude" / "agents" / "sn-knowledge-curator.md").exists()
-    assert not (tmp_path / ".claude" / "commands" / "knowledge-update.md").exists()
-    assert not (tmp_path / ".claude" / "agents" / "knowledge-curator.md").exists()
-
-    # Refs rewritten.
-    mk = (tmp_path / "Makefile").read_text()
-    assert "/sn-knowledge-update" in mk
-    assert "/sn-sprint-run" in mk
-
-    orch = (tmp_path / "scripts" / "orchestrator.py").read_text()
-    assert '"impact": "sn-impact-analyzer"' in orch
-    assert '"curate": "sn-knowledge-curator"' in orch
-    # Phase KEY "adversary" must not be prefixed (only value side).
-    assert '"adversary": "sn-adversary"' in orch
-    assert '"sn-adversary": "sn-adversary"' not in orch
-
-    # Inside the renamed command file, /<cmd> got prefixed too.
-    moved = (tmp_path / ".claude" / "commands" / "sn-knowledge-update.md").read_text()
-    assert "/sn-sprint-run" in moved
-    assert "/sn-knowledge-update" in moved
-
-    # CLAUDE.md merged: user sections preserved, template sections appended.
-    claude_md = (tmp_path / "CLAUDE.md").read_text()
-    assert "custom tier value" in claude_md
-    assert "My custom notes" in claude_md
-    assert "## Tracking" in claude_md  # template appended
-
-    # Backup written.
-    backups = list(tmp_path.glob("CLAUDE.md.pre-upgrade-*.bak"))
-    assert len(backups) == 1
-
-    # State records migration metadata.
-    state = json.loads((tmp_path / ".sn-init-state.json").read_text())
-    upgrades = state.get("upgrades", [])
-    assert upgrades
-    last = upgrades[-1]
-    assert last["renamed"]
-    assert last["merged_files"] == ["CLAUDE.md"]
-    assert state["template_version"] == sn_init.TEMPLATE_VERSION
 
 
 def test_plan_new_files_emits_sn_namespace(tmp_path: Path):

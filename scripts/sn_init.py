@@ -13,23 +13,19 @@ import argparse
 import json
 import os
 import random
-import re
 import secrets
 import shutil
-import string
 import subprocess
 import sys
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
 
 try:
-    from . import claude_md_merger, errors, sn_logging as snlog  # type: ignore
+    from . import errors, sn_logging as snlog  # type: ignore
 except ImportError:
     # Allow running as plain script: `python3 scripts/sn_init.py ...`
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import claude_md_merger  # type: ignore
     import errors  # type: ignore
     import sn_logging as snlog  # type: ignore
 
@@ -96,13 +92,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--upgrade", action="store_true",
                    help="Patch-only: pull missing template files into an existing scaffold and "
                         "bump .sn-init-state.json template_version. Never overwrites edited files.")
-    p.add_argument("--rename-ns", action="store_true", dest="rename_ns",
-                   help="During --upgrade: rename generated commands and agents to the flat "
-                        "`sn-<name>` prefix layout (so they show as `/sn-<name>`). Handles both "
-                        "legacy layouts (bare flat names and the mid-2026 `sn/` colon namespace). "
-                        "Rewrites cross-references in Makefile/orchestrator.py/docs and "
-                        "section-merges every CLAUDE*.md against the latest template. Refuses "
-                        "unless --upgrade.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     return p
@@ -166,9 +155,6 @@ def detect_mode(cwd: Path, name: str | None) -> tuple[str, Path]:
 def run(args: argparse.Namespace) -> int:
     cwd = Path.cwd()
 
-    if getattr(args, "rename_ns", False) and not args.upgrade:
-        raise errors.UsageError("--rename-ns requires --upgrade")
-
     if args.upgrade:
         return _run_upgrade(args, cwd)
 
@@ -196,8 +182,7 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
         raise errors.SnInitError(f"could not read state file: {e}") from e
 
     prev_version = state.get("template_version", "")
-    rename_ns = bool(getattr(args, "rename_ns", False))
-    if prev_version == TEMPLATE_VERSION and not rename_ns:
+    if prev_version == TEMPLATE_VERSION:
         print(f"sn-setup: already at template version {TEMPLATE_VERSION}; nothing to do.")
         return errors.EXIT_OK
 
@@ -212,9 +197,6 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
     args.license_kind = persisted.get("license", args.license_kind)
     args.no_audit_log = not persisted.get("audit_log", True)
 
-    rename_plan = _plan_rename_ns(target) if rename_ns else _RenamePlan()
-    merge_plan = _plan_claude_md_merge(args, target) if rename_ns else []
-
     files = _plan_new_files(args, target)
 
     if args.dry_run:
@@ -222,73 +204,9 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
         print(f"[upgrade-dry-run] would add {len(added)} missing files")
         for rel, _ in sorted(added):
             print(f"  + {rel}")
-        if rename_ns:
-            print(f"[upgrade-dry-run] would rename {len(rename_plan.renames)} files into sn/")
-            for src, dst in rename_plan.renames:
-                print(f"  ~ {src} → {dst}")
-            print(f"[upgrade-dry-run] would rewrite refs in {len(rename_plan.rewrites)} files")
-            for rel in sorted(rename_plan.rewrites):
-                print(f"  * {rel}")
-            print(f"[upgrade-dry-run] would section-merge {len(merge_plan)} CLAUDE*.md files")
-            for rel, _, _ in merge_plan:
-                print(f"  M {rel}")
         return errors.EXIT_OK
 
     logger = snlog.StepLogger(target=target, verbose=args.verbose)
-    renamed: list[str] = []
-    rewritten: list[str] = []
-    merged: list[str] = []
-
-    if rename_ns:
-        # Rewrite first while files are still at their original paths — that way
-        # renamed command/agent files carry their fixed-up content to the new
-        # location automatically.
-        for rel in rename_plan.rewrites:
-            path = target / rel
-            try:
-                original = path.read_text(encoding="utf-8")
-            except FileNotFoundError:
-                continue
-            new_text = _rewrite_ns_refs(original)
-            if new_text != original:
-                with logger.step("rewrite", rel):
-                    path.write_text(new_text, encoding="utf-8")
-                rewritten.append(rel)
-
-        for src, dst in rename_plan.renames:
-            src_path = target / src
-            dst_path = target / dst
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
-            with logger.step("rename", f"{src} → {dst}"):
-                src_path.rename(dst_path)
-            renamed.append(f"{src} -> {dst}")
-
-        # Clean up the empty `sn/` subdir left behind by the mid-2026
-        # colon-namespace layout.
-        for sub in (target / ".claude/commands/sn", target / ".claude/agents/sn"):
-            if sub.exists() and sub.is_dir() and not any(sub.iterdir()):
-                sub.rmdir()
-
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        for rel, existing, template_text in merge_plan:
-            path = target / rel
-            backup = path.with_suffix(path.suffix + f".pre-upgrade-{ts}.bak")
-            try:
-                backup.write_text(existing, encoding="utf-8")
-            except OSError as e:
-                logger.info(f"could not write backup for {rel}: {e}")
-            try:
-                merged_text = claude_md_merger.merge(
-                    existing, template_text,
-                    overwrite_sections=OVERWRITE_CLAUDE_SECTIONS,
-                )
-            except Exception as e:
-                logger.info(f"merge failed for {rel}: {e}; keeping existing")
-                continue
-            if merged_text != existing:
-                with logger.step("merge", rel):
-                    path.write_text(merged_text, encoding="utf-8")
-                merged.append(rel)
 
     added: list[str] = []
     for rel, content in files:
@@ -313,178 +231,13 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
         "added": added,
         "at": datetime.now(timezone.utc).isoformat(),
     }
-    if rename_ns:
-        upgrade_entry["renamed"] = renamed
-        upgrade_entry["rewritten"] = rewritten
-        upgrade_entry["merged_files"] = merged
     state.setdefault("upgrades", []).append(upgrade_entry)
     state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-    summary = (
+    print(
         f"sn-setup: upgraded {prev_version or '(none)'} → {TEMPLATE_VERSION}; "
-        f"added {len(added)} file(s)"
+        f"added {len(added)} file(s)."
     )
-    if rename_ns:
-        summary += (
-            f"; renamed {len(renamed)}, rewrote {len(rewritten)} ref(s), "
-            f"merged {len(merged)} CLAUDE*.md"
-        )
-    print(summary + ".")
     return errors.EXIT_OK
-
-
-# ---------------------------------------------------------------------------
-# --rename-ns helpers
-# ---------------------------------------------------------------------------
-
-
-RENAMED_COMMANDS = (
-    "knowledge-update", "knowledge-promote", "knowledge-demote",
-    "knowledge-check", "knowledge-tech-matrix",
-    "sprint-new", "sprint-run", "sprint-add", "sprint-done",
-    "sprint-status", "sprint-remove",
-    "req-new", "req-import", "req-replay", "req-resume", "req-rollback",
-    "gh-import",
-    "verify",
-)
-RENAMED_AGENTS = (
-    "knowledge-curator", "impact-analyzer", "task-decomposer",
-    "task-executor", "task-tester", "integration-tester",
-    "adversary", "evaluator", "agent-sdk-reviewer",
-)
-OVERWRITE_CLAUDE_SECTIONS = ("Tracking", "What sn-init created")
-
-# Bare-name → sn:bare-name agent rewrites, applied only in known files (so we
-# never touch a free-text mention in an unrelated user doc).
-_AGENT_REWRITE_TARGETS = (
-    "scripts/orchestrator.py",
-    ".harness/README.md",
-    ".harness/invariants/README.md",
-)
-
-
-@dataclass
-class _RenamePlan:
-    renames: list[tuple[str, str]] = field(default_factory=list)
-    rewrites: list[str] = field(default_factory=list)
-
-
-def _plan_rename_ns(target: Path) -> "_RenamePlan":
-    """Return the set of file moves + files to rewrite for --rename-ns.
-
-    Handles two legacy layouts in one pass:
-      * flat bare names: `.claude/commands/<cmd>.md`
-      * colon namespace (mid-2026 attempt): `.claude/commands/sn/<cmd>.md`
-    Both converge on the new dash-prefix flat layout:
-      `.claude/commands/sn-<cmd>.md`.
-    """
-    plan = _RenamePlan()
-
-    for cmd in RENAMED_COMMANDS:
-        dst = Path(".claude/commands") / f"sn-{cmd}.md"
-        if (target / dst).exists():
-            continue
-        for src in (
-            Path(".claude/commands") / f"{cmd}.md",
-            Path(".claude/commands/sn") / f"{cmd}.md",
-        ):
-            if (target / src).exists():
-                plan.renames.append((str(src), str(dst)))
-                break
-
-    for agent in RENAMED_AGENTS:
-        dst = Path(".claude/agents") / f"sn-{agent}.md"
-        if (target / dst).exists():
-            continue
-        for src in (
-            Path(".claude/agents") / f"{agent}.md",
-            Path(".claude/agents/sn") / f"{agent}.md",
-        ):
-            if (target / src).exists():
-                plan.renames.append((str(src), str(dst)))
-                break
-
-    candidates = [
-        "Makefile",
-        *_AGENT_REWRITE_TARGETS,
-    ]
-    cmd_dir = target / ".claude/commands"
-    if cmd_dir.exists():
-        for path in cmd_dir.rglob("*.md"):
-            candidates.append(str(path.relative_to(target)))
-
-    seen: set[str] = set()
-    for rel in candidates:
-        if rel in seen:
-            continue
-        if (target / rel).exists():
-            plan.rewrites.append(rel)
-            seen.add(rel)
-    return plan
-
-
-def _rewrite_ns_refs(text: str) -> str:
-    """Apply the fixed sn: namespace rewrites to a file's text."""
-    out = text
-    for cmd in RENAMED_COMMANDS:
-        out = re.sub(rf"(?<![A-Za-z0-9_:])/{re.escape(cmd)}(?![A-Za-z0-9_-])",
-                     f"/sn-{cmd}", out)
-    for agent in RENAMED_AGENTS:
-        # Backtick-wrapped bare-name (prose / docs).
-        out = re.sub(rf"`{re.escape(agent)}`", f"`sn-{agent}`", out)
-        # Dict/YAML *value* position only — preceded by `:` so we don't touch
-        # keys that happen to share the agent's name (e.g. PHASE "adversary").
-        out = re.sub(
-            rf'(:\s*)"{re.escape(agent)}"',
-            rf'\1"sn-{agent}"', out,
-        )
-        out = re.sub(
-            rf"(:\s*)'{re.escape(agent)}'",
-            rf"\1'sn-{agent}'", out,
-        )
-    return out
-
-
-def _plan_claude_md_merge(
-    args: argparse.Namespace, target: Path,
-) -> list[tuple[str, str, str]]:
-    """Return [(rel_path, existing_text, template_text)] for every CLAUDE*.md.
-
-    Template text is rendered against the project's persisted vars where
-    possible; if no template counterpart exists for a nested file we skip it.
-    """
-    pairs: list[tuple[str, str, str]] = []
-    project_name = target.name
-    tpl_vars = {"name": project_name, "lang": args.lang, "model": "claude-opus-4-8",
-                "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
-
-    tpl_root = TEMPLATES / "managed-agent-base"
-
-    candidates: list[tuple[Path, Path]] = []
-    for tpl_name in ("CLAUDE.md", "CLAUDE.local.md"):
-        existing_path = target / tpl_name
-        tpl_path = tpl_root / tpl_name
-        if existing_path.exists() and tpl_path.exists():
-            candidates.append((existing_path, tpl_path))
-
-    # Nested CLAUDE*.md without a known template counterpart — merge against
-    # the root template so they at least pick up template-managed sections.
-    for path in target.rglob("CLAUDE*.md"):
-        rel = path.relative_to(target)
-        if rel.as_posix() in ("CLAUDE.md", "CLAUDE.local.md"):
-            continue
-        if any(part.startswith(".") and part not in (".claude", ".harness") for part in rel.parts):
-            continue
-        tpl_path = tpl_root / "CLAUDE.md"
-        if tpl_path.exists():
-            candidates.append((path, tpl_path))
-
-    for existing_path, tpl_path in candidates:
-        existing = existing_path.read_text(encoding="utf-8")
-        raw = tpl_path.read_text(encoding="utf-8")
-        rendered = string.Template(raw).safe_substitute(tpl_vars)
-        rel = str(existing_path.relative_to(target))
-        pairs.append((rel, existing, rendered))
-    return pairs
 
 
 def _run_new(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -> int:

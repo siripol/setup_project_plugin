@@ -177,8 +177,6 @@ Generated commands and subagents are scaffolded with a flat `sn-` filename prefi
 
 Examples: `/sn-knowledge-update`, `/sn-sprint-run`, `/sn-req-new`, subagent `sn-knowledge-curator`.
 
-Projects scaffolded under earlier layouts (bare flat names, or the mid-2026 `sn/` colon namespace) can be migrated with `/sn-setup --upgrade --rename-ns` — it renames files, rewrites cross-references in Makefile/orchestrator/docs, and section-merges every `CLAUDE*.md` against the latest template (existing sections kept; template-only sections appended; `## Tracking` and `## What sn-setup created` overwritten; backups written next to each merged file).
-
 ## Spec-loop workflow
 
 1. User writes `REQ-NNN-<slug>.md` into `docs/requirements/active/` (or `make req-import FILE=...`).
@@ -248,7 +246,7 @@ setup_project_plugin/
   .claude-plugin/plugin.json
   commands/sn-setup.md
   hooks/README.md
-  scripts/{sn_init,errors,sn_logging,safety,orchestrator,obsidian_client,req_import,gen_subagent_index,claude_md_merger}.py
+  scripts/{sn_init,errors,sn_logging,safety,orchestrator,obsidian_client,req_import,gen_subagent_index}.py
   scripts/importers/{md,txt,json,docx,pdf}.py
   skills/sn-setup/SKILL.md + templates/
   tests/test_sn_init.py
