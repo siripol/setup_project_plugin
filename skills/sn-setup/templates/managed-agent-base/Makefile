@@ -42,6 +42,9 @@ logs-stats: ## Tool + token usage summary per session
 		jq -s 'group_by(.tool_name) | map({tool: .[0].tool_name, count: length, in: (map(.usage.input_tokens // 0) | add), out: (map(.usage.output_tokens // 0) | add)})' "$$f"; \
 	done
 
+session-report: ## Render Claude Code session report into the Obsidian vault (SINCE=7d|24h|30d|all)
+	@python3 scripts/session_report.py $${SINCE:-7d}
+
 # --- local memory ----------------------------------------------------------
 
 claude-local-edit: ## Append ENTRY=... to CLAUDE.local.md

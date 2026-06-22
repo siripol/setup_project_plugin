@@ -1,0 +1,256 @@
+{
+  "root": "/Users/test/.claude/projects",
+  "generated_at": "2026-06-22T16:00:00.000Z",
+  "overall": {
+    "sessions": 5,
+    "api_calls": 200,
+    "input_tokens": {
+      "uncached": 1500,
+      "cache_create": 800000,
+      "cache_read": 40000000,
+      "total": 40801500,
+      "pct_cached": 98.0
+    },
+    "output_tokens": 150000,
+    "human_messages": 40,
+    "hours": {
+      "wall_clock": 12.5,
+      "active": 3.0
+    },
+    "cache_breaks_over_100k": 2,
+    "subagent": {
+      "calls": 4,
+      "total_tokens": 1200000,
+      "avg_tokens_per_call": 300000
+    },
+    "skill_invocations": {
+      "setup-project-plugin:sn-setup": 3,
+      "caveman:caveman-commit": 2,
+      "commit-commands:commit": 1
+    },
+    "span": {
+      "from": "2026-06-15T10:00:00.000Z",
+      "to": "2026-06-22T16:00:00.000Z"
+    }
+  },
+  "cache_breaks": [
+    {
+      "ts": "2026-06-21T16:38:23.587Z",
+      "session": "sess-aaaa",
+      "project": "-Users-test-Claude-setup-project-plugin",
+      "uncached": 866910,
+      "total": 889916,
+      "kind": "main",
+      "context": [
+        {"text": "/plugin", "ts": "2026-06-21T16:37:31.565Z", "calls": 0, "here": false},
+        {"text": "commit and push", "ts": "2026-06-21T16:37:59.870Z", "calls": 1, "here": true}
+      ]
+    },
+    {
+      "ts": "2026-06-22T12:49:05.411Z",
+      "session": "sess-bbbb",
+      "project": "-Users-test-Claude-setup-project-plugin",
+      "uncached": 184860,
+      "total": 207876,
+      "kind": "main",
+      "context": [
+        {"text": "audit them", "ts": "2026-06-22T12:48:00.000Z", "calls": 3, "here": true}
+      ]
+    }
+  ],
+  "by_project": {
+    "-Users-test-Claude-setup-project-plugin": {
+      "sessions": 3,
+      "api_calls": 150,
+      "input_tokens": {
+        "uncached": 1000,
+        "cache_create": 600000,
+        "cache_read": 30000000,
+        "total": 30601000,
+        "pct_cached": 98.0
+      },
+      "output_tokens": 100000,
+      "human_messages": 30,
+      "hours": {
+        "wall_clock": 8.0,
+        "active": 2.0
+      },
+      "cache_breaks_over_100k": 2,
+      "subagent": {
+        "calls": 3,
+        "total_tokens": 900000,
+        "avg_tokens_per_call": 300000
+      },
+      "skill_invocations": {},
+      "span": {
+        "from": "2026-06-15T10:00:00.000Z",
+        "to": "2026-06-22T16:00:00.000Z"
+      }
+    },
+    "-Users-test-Claude-other-project": {
+      "sessions": 2,
+      "api_calls": 50,
+      "input_tokens": {
+        "uncached": 500,
+        "cache_create": 200000,
+        "cache_read": 10000000,
+        "total": 10200500,
+        "pct_cached": 98.0
+      },
+      "output_tokens": 50000,
+      "human_messages": 10,
+      "hours": {
+        "wall_clock": 4.5,
+        "active": 1.0
+      },
+      "cache_breaks_over_100k": 0,
+      "subagent": {
+        "calls": 1,
+        "total_tokens": 300000,
+        "avg_tokens_per_call": 300000
+      },
+      "skill_invocations": {},
+      "span": {
+        "from": "2026-06-20T10:00:00.000Z",
+        "to": "2026-06-22T10:00:00.000Z"
+      }
+    }
+  },
+  "by_subagent_type": {
+    "Explore": {
+      "sessions": 2,
+      "api_calls": 30,
+      "input_tokens": {
+        "uncached": 800,
+        "cache_create": 80000,
+        "cache_read": 400000,
+        "total": 480800,
+        "pct_cached": 83.2
+      },
+      "output_tokens": 6000,
+      "human_messages": 0,
+      "hours": {"wall_clock": 0.5, "active": 0.5},
+      "cache_breaks_over_100k": 0,
+      "subagent": {"calls": 3, "total_tokens": 486800, "avg_tokens_per_call": 162267},
+      "skill_invocations": {},
+      "span": {"from": "2026-06-21T17:00:00.000Z", "to": "2026-06-22T15:00:00.000Z"}
+    },
+    "general-purpose": {
+      "sessions": 1,
+      "api_calls": 10,
+      "input_tokens": {
+        "uncached": 200,
+        "cache_create": 20000,
+        "cache_read": 100000,
+        "total": 120200,
+        "pct_cached": 83.2
+      },
+      "output_tokens": 2000,
+      "human_messages": 0,
+      "hours": {"wall_clock": 0.2, "active": 0.2},
+      "cache_breaks_over_100k": 0,
+      "subagent": {"calls": 1, "total_tokens": 122200, "avg_tokens_per_call": 122200},
+      "skill_invocations": {},
+      "span": {"from": "2026-06-22T14:00:00.000Z", "to": "2026-06-22T15:00:00.000Z"}
+    }
+  },
+  "by_skill": {
+    "setup-project-plugin:sn-setup": {
+      "sessions": 0,
+      "api_calls": 3,
+      "input_tokens": {
+        "uncached": 15,
+        "cache_create": 45000,
+        "cache_read": 110000,
+        "total": 155015,
+        "pct_cached": 70.9
+      },
+      "output_tokens": 800,
+      "human_messages": 0,
+      "hours": {"wall_clock": 0, "active": 0},
+      "cache_breaks_over_100k": 0,
+      "subagent": {"calls": 0, "total_tokens": 0, "avg_tokens_per_call": 0},
+      "skill_invocations": {},
+      "span": null
+    }
+  },
+  "top_prompts": [
+    {
+      "ts": "2026-06-21T16:23:34.791Z",
+      "project": "-Users-test-Claude-setup-project-plugin",
+      "session": "sess-aaaa",
+      "text": "scan this project. which files should i commit to git?",
+      "api_calls": 19,
+      "subagent_calls": 0,
+      "total_tokens": 16500000,
+      "input": {"uncached": 24, "cache_create": 17782, "cache_read": 16482194},
+      "output": 12800,
+      "context": []
+    },
+    {
+      "ts": "2026-06-22T12:54:21.439Z",
+      "project": "-Users-test-Claude-setup-project-plugin",
+      "session": "sess-bbbb",
+      "text": "audit them",
+      "api_calls": 11,
+      "subagent_calls": 0,
+      "total_tokens": 8200000,
+      "input": {"uncached": 12, "cache_create": 9000, "cache_read": 8190988},
+      "output": 6500,
+      "context": []
+    },
+    {
+      "ts": "2026-06-22T14:00:00.000Z",
+      "project": "-Users-test-Claude-other-project",
+      "session": "sess-cccc",
+      "text": "make me lunch",
+      "api_calls": 5,
+      "subagent_calls": 0,
+      "total_tokens": 3000000,
+      "input": {"uncached": 6, "cache_create": 3000, "cache_read": 2996994},
+      "output": 2500,
+      "context": []
+    }
+  ],
+  "by_day": [
+    {
+      "date": "2026-06-21",
+      "dow": "Sun",
+      "tokens": 24000000,
+      "sessions": [
+        {
+          "id": "sess-aaaa",
+          "project": "-Users-test-Claude-setup-project-plugin",
+          "tokens": 23000000,
+          "start_min": 980,
+          "end_min": 1050
+        }
+      ],
+      "peak": 1,
+      "peak_at_min": 1000
+    },
+    {
+      "date": "2026-06-22",
+      "dow": "Mon",
+      "tokens": 16801500,
+      "sessions": [
+        {
+          "id": "sess-bbbb",
+          "project": "-Users-test-Claude-setup-project-plugin",
+          "tokens": 12000000,
+          "start_min": 770,
+          "end_min": 820
+        },
+        {
+          "id": "sess-cccc",
+          "project": "-Users-test-Claude-other-project",
+          "tokens": 4801500,
+          "start_min": 840,
+          "end_min": 870
+        }
+      ],
+      "peak": 1,
+      "peak_at_min": 800
+    }
+  ]
+}

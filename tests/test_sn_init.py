@@ -1489,3 +1489,175 @@ def test_plan_new_files_emits_sn_namespace(tmp_path: Path):
     assert not any(rel.startswith(".claude/agents/sn/") for rel in rels)
     assert not any(rel.startswith(".claude/commands/workflow/") for rel in rels)
     assert not any(rel.startswith(".claude/agents/workflow/") for rel in rels)
+
+
+# ---------------------------------------------------------------------------
+# /sn-session-report
+
+
+def test_session_report_plugin_files_ship():
+    plugin_root = Path(__file__).resolve().parent.parent
+    assert (plugin_root / "commands" / "sn-session-report.md").is_file()
+    assert (plugin_root / "skills" / "session-report" / "SKILL.md").is_file()
+    assert (plugin_root / "scripts" / "session_report.py").is_file()
+    assert (plugin_root / "scripts" / "session_report_render.py").is_file()
+
+
+def test_session_report_scaffold_template_files_ship():
+    plugin_root = Path(__file__).resolve().parent.parent
+    base = plugin_root / "skills" / "sn-setup" / "templates"
+    assert (base / "claude" / "commands" / "sn-session-report.md").is_file()
+    assert (base / "claude" / "skills" / "session-report" / "SKILL.md").is_file()
+    assert (base / "managed-agent-base" / "scripts" / "session_report.py").is_file()
+    assert (base / "managed-agent-base" / "scripts" / "session_report_render.py").is_file()
+
+
+def test_session_report_makefile_target():
+    plugin_root = Path(__file__).resolve().parent.parent
+    mk = (
+        plugin_root / "skills" / "sn-setup" / "templates"
+        / "managed-agent-base" / "Makefile"
+    ).read_text()
+    assert "session-report:" in mk
+    assert "python3 scripts/session_report.py" in mk
+
+
+def test_session_report_present_in_fresh_scaffold(tmp_path: Path):
+    _run(tmp_path, "demo", "--lang=py", "--no-git", "--no-ci", "--no-obsidian")
+    project = tmp_path / "demo"
+    assert (project / ".claude" / "commands" / "sn-session-report.md").exists()
+    assert (project / ".claude" / "skills" / "session-report" / "SKILL.md").exists()
+    assert (project / "scripts" / "session_report.py").exists()
+    assert (project / "scripts" / "session_report_render.py").exists()
+
+
+def test_session_report_errors_module_has_missing_dep():
+    assert errors.EXIT_MISSING_DEP == 9
+    assert issubclass(errors.MissingAnalyzerError, errors.SnInitError)
+    assert errors.MissingAnalyzerError("x").exit_code == 9
+
+
+def test_session_report_render_against_fixture():
+    import session_report_render
+
+    fixture_path = (
+        Path(__file__).resolve().parent / "fixtures" / "session-report-payload.json"
+    )
+    payload = json.loads(fixture_path.read_text())
+    md = session_report_render.render_markdown(
+        payload,
+        "-Users-test-Claude-setup-project-plugin",
+        "7d",
+        "2026-06-22",
+    )
+    # Frontmatter
+    assert md.startswith("---\n")
+    assert "topic: session-report-20260622" in md
+    assert "bucket: projects/setup-project-plugin" in md
+    assert "window: 7d" in md
+
+    # Headline math against fixture (input total 30,601,000 + output 100,000)
+    assert "30.7M" in md
+    assert "Sessions | 3" in md
+    assert "API calls | 150" in md
+
+    # Anomaly: one prompt is 53.7% of total (16.5M / 30.7M)
+    assert "burned" in md and "53" in md
+
+    # Top prompt rows mention real text from fixture
+    assert "scan this project" in md
+
+    # Cache breaks for this project (2 rows)
+    assert "866.9k" in md
+    assert "audit them" in md
+
+    # Cross-project caveats
+    assert "global" in md and "per project" in md
+
+    # Optimization callout present
+    assert "> [!tip]" in md
+
+
+def test_session_report_render_handles_unknown_project_key():
+    import session_report_render
+
+    fixture_path = (
+        Path(__file__).resolve().parent / "fixtures" / "session-report-payload.json"
+    )
+    payload = json.loads(fixture_path.read_text())
+    md = session_report_render.render_markdown(
+        payload, "-Users-test-Claude-no-such-project", "7d", "2026-06-22"
+    )
+    # Renderer must not crash; produces a header + "No prompts" / "No cache" notes.
+    assert "# Session report" in md
+    assert "_No prompts in this project within the window._" in md
+    assert "_No cache-break events for this project._" in md
+
+
+def test_session_report_locate_analyzer_honors_env(tmp_path: Path, monkeypatch):
+    import session_report
+
+    fake = tmp_path / "analyze-sessions.mjs"
+    fake.write_text("// fake")
+    monkeypatch.setenv("SN_SESSION_REPORT_ANALYZER", str(fake))
+    located = session_report.locate_analyzer(None)
+    assert located == fake.resolve()
+
+
+def test_session_report_locate_analyzer_returns_none_when_missing(
+    tmp_path: Path, monkeypatch
+):
+    import session_report
+
+    monkeypatch.setenv("SN_SESSION_REPORT_ANALYZER", str(tmp_path / "missing.mjs"))
+    # Also redirect HOME so the recursive glob in locate_analyzer finds nothing.
+    monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
+    monkeypatch.setattr(
+        "pathlib.Path.home", lambda: tmp_path / "fake-home"
+    )
+    assert session_report.locate_analyzer(None) is None
+
+
+def test_session_report_missing_analyzer_exit_code(
+    tmp_path: Path, monkeypatch, capsys
+):
+    import session_report
+
+    monkeypatch.setenv(
+        "SN_SESSION_REPORT_ANALYZER", str(tmp_path / "definitely-missing.mjs")
+    )
+    monkeypatch.setattr(
+        "pathlib.Path.home", lambda: tmp_path / "fake-home"
+    )
+    monkeypatch.chdir(tmp_path)
+    rc = session_report.main([])
+    assert rc == errors.EXIT_MISSING_DEP
+    err = capsys.readouterr().err
+    assert "analyzer not" in err.lower() or "analyzer not found" in err
+
+
+def test_session_report_encode_project_path():
+    import session_report
+
+    assert session_report.encode_project(
+        Path("/Users/siripol/Claude/setup_project_plugin")
+    ) == "-Users-siripol-Claude-setup-project-plugin"
+
+
+def test_session_report_resolve_project_key_exact_and_suffix():
+    import session_report
+
+    payload = {
+        "by_project": {
+            "-Users-test-Claude-setup-project-plugin": {},
+            "-Users-test-Claude-other": {},
+        }
+    }
+    # Exact match passes through
+    assert session_report.resolve_project_key(
+        "-Users-test-Claude-setup-project-plugin", payload
+    ) == "-Users-test-Claude-setup-project-plugin"
+    # Suffix match picks the key whose tail matches
+    assert session_report.resolve_project_key(
+        "-mismatched-prefix-plugin", payload
+    ) == "-Users-test-Claude-setup-project-plugin"
