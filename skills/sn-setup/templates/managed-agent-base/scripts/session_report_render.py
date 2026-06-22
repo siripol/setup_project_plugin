@@ -14,14 +14,21 @@ def render_markdown(
     project: str,
     window: str,
     today: str,
+    *,
+    project_name: str | None = None,
 ) -> str:
     """Return the Markdown body for a session report.
 
     `payload` is the analyzer JSON. `project` is the encoded project key
     (e.g. `-Users-siripol-Claude-setup-project-plugin`) used to filter
-    cache_breaks + top_prompts. `window` is the human label ("7d", "all").
-    `today` is YYYY-MM-DD for frontmatter dates (passed in so the function
-    stays pure and testable).
+    cache_breaks + top_prompts against the analyzer payload. `window` is the
+    human label ("7d", "all"). `today` is YYYY-MM-DD for frontmatter dates
+    (passed in so the function stays pure and testable).
+
+    `project_name` (keyword-only) is the human-readable directory name used
+    in the vault path + frontmatter — typically `Path.cwd().name`. Falls
+    back to a best-effort recovery from the encoded key when not supplied,
+    which is lossy (`_` and `/` both become `-` in the encoded form).
     """
     overall = payload.get("overall", {}) or {}
     by_project = payload.get("by_project", {}) or {}
@@ -42,23 +49,25 @@ def render_markdown(
         + (proj_stats.get("output_tokens", 0) or 0)
     )
 
+    display_name = project_name if project_name else _human_project(project)
+
     lines: list[str] = []
     lines.append("---")
     lines.append(f"topic: session-report-{today.replace('-', '')}")
-    lines.append(f"bucket: projects/{_human_project(project)}")
-    lines.append(f"origin_project: {_human_project(project)}")
+    lines.append(f"bucket: projects/{display_name}")
+    lines.append(f"origin_project: {display_name}")
     lines.append(f"first_seen: {today}")
     lines.append(f"last_updated: {today}")
     lines.append(f"window: {window}")
     lines.append(
         "tags: [knowledge, session-report, tokens, cache, "
-        f"{_human_project(project)}]"
+        f"{display_name}]"
     )
     lines.append("---")
     lines.append("")
 
     lines.append(
-        f"# Session report — {_human_project(project)} — {window} "
+        f"# Session report — {display_name} — {window} "
         f"ending {today}"
     )
     lines.append("")

@@ -1661,3 +1661,60 @@ def test_session_report_resolve_project_key_exact_and_suffix():
     assert session_report.resolve_project_key(
         "-mismatched-prefix-plugin", payload
     ) == "-Users-test-Claude-setup-project-plugin"
+
+
+def test_session_report_render_uses_explicit_project_name():
+    """v0.5.1 fix — `project_name` kwarg overrides lossy _human_project derivation.
+
+    Encoded key has both `/` and `_` replaced by `-`, so reversing it cannot
+    recover the original directory name. The wrapper passes the actual cwd
+    basename as `project_name` to avoid that loss.
+    """
+    import session_report_render
+
+    fixture_path = (
+        Path(__file__).resolve().parent / "fixtures" / "session-report-payload.json"
+    )
+    payload = json.loads(fixture_path.read_text())
+    md = session_report_render.render_markdown(
+        payload,
+        "-Users-test-Claude-setup-project-plugin",
+        "7d",
+        "2026-06-22",
+        project_name="setup_project_plugin",
+    )
+    # Underscore preserved in frontmatter, body, tags
+    assert "bucket: projects/setup_project_plugin" in md
+    assert "origin_project: setup_project_plugin" in md
+    assert "# Session report — setup_project_plugin —" in md
+    assert "tags: [knowledge, session-report, tokens, cache, setup_project_plugin]" in md
+    # Dashy form must NOT appear
+    assert "bucket: projects/setup-project-plugin" not in md
+
+
+def test_session_report_find_git_root_walks_up(tmp_path: Path):
+    """v0.5.1 fix — vault commit step walks up from the knowledge dir until it
+    finds the enclosing git repo. Obsidian vaults nest the knowledge tree
+    under a parent repo (e.g. <repo>/AllSharedKnowledge/knowledge/)."""
+    import session_report
+
+    # Simulate: <root>/.git plus a nested vault path.
+    root = tmp_path / "vault-repo"
+    (root / ".git").mkdir(parents=True)
+    nested = root / "AllSharedKnowledge" / "knowledge"
+    nested.mkdir(parents=True)
+
+    # Walk-up from the nested path locates root.
+    assert session_report.find_git_root(nested) == root
+
+    # Walk-up from root finds itself.
+    assert session_report.find_git_root(root) == root
+
+    # No-repo case returns None.
+    no_repo = tmp_path / "nowhere" / "deep"
+    no_repo.mkdir(parents=True)
+    # Need to make sure no ancestor has .git. tmp_path doesn't, so this works.
+    # But if tmp_path itself happens to have .git, find_git_root would hit it.
+    # Guard by checking the tmp_path tree.
+    if not any((p / ".git").exists() for p in [tmp_path, *tmp_path.parents]):
+        assert session_report.find_git_root(no_repo) is None
