@@ -6,6 +6,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ## [0.6.0] — 2026-06-23
 
+### Fixed (caught in pre-release regression sweep)
+
+- `/sn-session-report` fallback mode previously wrote to a triple-nested path `<cwd>/session-reports/projects/<project>/session-reports/<ts>.md` when no real Obsidian vault was configured (no `--vault`, no `$OBSIDIAN_VAULT`, no `.sn-init/knowledge` symlink). `resolve_vault_path` now returns `(path, is_fallback)`; in fallback mode the wrapper writes directly to `<cwd>/session-reports/<ts>.md`. Normal-vault behaviour unchanged. Surfaced during the v0.6.0 regression test (`make session-report` on a `--no-obsidian` scaffold).
+
 ### Added — `/sn-session-report` tunability enhancements
 
 The session report now tells you **which prompts to tune**, not just which were expensive. Big prompts on hard tasks are fine; small prompts repeated 30× cold-cache are bleeding. The enhancements surface that distinction directly in the Markdown output and in the underlying renderer's per-prompt augmentation.
@@ -28,7 +32,10 @@ The session report now tells you **which prompts to tune**, not just which were 
 
 ### Tests
 
-9 new pytest cases (123 → 132):
+11 new pytest cases (123 → 134):
+
+- `test_session_report_resolve_vault_path_signals_fallback` — the new `(path, is_fallback)` return-shape across all 3 resolution branches.
+- `test_session_report_fallback_writes_flat_path` — fallback writes to `<cwd>/session-reports/<ts>.md` and never creates a `projects/` subtree.
 
 - `test_session_report_normalize_prompt_text_collapses_variants` — whitespace/case/punctuation normalization for repeat grouping.
 - `test_session_report_compute_repeat_groups_counts` — group counting + empty filter.
@@ -39,6 +46,8 @@ The session report now tells you **which prompts to tune**, not just which were 
 - `test_session_report_suggested_action_repeat_inlines_count` — repeat suggestions surface the count.
 - `test_session_report_render_includes_tunability_columns` — Markdown output has the new columns + sections + reason codes.
 - `test_session_report_dedup_collapses_repeated_rows` — table shows ONE row per logical intent even when the prompt appears N times in the analyzer payload.
+
+Plus the 2 fallback-path regressions listed above.
 
 ### Fixture
 

@@ -1895,6 +1895,84 @@ def test_session_report_render_includes_tunability_columns():
     assert "Scope or cache the top prompt" not in md
 
 
+def test_session_report_resolve_vault_path_signals_fallback(tmp_path: Path, monkeypatch):
+    """v0.6.0 — resolve_vault_path returns (path, is_fallback).
+
+    Fallback is True only for the last-resort `<cwd>/session-reports/`
+    branch (no --vault, no $OBSIDIAN_VAULT, no .sn-init/knowledge symlink).
+    In that case the wrapper writes the report directly into the returned
+    dir to avoid the triple-nested
+    `<cwd>/session-reports/projects/<proj>/session-reports/` path.
+    """
+    import session_report
+
+    monkeypatch.delenv("OBSIDIAN_VAULT", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    # Last-resort fallback signals True
+    root, is_fallback = session_report.resolve_vault_path(None, tmp_path)
+    assert is_fallback is True
+    assert root == tmp_path / "session-reports"
+
+    # Explicit --vault is NOT fallback
+    explicit = tmp_path / "vault"
+    explicit.mkdir()
+    root, is_fallback = session_report.resolve_vault_path(str(explicit), tmp_path)
+    assert is_fallback is False
+    assert root == explicit.resolve()
+
+    # $OBSIDIAN_VAULT is NOT fallback
+    env_vault = tmp_path / "env-vault"
+    env_vault.mkdir()
+    monkeypatch.setenv("OBSIDIAN_VAULT", str(env_vault))
+    root, is_fallback = session_report.resolve_vault_path(None, tmp_path)
+    assert is_fallback is False
+    assert root == env_vault.resolve()
+
+
+def test_session_report_fallback_writes_flat_path(tmp_path: Path, monkeypatch, capsys):
+    """v0.6.0 — fallback mode writes directly to `<cwd>/session-reports/`
+    instead of nesting under `projects/<project>/session-reports/`.
+
+    Previously a `make session-report` in a scaffolded project without a
+    real vault produced `session-reports/projects/<proj>/session-reports/<ts>.md`
+    (triple-nested + visually broken). The fix collapses the fallback
+    output to a flat `<cwd>/session-reports/<ts>.md`.
+    """
+    import session_report
+
+    # Make analyzer detection succeed by pointing at a fake mjs.
+    fake = tmp_path / "analyze-sessions.mjs"
+    fake.write_text(
+        '#!/usr/bin/env node\n'
+        'const payload = {root: ".", overall: {sessions: 0, api_calls: 0, '
+        'input_tokens: {uncached: 0, cache_create: 0, cache_read: 0, total: 0}, '
+        'output_tokens: 0, human_messages: 0, hours: {wall_clock: 0, active: 0}, '
+        'cache_breaks_over_100k: 0, subagent: {calls: 0, total_tokens: 0, '
+        'avg_tokens_per_call: 0}, skill_invocations: {}, span: null}, '
+        'cache_breaks: [], by_project: {}, by_subagent_type: {}, by_skill: {}, '
+        'top_prompts: [], by_day: []};\n'
+        'process.stdout.write(JSON.stringify(payload));\n'
+    )
+    monkeypatch.setenv("SN_SESSION_REPORT_ANALYZER", str(fake))
+    monkeypatch.delenv("OBSIDIAN_VAULT", raising=False)
+
+    project_dir = tmp_path / "demo-project"
+    project_dir.mkdir()
+    monkeypatch.chdir(project_dir)
+
+    rc = session_report.main(["24h", "--no-push"])
+    assert rc == 0, capsys.readouterr().err
+
+    # File must land at <cwd>/session-reports/<ts>.md, NOT
+    # <cwd>/session-reports/projects/demo-project/session-reports/<ts>.md.
+    files = list((project_dir / "session-reports").glob("*.md"))
+    assert any(f.name != "README.md" for f in files), \
+        f"no report file in flat path; files: {files}"
+    assert not (project_dir / "session-reports" / "projects").exists(), \
+        "fallback mode must not create projects/ subtree"
+
+
 def test_session_report_dedup_collapses_repeated_rows():
     """E5 — top-prompts table shows ONE row per logical intent even if the
     prompt was typed multiple times in the window."""
