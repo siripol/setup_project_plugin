@@ -1,0 +1,8 @@
+profile: microservice
+policies:
+  - repository-ecosystem
+  - memory-ordinary
+  - audit-log-strict
+  - supply-chain-scan
+  - secret-scan
+  - commit-msg-gate
