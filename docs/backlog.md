@@ -63,11 +63,19 @@ Most current items derive from the **microservices template-family design doc** 
 
 ## Tier 2 — next-sprint (1–3 days each)
 
-### B2.1 `[ ]` BFF template profile (`--profile=service|bff`)
-- **Why**: design §6.6 / §9.5 — BFF repos need a different shape (aggregation, multiple downstream contracts, workspace-aware by default) but share the same foundation.
-- **Where**: new flag `--profile=service|bff` in `scripts/sn_init.py` (default `service`). When `bff`: swap `CLAUDE.md` identity, foreground downstream-dependencies in the Repository Ecosystem table, ship BFF-specific docs (`docs/BFF-INTEGRATION.md`), wire `bff-patterns` + `contracts-sync` plugin install entries.
-- **New template subtree**: `skills/sn-setup/templates/managed-agent-base.bff/` (or conditional overlays in the main scaffold — pick whichever the scaffolder already handles cleanly).
-- **Estimate**: 1–2 days (scaffold logic + BFF-specific docs).
+### B2.1 `[~]` Profile overlays (`--profile=microservice|bff|frontend`) — branch `feat/profiles`
+- **Why**: design §6.6 / §9.5 — repos have distinct shapes (backend microservice, BFF aggregator, frontend) but share the same foundation. Originally scoped as BFF-only; extended to cover microservice + frontend at the same time so the multi-profile concept lands as one coherent change.
+- **What shipped on this branch**:
+  - New `--profile=microservice|bff|frontend` flag (default `microservice`; alias `service`→`microservice`).
+  - New `--framework=next|vite` sub-flag (frontend only; default `next`).
+  - Overlay subtrees: `templates/profile/{microservice,bff,frontend}/` and `templates/framework/{next,vite}/`.
+  - Lang × profile matrix validation in `scripts/sn_init.py` — bad combos fail fast.
+  - State records `profile` + `framework`; `--upgrade` reads them.
+  - Per-profile docs (PROFILE / API / OBSERVABILITY for microservice; PROFILE / BFF-INTEGRATION / DOWNSTREAMS for bff; PROFILE / DESIGN / ACCESSIBILITY / BROWSER-MATRIX for frontend) and per-framework docs (FRAMEWORK.md).
+- **Follow-ups (deferred, not blocking 1.x)**:
+  - **B2.1a** Repository Ecosystem table per profile (foreground downstreams for BFF, foreground BFF for frontend). Depends on **B1.1** landing first.
+  - **B2.1b** Plugin install entries — wire `bff-patterns` + `contracts-sync` for BFF, `a11y-checker` for frontend. Depends on **B2.3** marketplace consumer.
+  - **B2.1c** Per-profile subagents — `bff-integration-reviewer`, `a11y-auditor`. Lives under `templates/profile/<profile>/.claude/agents/`.
 
 ### B2.2 `[ ]` Optional workspace layer (Layer 3) — `--workspace`
 - **Why**: design §4 / §9.6 / §12.2 step 4 — optional cross-service virtual-monorepo for orgs past a certain scale. Stays gitignored; lives sibling to repos.

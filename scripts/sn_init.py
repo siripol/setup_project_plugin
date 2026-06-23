@@ -42,6 +42,23 @@ WORKFLOW_CHOICES = ("none", "spec-loop")
 OBSIDIAN_KNOWLEDGE_CHOICES = ("project", "global")
 OBSIDIAN_MCP_CHOICES = ("auto", "on", "off")
 
+# Profile = high-level shape of the scaffolded repo. Overlays land in
+# templates/profile/<profile>/ on top of base + lang.
+PROFILE_CHOICES = ("microservice", "bff", "frontend")
+PROFILE_ALIASES = {"service": "microservice"}
+
+# Frontend-only sub-flag. Overlays land in templates/framework/<framework>/.
+FRAMEWORK_CHOICES = ("next", "vite")
+DEFAULT_FRAMEWORK = "next"
+
+# Which (lang, profile) combinations are supported. Anything outside this map
+# fails fast at parse time.
+PROFILE_LANG_MATRIX: dict[str, tuple[str, ...]] = {
+    "microservice": ("go", "py", "ts"),
+    "bff": ("go", "ts"),
+    "frontend": ("ts",),
+}
+
 # Subagent library buckets (filenames under templates/claude/agents/).
 DEFAULT_SUBAGENTS = ("code-reviewer", "test-writer")
 OPTIONAL_SUBAGENTS = ("doc-writer", "security-auditor", "planner")
@@ -71,6 +88,17 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="sn-setup", description="Scaffold a Claude-powered project.")
     p.add_argument("name", nargs="?", default=None, help="Project name (creates ./<name>/)")
     p.add_argument("--lang", choices=LANG_CHOICES, default="go")
+    p.add_argument(
+        "--profile",
+        default="microservice",
+        help="Repo shape: microservice | bff | frontend (alias: service → microservice).",
+    )
+    p.add_argument(
+        "--framework",
+        choices=FRAMEWORK_CHOICES,
+        default=DEFAULT_FRAMEWORK,
+        help="Frontend framework (only used when --profile=frontend).",
+    )
     p.add_argument("--tier", choices=TIER_CHOICES, default="both")
     p.add_argument("--license", choices=LICENSE_CHOICES, default="none", dest="license_kind")
     p.add_argument("--no-git", action="store_true")
@@ -95,6 +123,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     return p
+
+
+def _resolve_profile(raw: str) -> str:
+    """Apply aliases and validate against PROFILE_CHOICES."""
+    if raw is None:
+        return "microservice"
+    canonical = PROFILE_ALIASES.get(raw, raw)
+    if canonical not in PROFILE_CHOICES:
+        raise errors.UsageError(
+            f"unknown --profile={raw!r}; valid: {sorted(PROFILE_CHOICES)} "
+            f"(aliases: {sorted(PROFILE_ALIASES)})"
+        )
+    return canonical
+
+
+def _validate_profile_lang(profile: str, lang: str) -> None:
+    allowed = PROFILE_LANG_MATRIX.get(profile, ())
+    if lang not in allowed:
+        raise errors.UsageError(
+            f"--profile={profile} does not support --lang={lang}; "
+            f"allowed: {sorted(allowed)}"
+        )
 
 
 def _resolve_subagents(spec: str) -> set[str]:
@@ -155,6 +205,14 @@ def detect_mode(cwd: Path, name: str | None) -> tuple[str, Path]:
 def run(args: argparse.Namespace) -> int:
     cwd = Path.cwd()
 
+    # Normalize + validate profile/framework before any I/O.
+    args.profile = _resolve_profile(getattr(args, "profile", "microservice"))
+    _validate_profile_lang(args.profile, args.lang)
+    if args.profile != "frontend":
+        # Framework only meaningful for frontend; pin to the default for
+        # state/logging consistency but skip the overlay later.
+        args.framework = DEFAULT_FRAMEWORK
+
     if args.upgrade:
         return _run_upgrade(args, cwd)
 
@@ -196,6 +254,13 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
     args.devcontainer = persisted.get("devcontainer", False)
     args.license_kind = persisted.get("license", args.license_kind)
     args.no_audit_log = not persisted.get("audit_log", True)
+    # Profile + framework: older state files predate these keys; default to
+    # microservice/next so re-upgrades on legacy scaffolds keep working.
+    args.profile = _resolve_profile(state.get("profile") or persisted.get("profile") or "microservice")
+    args.framework = (
+        state.get("framework") or persisted.get("framework") or DEFAULT_FRAMEWORK
+    )
+    _validate_profile_lang(args.profile, args.lang)
 
     files = _plan_new_files(args, target)
 
@@ -324,6 +389,9 @@ def _plan_new_files(args: argparse.Namespace, target: Path) -> list[tuple[str, s
 
     files.extend(_render_base(args, project_name))
     files.extend(_render_lang(args, project_name))
+    files.extend(_render_profile(args, project_name))
+    if args.profile == "frontend":
+        files.extend(_render_framework(args, project_name))
     files.extend(_render_claude(args, project_name))
 
     if args.license_kind != "none":
@@ -351,6 +419,8 @@ def _render_base(args: argparse.Namespace, project_name: str) -> list[tuple[str,
         "name": project_name,
         "lang": args.lang,
         "tier": args.tier,
+        "profile": args.profile,
+        "framework": args.framework,
         "model": "claude-opus-4-8",
         "system_prompt": args.prompt or "You are a helpful agent. Refine this prompt for your task.",
         "date": _today(),
@@ -373,6 +443,8 @@ def _render_lang(args: argparse.Namespace, project_name: str) -> list[tuple[str,
     ctx = {
         "name": project_name,
         "lang": args.lang,
+        "profile": args.profile,
+        "framework": args.framework,
         "model": "claude-opus-4-8",
     }
     for path in sorted(lang_dir.rglob("*")):
@@ -385,12 +457,58 @@ def _render_lang(args: argparse.Namespace, project_name: str) -> list[tuple[str,
     return files
 
 
+def _render_profile(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
+    profile_dir = TEMPLATES / "profile" / args.profile
+    if not profile_dir.exists():
+        raise errors.UsageError(f"no template overlay for --profile={args.profile}")
+    files: list[tuple[str, str]] = []
+    ctx = {
+        "name": project_name,
+        "lang": args.lang,
+        "profile": args.profile,
+        "framework": args.framework,
+        "model": "claude-opus-4-8",
+    }
+    for path in sorted(profile_dir.rglob("*")):
+        if path.is_dir():
+            continue
+        rel = path.relative_to(profile_dir)
+        content = path.read_text(encoding="utf-8")
+        content = _substitute(content, ctx)
+        files.append((str(rel), content))
+    return files
+
+
+def _render_framework(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
+    framework_dir = TEMPLATES / "framework" / args.framework
+    if not framework_dir.exists():
+        raise errors.UsageError(f"no template overlay for --framework={args.framework}")
+    files: list[tuple[str, str]] = []
+    ctx = {
+        "name": project_name,
+        "lang": args.lang,
+        "profile": args.profile,
+        "framework": args.framework,
+        "model": "claude-opus-4-8",
+    }
+    for path in sorted(framework_dir.rglob("*")):
+        if path.is_dir():
+            continue
+        rel = path.relative_to(framework_dir)
+        content = path.read_text(encoding="utf-8")
+        content = _substitute(content, ctx)
+        files.append((str(rel), content))
+    return files
+
+
 def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
     claude = TEMPLATES / "claude"
     files: list[tuple[str, str]] = []
     ctx = {
         "name": project_name,
         "lang": args.lang,
+        "profile": args.profile,
+        "framework": args.framework,
         "model": "claude-opus-4-8",
     }
     subagents = _resolve_subagents(args.subagents)
@@ -561,6 +679,8 @@ def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[
         "mode": mode,
         "lang": args.lang,
         "tier": args.tier,
+        "profile": args.profile,
+        "framework": args.framework if args.profile == "frontend" else None,
         "flags": {
             "license": args.license_kind,
             "ci": not args.no_ci,
@@ -573,6 +693,8 @@ def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[
             "install": args.install,
             "git": not args.no_git,
             "audit_log": not args.no_audit_log,
+            "profile": args.profile,
+            "framework": args.framework if args.profile == "frontend" else None,
         },
         "files_written": files,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -654,7 +776,10 @@ def _print_summary(target: Path, args: argparse.Namespace, mode: str, patched: l
             print(f"  patched {len(patched)} missing file(s): {', '.join(patched[:5])}{'...' if len(patched) > 5 else ''}")
         else:
             print("  no missing files (already up to date)")
-    print(f"  lang={args.lang}  tier={args.tier}  workflow={args.workflow}")
+    profile_str = args.profile
+    if args.profile == "frontend":
+        profile_str = f"{args.profile}+{args.framework}"
+    print(f"  lang={args.lang}  profile={profile_str}  tier={args.tier}  workflow={args.workflow}")
     print("  Run 'make hooks-install' to activate commit-msg + post-merge hooks.")
     _print_agent_sdk_verify_hint(args)
 
