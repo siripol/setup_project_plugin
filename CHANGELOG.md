@@ -4,6 +4,23 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [Unreleased]
+
+### Added
+
+- **Profile overlays** — new `--profile=microservice|bff|frontend` flag (default `microservice`; alias `service` → `microservice`). Picks one of three template overlays under `skills/sn-setup/templates/profile/<profile>/`:
+  - `microservice` — backend service shape. Ships `docs/PROFILE.md`, `docs/API.md`, `docs/OBSERVABILITY.md`.
+  - `bff` — Backend-for-Frontend shape (go-first; ts also supported). Ships `docs/PROFILE.md`, `docs/BFF-INTEGRATION.md`, `docs/DOWNSTREAMS.md`.
+  - `frontend` — web UI shape (ts only). Ships `docs/PROFILE.md`, `docs/DESIGN.md`, `docs/ACCESSIBILITY.md`, `docs/BROWSER-MATRIX.md`.
+- **Framework sub-flag** — `--framework=next|vite` (frontend profile only; default `next`). Drops `docs/FRAMEWORK.md` matching the choice from `skills/sn-setup/templates/framework/<framework>/`.
+- **Lang × profile validation** — invalid combos (e.g. `--profile=frontend --lang=go`) fail fast with a usage error before any write.
+- **State schema** — `.sn-init-state.json` now records `profile` + `framework` at the top level and inside `flags`. Older state files default to `microservice` / `next` on `--upgrade`.
+- **Scaffolded `CLAUDE.md`** — adds a `## Profile` section pointing at `docs/PROFILE.md`.
+
+### References
+
+- Closes part of backlog **B2.1** (BFF template profile); extends scope with `microservice` + `frontend` siblings and a `--framework` sub-flag.
+
 ## [1.0.0] — 2026-06-23
 
 First stable release. The public surface — slash commands, scaffold tree, generated `/sn-*` commands + subagents, hook contracts, exit codes, `.sn-init-state.json` schema, Markdown report shape — is committed for the 1.x line. Breaking changes only behind a major bump.

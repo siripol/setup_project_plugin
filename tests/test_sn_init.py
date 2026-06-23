@@ -1990,3 +1990,95 @@ def test_session_report_dedup_collapses_repeated_rows():
     # tunability table (count surfaced in the Repeats column = 3).
     top_section = md.split("## Top prompts")[1].split("## Repeated prompts")[0]
     assert top_section.count("commit and push") == 1, top_section
+
+
+# ---------------------------------------------------------------------------
+# profile + framework overlays
+
+
+def test_profile_default_is_microservice(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    assert (project / "docs" / "PROFILE.md").exists()
+    profile_md = (project / "docs" / "PROFILE.md").read_text()
+    assert "microservice" in profile_md
+    assert "demo" in profile_md  # ${name} substituted
+    # microservice-specific docs ship
+    assert (project / "docs" / "API.md").exists()
+    assert (project / "docs" / "OBSERVABILITY.md").exists()
+    # State records profile + framework=None for non-frontend
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["profile"] == "microservice"
+    assert state["framework"] is None
+    # CLAUDE.md exposes the profile
+    claude_md = (project / "CLAUDE.md").read_text()
+    assert "microservice" in claude_md
+
+
+def test_profile_bff_default_lang_go(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--profile=bff")
+    project = tmp_path / "demo"
+    assert (project / "docs" / "BFF-INTEGRATION.md").exists()
+    assert (project / "docs" / "DOWNSTREAMS.md").exists()
+    profile_md = (project / "docs" / "PROFILE.md").read_text()
+    assert "Backend-for-Frontend" in profile_md
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["profile"] == "bff"
+    assert state["lang"] == "go"
+
+
+def test_profile_bff_lang_ts_allowed(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=bff", "--lang=ts")
+    assert rc == errors.EXIT_OK
+
+
+def test_profile_bff_lang_py_rejected(tmp_path: Path, capsys):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=bff", "--lang=py")
+    assert rc == errors.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "--profile=bff" in err
+    assert "--lang=py" in err
+
+
+def test_profile_frontend_default_framework_next(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=frontend", "--lang=ts")
+    assert rc == errors.EXIT_OK
+    project = tmp_path / "demo"
+    assert (project / "docs" / "DESIGN.md").exists()
+    assert (project / "docs" / "ACCESSIBILITY.md").exists()
+    assert (project / "docs" / "BROWSER-MATRIX.md").exists()
+    framework_md = (project / "docs" / "FRAMEWORK.md").read_text()
+    assert "Next.js" in framework_md
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["profile"] == "frontend"
+    assert state["framework"] == "next"
+
+
+def test_profile_frontend_framework_vite(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=frontend", "--lang=ts", "--framework=vite")
+    assert rc == errors.EXIT_OK
+    framework_md = (tmp_path / "demo" / "docs" / "FRAMEWORK.md").read_text()
+    assert "Vite" in framework_md
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["framework"] == "vite"
+
+
+def test_profile_frontend_lang_go_rejected(tmp_path: Path, capsys):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=frontend", "--lang=go")
+    assert rc == errors.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "--profile=frontend" in err
+
+
+def test_profile_service_alias_resolves_to_microservice(tmp_path: Path):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=service")
+    assert rc == errors.EXIT_OK
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["profile"] == "microservice"
+
+
+def test_profile_unknown_value_rejected(tmp_path: Path, capsys):
+    rc = _run(tmp_path, "demo", "--no-git", "--profile=mainframe")
+    assert rc == errors.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "mainframe" in err

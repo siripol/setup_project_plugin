@@ -10,6 +10,10 @@ Managed Agents (production) + Agent SDK (local dev).
 
 ${lang}
 
+## Profile
+
+`${profile}` — see `docs/PROFILE.md` for shape, conventions, and what this profile isn't.
+
 ## Default model
 
 `${model}` with `thinking: {type: "adaptive"}`.
