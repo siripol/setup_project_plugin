@@ -4,6 +4,51 @@ All notable changes to `setup-project-plugin` (formerly `init-project-plugin`).
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions are taken from `.claude-plugin/plugin.json`. Dates are UTC.
 
+## [1.0.0] — 2026-06-23
+
+First stable release. The public surface — slash commands, scaffold tree, generated `/sn-*` commands + subagents, hook contracts, exit codes, `.sn-init-state.json` schema, Markdown report shape — is committed for the 1.x line. Breaking changes only behind a major bump.
+
+### Public API (frozen for 1.x)
+
+- **Entry slash commands**: `/sn-setup` and `/sn-session-report`. Flag tables in `commands/sn-setup.md` and `commands/sn-session-report.md` are the contract.
+- **Generated commands** (18 `sn-*` under `.claude/commands/`): the slash names + their primary `SLUG=` / `REQ=` / `SPRINT=` arg conventions.
+- **Subagents** (9 `sn-*` under `.claude/agents/`): the capability manifest fields (`tools`, `can_modify`, `can_delegate`, `chokepoint_gate`) and the spec-loop phase contract (impact → plan → decompose → execute + test → integrate → adversary → evaluate → curate → done).
+- **Spec-loop promise strings**: `DONE: <SPRINT-id> triple-signal pass` / `BLOCKED: <SPRINT-id> <reason>`. Consumed by ralph-wiggum and similar autonomous loops.
+- **Triple-signal exit gate**: `eval_score ≥ threshold` AND `integration.pass` AND `adversary.findings_resolved`.
+- **Safety rails defaults**: `SN_MAX_CALLS_PER_HOUR=200`, `SN_MAX_TOKENS_PER_HOUR=2_000_000`, circuit breaker (3 no-progress OR 5 same-error → 5 min cooldown). Tunable via env.
+- **Audit log location + shape**: `.sn-init/logs/exec-<date>-<session>.jsonl`, payloads > 2 KB spill to `blobs/<sha256-prefix>.txt`.
+- **State file**: `.sn-init-state.json` — `template_version`, `lang`, `tier`, `flags`, `upgrades[]` — readable by the upgrade path.
+- **Exit codes**: `0` ok, `2` usage, `3` target non-empty, `4` `.claude/` exists without state, `5` vault unwritable, `6` install failed, `7` validation failed, `8` template-version mismatch, `9` upstream dep missing, `99` internal.
+- **Report Markdown shape**: frontmatter (`topic`, `bucket`, `origin_project`, `first_seen`, `last_updated`, `tags`, `window`) + Headline / Anomalies / Token breakdown / Top prompts (by tunability) / Repeated prompts / Subagent activity / Skill invocations / Cache breaks / Optimizations / See also. Tunability columns: `Score / Reason / Tokens / % proj / Cache-hit / Cache breaks / API calls / Subagent / Repeats / Prompt`.
+- **Reason codes**: `repeat` / `subagent-heavy` / `loop-thrash` / `cache-miss` / `cold-start` / `low-output` / `expensive`.
+
+### Headline (accumulated through 0.5.0 → 0.6.1, now declared stable)
+
+- **Scaffolder `/sn-setup`** (since 0.1.0) — Tier 2 Agent SDK + Tier 3 Managed Agents projects across Go / Python / TypeScript. Auto-detects new vs add mode; atomic write; idempotent state.
+- **18 generated slash commands + 9 subagents** scaffolded into every project under flat `sn-` prefix.
+- **Spec-loop orchestrator** + triple-signal exit gate + `DONE:` / `BLOCKED:` promise strings.
+- **Safety rails** (since 0.2.0) — rate limit, chokepoint gate (PreToolUse), circuit breaker.
+- **Audit JSONL log** + payload-blob spill.
+- **REQ schema validator** + REQ importers (md / txt / json / docx / pdf).
+- **`/sn-verify`** + Agent SDK 12-rule conformance (6 mechanical, 6 prose via `sn-agent-sdk-reviewer`).
+- **`/sn-session-report`** (since 0.5.0) — wraps Anthropic's upstream `session-report` analyzer, renders project-scoped Markdown into the Obsidian vault, auto-commits + pushes.
+- **Tunability rewrite** (since 0.6.0) — top-prompts sorted by a 0-100 tunability_score (composite of repeat count, cache-miss share, subagent fan-out, API-call thrash, cache-break recurrence). Per-row reason code + suggested-action. Repeats grouped + dedup'd. Optimizations as a top-5 per-prompt punch list.
+- **Vault knowledge buckets** — `projects/<project>/`, `global/shared/`, `global/tech-stacks/<project>/` with traceback frontmatter; `/sn-knowledge-{check,update,promote,demote,tech-matrix}`.
+- **Git hooks** + commit-msg REQ-NNN gate + post-merge issue closer.
+
+### Repo hygiene (since 0.6.1)
+
+- Claude-delivered artifacts land under `temp/` and are gitignored (PRs #12 → #13 → #14).
+- `docs/backlog.md` captures the microservices template-family gap analysis as a tiered, status-tracked checklist (PR #15).
+
+### Tests
+
+134 pytest cases. Ubuntu CI matrix on Python 3.11 / 3.12 / 3.13.
+
+### Compatibility note
+
+No breaking changes between 0.6.1 and 1.0.0 — this release is a stability declaration covering everything already shipped. Anything in `docs/backlog.md` Tier 2 / Tier 3 that would break a 1.x contract (e.g. plugin marketplace consumer model, BFF profile flag) will land behind a major bump to 2.0.0 if and when it changes the public surface.
+
 ## [0.6.1] — 2026-06-23
 
 ### Docs

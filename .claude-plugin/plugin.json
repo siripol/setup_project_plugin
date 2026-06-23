@@ -1,6 +1,6 @@
 {
   "name": "setup-project-plugin",
-  "version": "0.6.1",
+  "version": "1.0.0",
   "description": "Scaffold Claude-powered projects (Tier 2 Agent SDK + Tier 3 Managed Agents) following Anthropic conventions and OpenAI harness engineering principles. Also ships /sn-session-report for tunability-ranked Markdown usage reports into the Obsidian vault.",
   "author": {
     "name": "siripol",
