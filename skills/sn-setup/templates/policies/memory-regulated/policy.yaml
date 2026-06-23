@@ -1,0 +1,18 @@
+slug: memory-regulated
+title: "Memory: regulated (auto-memory off)"
+version: 1.0.0
+category: security
+group: memory-tier
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Auto-memory disabled. All context must be committed. Pairs with the
+  PDPA compliance policy.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/memory-regulated.md
+  rules: rules/memory-regulated.md
+  settings_patch: settings.patch.json
+  extras:
+    - extras/hooks/memory-regulated.sh:.claude/hooks/memory-regulated.sh

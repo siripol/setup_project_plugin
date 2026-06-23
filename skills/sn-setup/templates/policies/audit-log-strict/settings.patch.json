@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "policy": "audit-log-strict",
+        "version": "1.0.0",
+        "matcher": "*",
+        "command": ".claude/hooks/audit-log-strict.sh"
+      }
+    ]
+  }
+}

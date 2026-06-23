@@ -1,0 +1,17 @@
+slug: supply-chain-scan
+title: "Supply-chain scan"
+version: 1.0.0
+category: security
+group: null
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Pre-install + pre-merge dependency scan. Blocks adding unscanned deps and
+  flags newly-introduced CVEs at PR time.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/supply-chain-scan.md
+  settings_patch: settings.patch.json
+  extras:
+    - extras/hooks/supply-chain-scan.sh:.claude/hooks/supply-chain-scan.sh

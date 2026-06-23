@@ -1,0 +1,16 @@
+slug: memory-ordinary
+title: "Memory: ordinary (auto-memory permitted)"
+version: 1.0.0
+category: security
+group: memory-tier
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Auto-memory may be enabled per developer for personal convenience. Anything
+  team-wide must be promoted into committed CLAUDE.md or a skill via PR
+  within the sprint.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/memory-ordinary.md
+  rules: rules/memory-ordinary.md
