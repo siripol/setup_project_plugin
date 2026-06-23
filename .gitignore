@@ -13,7 +13,7 @@ __pycache__/
 .idea/
 .vscode/
 
-# Temporary working artifacts (renamed from `artifacts/`): design dumps,
-# Claude-delivered spec docs (`__claude__<name>_<timestamp>.md`), exported
-# diagrams, etc. Not part of the plugin's source surface — kept local only.
-tmp_artifacts/
+# Temp working dir: design dumps, Claude-delivered spec docs
+# (`__claude__<name>_<timestamp>.md`), exported diagrams, scratch notes.
+# Not part of the plugin's source surface — kept local only.
+temp/
