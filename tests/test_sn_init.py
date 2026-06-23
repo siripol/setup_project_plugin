@@ -2141,3 +2141,34 @@ def test_scaffold_combining_replace_and_delta_errors(tmp_path: Path, capsys):
 def test_scaffold_unknown_policy_errors(tmp_path: Path, capsys):
     rc = _run(tmp_path, "demo", "--no-git", "--policies=foobar")
     assert rc == policy_errors.EXIT_UNKNOWN_POLICY
+
+
+def test_microservice_golden_snapshot(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--profile=microservice")
+    project = tmp_path / "demo"
+    golden = Path(__file__).parent / "golden" / "scaffolded-microservice"
+
+    # CLAUDE.md ## Policies section equality (ignore the rest of the file).
+    full = (project / "CLAUDE.md").read_text()
+    section = "## Policies\n" + full.split("## Policies\n", 1)[1].split("## ", 1)[0]
+    assert section.strip() == (golden / "CLAUDE.md.policies-section").read_text().strip()
+
+    # profile-defaults equality.
+    assert (project / ".claude" / "profile-defaults.yaml").read_text() == \
+           (golden / "profile-defaults.yaml").read_text()
+
+    # applied_policies (slugs only, sorted) equality.
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    slugs = sorted(p["slug"] for p in state["applied_policies"])
+    assert slugs == json.loads((golden / "applied_policies.json").read_text())
+
+    # settings.json keys+matchers sanity.
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    expected_hooks = json.loads((golden / "settings.json").read_text())
+    # Compare only "hooks" sub-tree because settings.json has many other keys.
+    # Filter to policy entries only (non-policy hooks like rate-limit.sh are excluded).
+    for hook_name, entries in expected_hooks["hooks"].items():
+        actual = settings["hooks"].get(hook_name, [])
+        actual_keys = sorted((e["policy"], e.get("matcher", "")) for e in actual if "policy" in e)
+        expected_keys = sorted((e["policy"], e.get("matcher", "")) for e in entries)
+        assert actual_keys == expected_keys, f"{hook_name}: {actual_keys} != {expected_keys}"

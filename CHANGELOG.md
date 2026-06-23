@@ -17,6 +17,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 - **State schema** — `.sn-init-state.json` now records `profile` + `framework` at the top level and inside `flags`. Older state files default to `microservice` / `next` on `--upgrade`.
 - **Scaffolded `CLAUDE.md`** — adds a `## Profile` section pointing at `docs/PROFILE.md`.
 
+- **Policy catalog** (PR1; supersedes B1.1 + B1.2). Composable, versioned policies under `skills/sn-setup/templates/policies/<slug>/`. Two new CLI sub-trees:
+  - `sn-setup policy <list|show|apply|remove|upgrade|status|show-applied|history|lint>` — operate on the current project.
+  - `sn-setup profile <list|show|add|remove|swap>` — edit profile defaults (auto-detect plugin source vs project-local).
+  - Nine day-one policies spanning security, conventions, workflow, and observability.
+  - Profile-bundled defaults applied automatically; override with `--policies=` (replace) or `--add-policies=` / `--remove-policies=` (delta).
+  - State extensions: `applied_policies` + append-only `policy_history` in `.sn-init-state.json`. Legacy state files auto-migrate.
+
 ### References
 
 - Closes part of backlog **B2.1** (BFF template profile); extends scope with `microservice` + `frontend` siblings and a `--framework` sub-flag.

@@ -34,6 +34,20 @@ Scaffold a Claude-powered project at Tier 2 (Agent SDK) and/or Tier 3 (Managed A
 | `--dry-run` | off | Print planned tree + diffs, no FS writes |
 | `--verbose` | off | Per-step log to target's `.sn-setup.log` |
 | `--upgrade` | off | Patch-only: pull missing template files into an existing scaffold and bump `template_version`. Never overwrites edited files. |
+| `--policies=<csv>` | Replace profile defaults with this exact list. | none |
+| `--add-policies=<csv>` | Add policies to the profile defaults. Cannot combine with `--policies=`. | none |
+| `--remove-policies=<csv>` | Remove policies from the profile defaults. Cannot combine with `--policies=`. | none |
+| `--with-deps` | When applying, also install required-by policies. | false |
+
+## Sub-commands
+
+After the initial scaffold, two sub-trees manage policies in the current
+project:
+
+- `sn-setup policy <list|show|apply|remove|upgrade|status|show-applied|history|lint>` — apply or remove individual policies; see spec §4 for full reference.
+- `sn-setup profile <list|show|add|remove|swap>` — edit the profile→default-policies mapping (auto-detects plugin repo vs scaffolded project).
+
+See `docs/superpowers/specs/2026-06-24-policy-catalog-design.md` for the full design.
 
 ## Behavior contract
 
