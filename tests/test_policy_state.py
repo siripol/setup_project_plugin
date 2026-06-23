@@ -53,3 +53,12 @@ def test_sha256_file(tmp_path: Path):
 def test_sha256_str():
     assert policy_state.sha256_str("hello\n") == \
         "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+
+
+def test_read_state_handles_empty_file(tmp_path: Path):
+    """An empty/zero-byte state file (manual touch, or interrupted write)
+    must not crash with JSONDecodeError — migrate returns empty arrays."""
+    (tmp_path / ".sn-init-state.json").write_text("")
+    state = policy_state.read_state(tmp_path)
+    assert state["applied_policies"] == []
+    assert state["policy_history"] == []

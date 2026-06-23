@@ -27,7 +27,8 @@ def read_state(target: Path) -> dict:
     path = target / STATE_FILENAME
     if not path.exists():
         return migrate({})
-    state = json.loads(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    state = json.loads(text) if text.strip() else {}
     return migrate(state)
 
 

@@ -141,4 +141,41 @@ def lint(catalog_root: Path) -> list[str]:
             if c not in catalog:
                 failures.append(f"{slug}: conflicts_with unknown slug {c!r}")
 
+    # Orphan requires (a slug declares a `requires: [foo]` where `foo` is not in catalog).
+    for slug, meta in catalog.items():
+        for req in meta.requires:
+            if req not in catalog:
+                failures.append(f"{slug}: requires unknown slug {req!r}")
+
+    # Cross-patch settings-marker collisions: every settings.patch.json entry
+    # in any array MUST carry `policy: <this slug>`. Author mistakes where one
+    # policy's patch entry is tagged with another policy's slug would silently
+    # break the remove path.
+    import json as _json
+    for slug, meta in catalog.items():
+        patch_rel = meta.files.get("settings_patch")
+        if not patch_rel:
+            continue
+        try:
+            patch = _json.loads((meta.root / patch_rel).read_text(encoding="utf-8"))
+        except Exception as e:
+            failures.append(f"{slug}: settings.patch.json unreadable: {e}")
+            continue
+        _walk_for_marker_collisions(patch, slug, failures)
+
     return failures
+
+
+def _walk_for_marker_collisions(node: object, expected_slug: str, failures: list[str]) -> None:
+    if isinstance(node, dict):
+        for v in node.values():
+            _walk_for_marker_collisions(v, expected_slug, failures)
+    elif isinstance(node, list):
+        for entry in node:
+            if isinstance(entry, dict) and "policy" in entry:
+                if entry["policy"] != expected_slug:
+                    failures.append(
+                        f"{expected_slug}: settings patch entry tagged "
+                        f"policy={entry['policy']!r}, expected {expected_slug!r}"
+                    )
+            _walk_for_marker_collisions(entry, expected_slug, failures)

@@ -69,3 +69,19 @@ def test_lint_flags_circular_requires(tmp_path: Path):
         (docs / f"{slug}.md").write_text("# x\n")
     failures = policy_loader.lint(root)
     assert any("circular" in f.lower() for f in failures)
+
+
+def test_lint_catches_orphan_requires(tmp_path: Path):
+    root = tmp_path / "policies"
+    d = root / "a"
+    (d / "docs").mkdir(parents=True)
+    (d / "policy.yaml").write_text(
+        "slug: a\ntitle: t\nversion: 1.0.0\ncategory: security\n"
+        "group: null\napplies_to: [microservice]\nrequires: [nonexistent]\n"
+        "conflicts_with: []\ndescription: x\nfiles:\n"
+        "  claude_md_row: claude-md.row.md\n  docs: docs/a.md\n"
+    )
+    (d / "claude-md.row.md").write_text("| sec | a | x | 1.0.0 |\n")
+    (d / "docs" / "a.md").write_text("# a\n")
+    failures = policy_loader.lint(root)
+    assert any("nonexistent" in f for f in failures)

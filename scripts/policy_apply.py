@@ -419,9 +419,10 @@ def apply_many(
     for s in ordered:
         meta = catalog[s]
         for c in meta.conflicts_with:
-            if c in applied_slugs and not any(c == inc for inc, _ in swap_plan):
+            is_in_swap = any(c == inc for inc, _ in swap_plan)
+            if (c in applied_slugs or c in ordered) and not is_in_swap and c != s:
                 raise policy_errors.ConflictsWithViolation(
-                    f"'{s}' conflicts with already-applied '{c}'"
+                    f"'{s}' conflicts with '{c}' which is already applied or in this batch"
                 )
 
     # 5. Execute swaps (remove incumbent) — non-force; user-edited files preserved.

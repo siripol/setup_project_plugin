@@ -7,6 +7,7 @@ SN_POLICY_CATALOG_ROOT env var.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -160,7 +161,7 @@ def _dispatch(ns: argparse.Namespace) -> int:
         if ns.slug:
             events = [e for e in events if e.get("slug") == ns.slug or e.get("from") == ns.slug or e.get("to") == ns.slug]
         for e in events[-ns.limit :]:
-            print(e)
+            print(json.dumps(e))
         return 0
 
     if ns.cmd == "lint":

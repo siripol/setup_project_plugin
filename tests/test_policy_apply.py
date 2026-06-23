@@ -309,3 +309,21 @@ def test_apply_many_returns_one_report_per_slug(tmp_path: Path):
     }
     reports = policy_apply.apply_many(project, ["a", "b"], catalog)
     assert {r.slug for r in reports} == {"a", "b"}
+
+
+def test_apply_many_conflicts_within_batch_errors(tmp_path: Path):
+    """conflicts_with must be enforced across the in-batch slug set, not just
+    against already-applied policies."""
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    a = _make_minimal_policy(cat, "a")
+    b = _make_minimal_policy(cat, "b")
+    text = (b.root / "policy.yaml").read_text().replace(
+        "conflicts_with: []", "conflicts_with: [a]"
+    )
+    (b.root / "policy.yaml").write_text(text)
+    b = policy_loader.load_policy(cat / "b")
+    catalog = {"a": a, "b": b}
+    with pytest.raises(policy_errors.ConflictsWithViolation):
+        # Both slugs in one batch; nothing applied yet.
+        policy_apply.apply_many(project, ["a", "b"], catalog)

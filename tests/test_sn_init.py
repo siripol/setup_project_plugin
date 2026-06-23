@@ -2172,3 +2172,15 @@ def test_microservice_golden_snapshot(tmp_path: Path):
         actual_keys = sorted((e["policy"], e.get("matcher", "")) for e in actual if "policy" in e)
         expected_keys = sorted((e["policy"], e.get("matcher", "")) for e in entries)
         assert actual_keys == expected_keys, f"{hook_name}: {actual_keys} != {expected_keys}"
+
+
+def test_add_mode_applies_profile_default_policies(tmp_path: Path):
+    """Add mode must also apply profile-default policies (M4 fix)."""
+    # Non-empty cwd to trigger add mode.
+    (tmp_path / "existing.txt").write_text("x")
+    _run(tmp_path, "--no-git", "--profile=microservice")
+    state = json.loads((tmp_path / ".sn-init-state.json").read_text())
+    slugs = {p["slug"] for p in state["applied_policies"]}
+    # Microservice profile defaults include repository-ecosystem + memory-ordinary.
+    assert "repository-ecosystem" in slugs
+    assert "memory-ordinary" in slugs

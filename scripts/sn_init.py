@@ -399,6 +399,7 @@ def _run_add(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -
 
     _append_gitignore(target, [".claude/CLAUDE.local.md", ".claude/settings.local.json"], logger)
     _write_state(target, args, mode="add", files=written)
+    _apply_initial_policies(args, target, logger)
     _print_summary(target, args, mode="add", patched=written)
     return errors.EXIT_OK
 

@@ -146,3 +146,21 @@ def test_sn_setup_dispatches_policy_subtree(tmp_path: Path, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert "sample-policy" in out
+
+
+def test_policy_history_outputs_valid_json(tmp_path: Path, capsys):
+    """history sub-command must print valid JSON lines so `sn-setup policy
+    history | jq` works (M5 fix)."""
+    project = _scaffold_project(tmp_path)
+    _run_cli(tmp_path, "apply", "sample-policy", cwd=project)
+    capsys.readouterr()
+    rc = _run_cli(tmp_path, "history", cwd=project)
+    assert rc == 0
+    out = capsys.readouterr().out.strip()
+    assert out, "history should print at least one line"
+    # Every non-empty line must be parseable JSON.
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        parsed = json.loads(line)  # raises if not JSON
+        assert isinstance(parsed, dict)
