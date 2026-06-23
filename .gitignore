@@ -13,7 +13,7 @@ __pycache__/
 .idea/
 .vscode/
 
-# Claude-delivered artifacts (per CLAUDE.md `__claude__<name>_<timestamp>.md`
-# naming convention) — design docs / spec dumps / one-off deliverables; not
-# part of the plugin's source surface.
-artifacts/__claude__*
+# Temporary working artifacts (renamed from `artifacts/`): design dumps,
+# Claude-delivered spec docs (`__claude__<name>_<timestamp>.md`), exported
+# diagrams, etc. Not part of the plugin's source surface — kept local only.
+tmp_artifacts/
