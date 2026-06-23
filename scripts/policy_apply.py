@@ -137,6 +137,10 @@ class RemoveReport:
     skipped_files: list[str] = field(default_factory=list)
 
 
+def _semver_tuple(v: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in v.split("-")[0].split("."))
+
+
 def remove(
     project_dir: Path,
     slug: str,
@@ -198,3 +202,143 @@ def remove(
         })
     policy_state.write_state(project_dir, state)
     return report
+
+
+@dataclass
+class UpgradeReport:
+    slug: str = ""
+    from_version: str = ""
+    to_version: str = ""
+    refreshed_files: list[str] = field(default_factory=list)
+    skipped_files: list[str] = field(default_factory=list)
+
+
+@dataclass
+class StatusEntry:
+    slug: str
+    applied_version: str
+    catalog_version: str | None
+    state: str  # "current" | "obsolete" | "unknown" | "drifted"
+
+
+def upgrade(project_dir: Path, new_meta: policy_loader.PolicyMeta, *, force: bool = False) -> UpgradeReport:
+    import policy_errors
+
+    state = policy_state.read_state(project_dir)
+    entry = _find_applied(state, new_meta.slug)
+    if entry is None:
+        raise policy_errors.PolicyNotApplied(f"'{new_meta.slug}' is not applied")
+    if entry["version"] == new_meta.version:
+        return UpgradeReport(
+            slug=new_meta.slug, from_version=entry["version"], to_version=new_meta.version,
+        )
+    if _semver_tuple(entry["version"]) > _semver_tuple(new_meta.version):
+        raise policy_errors.CatalogDowngrade(
+            f"state has {new_meta.slug}@{entry['version']} but catalog only "
+            f"has {new_meta.version}"
+        )
+
+    report = UpgradeReport(
+        slug=new_meta.slug,
+        from_version=entry["version"],
+        to_version=new_meta.version,
+    )
+
+    content_sha: dict[str, str] = {}
+
+    # CLAUDE.md row.
+    claude_md = project_dir / "CLAUDE.md"
+    src = claude_md.read_text(encoding="utf-8")
+    row = (new_meta.root / new_meta.files["claude_md_row"]).read_text(encoding="utf-8").strip("\n")
+    new_text, row_sha = policy_claude_md.upsert_row(src, new_meta.slug, row)
+    claude_md.write_text(new_text, encoding="utf-8")
+    content_sha[f"CLAUDE.md#row:{new_meta.slug}"] = row_sha
+    report.refreshed_files.append("CLAUDE.md#row")
+
+    # File-by-file refresh.
+    file_entries: list[tuple[str, str]] = []  # (rel_path, src_path)
+    file_entries.append(
+        (f"{DOCS_DIR}/{new_meta.slug}.md", str(new_meta.root / new_meta.files["docs"]))
+    )
+    if new_meta.files.get("rules"):
+        file_entries.append(
+            (f"{RULES_DIR}/{new_meta.slug}.md", str(new_meta.root / new_meta.files["rules"]))
+        )
+    for pair in new_meta.files.get("extras") or []:
+        src_rel, dst_rel = pair.split(":", 1)
+        file_entries.append((dst_rel, str(new_meta.root / src_rel)))
+
+    for rel, src_path in file_entries:
+        dst = project_dir / rel
+        recorded = (entry.get("content_sha") or {}).get(rel)
+        if dst.exists():
+            actual = policy_state.sha256_file(dst)
+            if recorded and actual != recorded and not force:
+                report.skipped_files.append(rel)
+                continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src_path, dst)
+        if rel.endswith(".sh"):
+            dst.chmod(dst.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        content_sha[rel] = policy_state.sha256_file(dst)
+        report.refreshed_files.append(rel)
+
+    # Settings patch (replace by (matcher, policy); _settings_merge handles version bump).
+    settings_marker = entry.get("settings_marker")
+    if new_meta.files.get("settings_patch"):
+        patch = json.loads((new_meta.root / new_meta.files["settings_patch"]).read_text())
+        settings_path = project_dir / SETTINGS_PATH
+        data = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+        policy_settings_merge.apply_patch(data, patch, expected_policy=new_meta.slug)
+        settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        settings_marker = new_meta.slug
+
+    now = datetime.now(timezone.utc).isoformat()
+    state["applied_policies"] = [p for p in state["applied_policies"] if p["slug"] != new_meta.slug]
+    state["applied_policies"].append({
+        "slug": new_meta.slug,
+        "version": new_meta.version,
+        "applied_at": now,
+        "content_sha": content_sha,
+        "settings_marker": settings_marker,
+    })
+    state["applied_policies"].sort(key=lambda p: p["slug"])
+    state["policy_history"].append({
+        "action": "upgrade",
+        "slug": new_meta.slug,
+        "from": entry["version"],
+        "to": new_meta.version,
+        "at": now,
+        "skipped_files": report.skipped_files,
+        "source": "cli",
+    })
+    policy_state.write_state(project_dir, state)
+    return report
+
+
+def status(project_dir: Path, catalog: dict[str, policy_loader.PolicyMeta]) -> list[StatusEntry]:
+    state = policy_state.read_state(project_dir)
+    out: list[StatusEntry] = []
+    for p in state["applied_policies"]:
+        slug = p["slug"]
+        meta = catalog.get(slug)
+        if meta is None:
+            out.append(StatusEntry(slug, p["version"], None, "unknown"))
+            continue
+        # drift detection
+        drift = False
+        for rel, sha in (p.get("content_sha") or {}).items():
+            if rel.startswith("CLAUDE.md#row:"):
+                continue
+            path = project_dir / rel
+            if path.exists() and policy_state.sha256_file(path) != sha:
+                drift = True
+                break
+        cv = meta.version
+        if p["version"] == cv:
+            out.append(StatusEntry(slug, p["version"], cv, "drifted" if drift else "current"))
+        elif _semver_tuple(p["version"]) < _semver_tuple(cv):
+            out.append(StatusEntry(slug, p["version"], cv, "obsolete"))
+        else:
+            out.append(StatusEntry(slug, p["version"], cv, "unknown"))
+    return out

@@ -134,3 +134,93 @@ def test_remove_strips_claude_md_row(tmp_path: Path):
     policy_apply.apply(project, meta)
     policy_apply.remove(project, "p1")
     assert "| security | p1 |" not in (project / "CLAUDE.md").read_text()
+
+
+def _make_policy_with_version(catalog_root: Path, slug: str, version: str) -> policy_loader.PolicyMeta:
+    d = catalog_root / slug
+    (d / "docs").mkdir(parents=True, exist_ok=True)
+    (d / "policy.yaml").write_text(
+        f"slug: {slug}\ntitle: t\nversion: {version}\ncategory: security\n"
+        f"group: null\napplies_to: [microservice]\nrequires: []\n"
+        f"conflicts_with: []\ndescription: x\nfiles:\n"
+        f"  claude_md_row: claude-md.row.md\n  docs: docs/{slug}.md\n"
+    )
+    (d / "claude-md.row.md").write_text(
+        f"| security | {slug} | `.claude/docs/policies/{slug}.md` | {version} |\n"
+    )
+    (d / "docs" / f"{slug}.md").write_text(f"# {slug}\n\nbody {version}\n")
+    return policy_loader.load_policy(d)
+
+
+def test_upgrade_refreshes_files_and_state(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    v1 = _make_policy_with_version(tmp_path / "cat1", "p1", "1.0.0")
+    policy_apply.apply(project, v1)
+    v2 = _make_policy_with_version(tmp_path / "cat2", "p1", "1.1.0")
+    report = policy_apply.upgrade(project, v2)
+    assert report.from_version == "1.0.0"
+    assert report.to_version == "1.1.0"
+    assert "body 1.1.0" in (project / ".claude" / "docs" / "policies" / "p1.md").read_text()
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert any(p["slug"] == "p1" and p["version"] == "1.1.0" for p in state["applied_policies"])
+    assert state["policy_history"][-1]["action"] == "upgrade"
+
+
+def test_upgrade_skips_user_edited_files(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    v1 = _make_policy_with_version(tmp_path / "cat1", "p1", "1.0.0")
+    policy_apply.apply(project, v1)
+    (project / ".claude" / "docs" / "policies" / "p1.md").write_text("# user edit\n")
+    v2 = _make_policy_with_version(tmp_path / "cat2", "p1", "1.1.0")
+    report = policy_apply.upgrade(project, v2)
+    assert ".claude/docs/policies/p1.md" in report.skipped_files
+    # Version still bumps in state (spec §7).
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert any(p["slug"] == "p1" and p["version"] == "1.1.0" for p in state["applied_policies"])
+
+
+def test_upgrade_force_overrides_edited(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    v1 = _make_policy_with_version(tmp_path / "cat1", "p1", "1.0.0")
+    policy_apply.apply(project, v1)
+    (project / ".claude" / "docs" / "policies" / "p1.md").write_text("# user edit\n")
+    v2 = _make_policy_with_version(tmp_path / "cat2", "p1", "1.1.0")
+    policy_apply.upgrade(project, v2, force=True)
+    assert "body 1.1.0" in (project / ".claude" / "docs" / "policies" / "p1.md").read_text()
+
+
+def test_upgrade_downgrade_errors(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    v2 = _make_policy_with_version(tmp_path / "cat2", "p1", "1.1.0")
+    policy_apply.apply(project, v2)
+    v1 = _make_policy_with_version(tmp_path / "cat1", "p1", "1.0.0")
+    with pytest.raises(policy_errors.CatalogDowngrade):
+        policy_apply.upgrade(project, v1)
+
+
+def test_status_classifies(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    v1 = _make_policy_with_version(tmp_path / "cat", "current", "1.0.0")
+    v1_obsolete = _make_policy_with_version(tmp_path / "cat", "obsolete-one", "1.0.0")
+    policy_apply.apply(project, v1)
+    policy_apply.apply(project, v1_obsolete)
+
+    catalog = {
+        "current": v1,
+        "obsolete-one": _make_policy_with_version(tmp_path / "cat-new", "obsolete-one", "2.0.0"),
+        # "current" still 1.0.0; obsolete-one bumped to 2.0.0; another slug in
+        # state would be unknown if absent here. Add "ghost":
+    }
+    # Add a ghost entry to state — applied but no catalog match.
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    state["applied_policies"].append({
+        "slug": "ghost", "version": "1.0.0", "applied_at": "now",
+        "content_sha": {}, "settings_marker": None,
+    })
+    (project / ".sn-init-state.json").write_text(json.dumps(state))
+
+    rows = policy_apply.status(project, catalog)
+    by_slug = {r.slug: r for r in rows}
+    assert by_slug["current"].state == "current"
+    assert by_slug["obsolete-one"].state == "obsolete"
+    assert by_slug["ghost"].state == "unknown"
