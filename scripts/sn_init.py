@@ -161,10 +161,22 @@ def _resolve_subagents(spec: str) -> set[str]:
     return names
 
 
+SUBTREES = {"policy", "profile"}
+
+
 def main(argv: list[str] | None = None) -> int:
+    raw = sys.argv[1:] if argv is None else list(argv)
+    if raw and raw[0] in SUBTREES:
+        if raw[0] == "policy":
+            import policy_cli
+            return policy_cli.main(raw[1:])
+        if raw[0] == "profile":
+            import profile_cli  # noqa: F401  (lands in Task 14)
+            return profile_cli.main(raw[1:])
+
     parser = build_parser()
     try:
-        args = parser.parse_args(argv)
+        args = parser.parse_args(raw)
     except SystemExit as e:
         return errors.EXIT_USAGE if e.code else errors.EXIT_OK
 
