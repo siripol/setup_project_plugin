@@ -128,3 +128,73 @@ def _find_applied(state: dict, slug: str) -> dict | None:
         if p["slug"] == slug:
             return p
     return None
+
+
+@dataclass
+class RemoveReport:
+    slug: str = ""
+    deleted_files: list[str] = field(default_factory=list)
+    skipped_files: list[str] = field(default_factory=list)
+
+
+def remove(
+    project_dir: Path,
+    slug: str,
+    *,
+    force: bool = False,
+    source: str = "cli",
+    suppress_history: bool = False,
+) -> RemoveReport:
+    import policy_errors
+
+    state = policy_state.read_state(project_dir)
+    entry = _find_applied(state, slug)
+    if entry is None:
+        raise policy_errors.PolicyNotApplied(
+            f"'{slug}' is not applied to this project"
+        )
+
+    report = RemoveReport(slug=slug)
+    content_sha: dict = entry.get("content_sha") or {}
+
+    for rel, expected_sha in content_sha.items():
+        if rel.startswith("CLAUDE.md#row:"):
+            # Handled below alongside the actual CLAUDE.md edit.
+            continue
+        path = project_dir / rel
+        if not path.exists():
+            continue
+        actual_sha = policy_state.sha256_file(path)
+        if actual_sha != expected_sha and not force:
+            report.skipped_files.append(rel)
+            continue
+        path.unlink()
+        report.deleted_files.append(rel)
+
+    # Strip CLAUDE.md row + settings.json entries.
+    claude_md = project_dir / "CLAUDE.md"
+    if claude_md.exists():
+        claude_md.write_text(
+            policy_claude_md.strip_row(claude_md.read_text(encoding="utf-8"), slug),
+            encoding="utf-8",
+        )
+    if entry.get("settings_marker"):
+        settings_path = project_dir / SETTINGS_PATH
+        if settings_path.exists():
+            data = json.loads(settings_path.read_text())
+            policy_settings_merge.remove_policy(data, slug)
+            settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    state["applied_policies"] = [p for p in state["applied_policies"] if p["slug"] != slug]
+    if not suppress_history:
+        now = datetime.now(timezone.utc).isoformat()
+        state["policy_history"].append({
+            "action": "remove",
+            "slug": slug,
+            "version": entry["version"],
+            "at": now,
+            "skipped_files": report.skipped_files,
+            "source": source,
+        })
+    policy_state.write_state(project_dir, state)
+    return report

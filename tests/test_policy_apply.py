@@ -80,3 +80,57 @@ def test_apply_idempotent_does_not_grow_state(tmp_path: Path):
     # exactly one applied entry, one history event
     assert len([p for p in state["applied_policies"] if p["slug"] == "p1"]) == 1
     assert len([h for h in state["policy_history"] if h.get("slug") == "p1"]) == 1
+
+
+import pytest
+import policy_errors  # type: ignore
+
+
+def test_remove_deletes_unedited_files(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    meta = _make_minimal_policy(tmp_path / "catalog")
+    policy_apply.apply(project, meta)
+    report = policy_apply.remove(project, "p1")
+    assert ".claude/docs/policies/p1.md" in report.deleted_files
+    assert not (project / ".claude" / "docs" / "policies" / "p1.md").exists()
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert not any(p["slug"] == "p1" for p in state["applied_policies"])
+    assert state["policy_history"][-1]["action"] == "remove"
+
+
+def test_remove_skips_user_edited_without_force(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    meta = _make_minimal_policy(tmp_path / "catalog")
+    policy_apply.apply(project, meta)
+    edited = project / ".claude" / "docs" / "policies" / "p1.md"
+    edited.write_text("# edited by user\n")
+    report = policy_apply.remove(project, "p1")
+    assert ".claude/docs/policies/p1.md" in report.skipped_files
+    assert edited.exists()  # not deleted
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    # State still strips the entry.
+    assert not any(p["slug"] == "p1" for p in state["applied_policies"])
+
+
+def test_remove_force_overrides_edits(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    meta = _make_minimal_policy(tmp_path / "catalog")
+    policy_apply.apply(project, meta)
+    edited = project / ".claude" / "docs" / "policies" / "p1.md"
+    edited.write_text("# edited by user\n")
+    policy_apply.remove(project, "p1", force=True)
+    assert not edited.exists()
+
+
+def test_remove_unknown_slug_errors(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    with pytest.raises(policy_errors.PolicyNotApplied):
+        policy_apply.remove(project, "never-applied")
+
+
+def test_remove_strips_claude_md_row(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    meta = _make_minimal_policy(tmp_path / "catalog")
+    policy_apply.apply(project, meta)
+    policy_apply.remove(project, "p1")
+    assert "| security | p1 |" not in (project / "CLAUDE.md").read_text()
