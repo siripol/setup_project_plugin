@@ -316,6 +316,40 @@ def upgrade(project_dir: Path, new_meta: policy_loader.PolicyMeta, *, force: boo
     return report
 
 
+def apply_profile_defaults(
+    project_dir: Path,
+    catalog: dict[str, "policy_loader.PolicyMeta"],
+    *,
+    source: str = "cli",
+) -> tuple[list[ApplyReport], list[str], list[str]]:
+    """Read .claude/profile-defaults.yaml and apply any missing policies.
+
+    Returns (applied_reports, already_up_to_date_slugs, extra_slugs).
+    Extra slugs are NOT removed — this is an additive operation.
+    """
+    import yaml as _yaml
+
+    defaults_path = project_dir / ".claude" / "profile-defaults.yaml"
+    if not defaults_path.exists():
+        # No project-local defaults file → nothing to apply.
+        return ([], [], [])
+
+    data = _yaml.safe_load(defaults_path.read_text(encoding="utf-8")) or {}
+    target_set: list[str] = list(data.get("policies") or [])
+
+    state = policy_state.read_state(project_dir)
+    applied_set = {p["slug"] for p in state["applied_policies"]}
+
+    missing = [s for s in target_set if s not in applied_set]
+    already = [s for s in target_set if s in applied_set]
+    extras = sorted(applied_set - set(target_set))
+
+    reports: list[ApplyReport] = []
+    if missing:
+        reports = apply_many(project_dir, missing, catalog, source=source)
+    return (reports, already, extras)
+
+
 def apply_many(
     project_dir: Path,
     slugs: list[str],

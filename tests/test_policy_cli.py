@@ -104,6 +104,35 @@ def test_policy_lint_passes_on_valid_fixture(tmp_path: Path, capsys):
     assert rc == 0
 
 
+def test_policy_apply_use_profile_defaults_applies_missing(tmp_path: Path):
+    project = _scaffold_project(tmp_path)
+    # Seed project-local profile-defaults with one slug.
+    (project / ".claude" / "profile-defaults.yaml").write_text(
+        "profile: microservice\npolicies:\n  - sample-policy\n",
+        encoding="utf-8",
+    )
+    rc = _run_cli(tmp_path, "apply", "--use-profile-defaults", cwd=project)
+    assert rc == 0
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert any(p["slug"] == "sample-policy" for p in state["applied_policies"])
+
+
+def test_policy_apply_use_profile_defaults_noop_when_all_applied(tmp_path: Path, capsys):
+    project = _scaffold_project(tmp_path)
+    (project / ".claude" / "profile-defaults.yaml").write_text(
+        "profile: microservice\npolicies:\n  - sample-policy\n",
+        encoding="utf-8",
+    )
+    # Apply once.
+    _run_cli(tmp_path, "apply", "sample-policy", cwd=project)
+    capsys.readouterr()
+    rc = _run_cli(tmp_path, "apply", "--use-profile-defaults", cwd=project)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "applied 0" in out
+    assert "already up-to-date" in out
+
+
 def test_sn_setup_dispatches_policy_subtree(tmp_path: Path, capsys):
     """sn-setup policy list should reach policy_cli.main."""
     old = Path.cwd()

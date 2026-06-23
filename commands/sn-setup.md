@@ -65,4 +65,22 @@ Body of this command dispatches to `scripts/sn_init.py`. The script:
 
 `0` ok, `2` usage / bad flag, `3` target dir non-empty + name given, `4` `.claude/` exists in add mode without state file, `5` Obsidian vault unwritable (only when explicit), `6` `--install` failed after retries, `7` validation gate failed, `8` template version mismatch, `99` internal error.
 
+### Additional exit codes (policy / profile sub-trees)
+
+The `sn-setup policy` and `sn-setup profile` sub-commands and scaffold-time `--policies` / `--add-policies` / `--remove-policies` flags introduce these codes (per spec §10):
+
+| Code | Name | When it fires |
+|---|---|---|
+| 10 | `UNKNOWN_POLICY` | Slug not in catalog |
+| 11 | `UNKNOWN_PROFILE` | Profile name unknown |
+| 12 | `EXCLUSIVE_GROUP_CONFLICT` | Group constraint violated (reserved for future `--no-swap`) |
+| 13 | `REQUIRES_NOT_SATISFIED` | Policy needs prerequisite slugs not applied; retry with `--with-deps` |
+| 14 | `USER_EDITED_BLOCKS_OP` | Remove/upgrade hit a user-edited file; pass `--force` to override |
+| 15 | `CWD_AMBIGUOUS_OR_INVALID` | `sn-setup profile` cwd is neither a plugin repo nor a scaffolded project |
+| 16 | `POLICY_NOT_APPLIED` | Remove/upgrade for a slug not in `applied_policies` |
+| 17 | `MIXED_OVERRIDE_FLAGS` | `--policies=` combined with `--add-policies` / `--remove-policies` |
+| 18 | `CATALOG_DOWNGRADE` | State version > catalog version for a slug |
+| 19 | `MALFORMED_PATCH` | `settings.patch.json` entry missing `policy:` field |
+| 20 | `CONFLICTS_WITH_VIOLATION` | Apply violates a `conflicts_with` entry against already-applied policy |
+
 See `skills/sn-setup/SKILL.md` for full design + `README.md` for plugin install.

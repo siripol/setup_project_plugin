@@ -34,8 +34,10 @@ def main(argv: list[str]) -> int:
 
     sub.add_parser("list")
     sp_show = sub.add_parser("show"); sp_show.add_argument("slug")
-    sp_app = sub.add_parser("apply"); sp_app.add_argument("slugs", nargs="+")
+    sp_app = sub.add_parser("apply")
+    sp_app.add_argument("slugs", nargs="*", default=[])
     sp_app.add_argument("--with-deps", action="store_true")
+    sp_app.add_argument("--use-profile-defaults", action="store_true", dest="use_profile_defaults")
     sp_rm = sub.add_parser("remove"); sp_rm.add_argument("slugs", nargs="+")
     sp_rm.add_argument("--force", action="store_true")
     sp_up = sub.add_parser("upgrade")
@@ -89,6 +91,31 @@ def _dispatch(ns: argparse.Namespace) -> int:
         return 0
 
     if ns.cmd == "apply":
+        if ns.use_profile_defaults:
+            if ns.slugs:
+                # Mixing slug args with --use-profile-defaults is a usage error.
+                print(
+                    "sn-setup policy: --use-profile-defaults cannot combine with positional slug args",
+                    file=sys.stderr,
+                )
+                return 2
+            reports, already, extras = policy_apply.apply_profile_defaults(project, catalog)
+            print(
+                f"applied {len(reports)} missing; "
+                f"{len(already)} already up-to-date; "
+                f"{len(extras)} extra policies present (not removed)"
+            )
+            if extras:
+                for s in extras:
+                    print(f"  extra: {s}")
+            return 0
+
+        if not ns.slugs:
+            print(
+                "sn-setup policy: apply requires at least one slug, or --use-profile-defaults",
+                file=sys.stderr,
+            )
+            return 2
         policy_apply.apply_many(
             project, ns.slugs, catalog, with_deps=ns.with_deps,
         )
