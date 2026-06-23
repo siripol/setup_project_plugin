@@ -12,6 +12,7 @@ def test_catalog_present_for_tasks_10_11():
     expected = {
         "memory-ordinary", "memory-regulated", "repository-ecosystem",
         "audit-log-strict", "supply-chain-scan",
+        "secret-scan", "commit-msg-gate", "branch-naming", "pdpa-compliance",
     }
     present = {p.name for p in CATALOG.iterdir() if p.is_dir()}
     missing = expected - present

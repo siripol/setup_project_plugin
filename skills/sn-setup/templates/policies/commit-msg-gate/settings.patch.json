@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PreCommit": [
+      {
+        "policy": "commit-msg-gate",
+        "version": "1.0.0",
+        "matcher": "*",
+        "command": ".githooks/commit-msg"
+      }
+    ]
+  }
+}

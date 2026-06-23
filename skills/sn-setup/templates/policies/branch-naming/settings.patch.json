@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PrePush": [
+      {
+        "policy": "branch-naming",
+        "version": "1.0.0",
+        "matcher": "*",
+        "command": ".githooks/pre-push"
+      }
+    ]
+  }
+}

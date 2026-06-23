@@ -1,0 +1,15 @@
+slug: pdpa-compliance
+title: "PDPA compliance (signal-only stub)"
+version: 1.0.0
+category: security
+group: null
+applies_to: [microservice, bff]
+requires: [memory-regulated, audit-log-strict, secret-scan]
+conflicts_with: []
+description: |
+  Signal-only stub in v1. Requires memory-regulated + audit-log-strict +
+  secret-scan. Full PDPA enforcement is backlog item B2.5.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/pdpa-compliance.md
+  rules: rules/pdpa-compliance.md
