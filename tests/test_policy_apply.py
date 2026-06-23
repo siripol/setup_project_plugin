@@ -224,3 +224,88 @@ def test_status_classifies(tmp_path: Path):
     assert by_slug["current"].state == "current"
     assert by_slug["obsolete-one"].state == "obsolete"
     assert by_slug["ghost"].state == "unknown"
+
+
+def test_apply_many_swaps_exclusive_group(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    p_ord = _make_minimal_policy(cat, "p-ordinary")
+    p_reg = _make_minimal_policy(cat, "p-regulated")
+    # Put both in group "tier" — rewrite their yaml.
+    for p in (p_ord, p_reg):
+        text = (p.root / "policy.yaml").read_text().replace("group: null", "group: tier")
+        (p.root / "policy.yaml").write_text(text)
+        # Reload after edit.
+    p_ord = policy_loader.load_policy(cat / "p-ordinary")
+    p_reg = policy_loader.load_policy(cat / "p-regulated")
+    catalog = {"p-ordinary": p_ord, "p-regulated": p_reg}
+
+    policy_apply.apply_many(project, ["p-ordinary"], catalog)
+    policy_apply.apply_many(project, ["p-regulated"], catalog)
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    slugs = [p["slug"] for p in state["applied_policies"]]
+    assert "p-regulated" in slugs
+    assert "p-ordinary" not in slugs
+    assert any(h["action"] == "swap" for h in state["policy_history"])
+
+
+def test_apply_many_requires_without_with_deps_errors(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    dep = _make_minimal_policy(cat, "dep")
+    head = _make_minimal_policy(cat, "head")
+    text = (head.root / "policy.yaml").read_text().replace("requires: []", "requires: [dep]")
+    (head.root / "policy.yaml").write_text(text)
+    head = policy_loader.load_policy(cat / "head")
+    catalog = {"dep": dep, "head": head}
+    with pytest.raises(policy_errors.RequiresNotSatisfied):
+        policy_apply.apply_many(project, ["head"], catalog)
+
+
+def test_apply_many_with_deps_auto_installs(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    dep = _make_minimal_policy(cat, "dep")
+    head = _make_minimal_policy(cat, "head")
+    text = (head.root / "policy.yaml").read_text().replace("requires: []", "requires: [dep]")
+    (head.root / "policy.yaml").write_text(text)
+    head = policy_loader.load_policy(cat / "head")
+    catalog = {"dep": dep, "head": head}
+    policy_apply.apply_many(project, ["head"], catalog, with_deps=True)
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    slugs = [p["slug"] for p in state["applied_policies"]]
+    assert "dep" in slugs
+    assert "head" in slugs
+
+
+def test_apply_many_conflicts_with_errors(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    a = _make_minimal_policy(cat, "a")
+    b = _make_minimal_policy(cat, "b")
+    text = (b.root / "policy.yaml").read_text().replace("conflicts_with: []", "conflicts_with: [a]")
+    (b.root / "policy.yaml").write_text(text)
+    b = policy_loader.load_policy(cat / "b")
+    catalog = {"a": a, "b": b}
+    policy_apply.apply_many(project, ["a"], catalog)
+    with pytest.raises(policy_errors.ConflictsWithViolation):
+        policy_apply.apply_many(project, ["b"], catalog)
+
+
+def test_apply_many_unknown_slug_errors(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    catalog = {"only": _make_minimal_policy(cat, "only")}
+    with pytest.raises(policy_errors.UnknownPolicy):
+        policy_apply.apply_many(project, ["never-heard-of"], catalog)
+
+
+def test_apply_many_returns_one_report_per_slug(tmp_path: Path):
+    project = _setup_project(tmp_path)
+    cat = tmp_path / "catalog"
+    catalog = {
+        "a": _make_minimal_policy(cat, "a"),
+        "b": _make_minimal_policy(cat, "b"),
+    }
+    reports = policy_apply.apply_many(project, ["a", "b"], catalog)
+    assert {r.slug for r in reports} == {"a", "b"}

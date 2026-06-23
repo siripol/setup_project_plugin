@@ -316,6 +316,102 @@ def upgrade(project_dir: Path, new_meta: policy_loader.PolicyMeta, *, force: boo
     return report
 
 
+def apply_many(
+    project_dir: Path,
+    slugs: list[str],
+    catalog: dict[str, policy_loader.PolicyMeta],
+    *,
+    with_deps: bool = False,
+    source: str = "cli",
+) -> list[ApplyReport]:
+    import policy_errors
+
+    # 1. Validate every slug exists in catalog.
+    for s in slugs:
+        if s not in catalog:
+            raise policy_errors.UnknownPolicy(
+                f"unknown policy {s!r}; see `sn-setup policy list`"
+            )
+
+    # 2. Expand requires (BFS) when --with-deps; else verify they are already
+    #    in applied_policies.
+    state = policy_state.read_state(project_dir)
+    applied_slugs = {p["slug"] for p in state["applied_policies"]}
+
+    ordered: list[str] = []
+    seen: set[str] = set()
+
+    def visit(slug: str) -> None:
+        if slug in seen:
+            return
+        meta = catalog[slug]
+        for req in meta.requires:
+            if req in applied_slugs:
+                continue
+            if not with_deps:
+                if req not in slugs:
+                    raise policy_errors.RequiresNotSatisfied(
+                        f"'{slug}' requires {req!r} which is not applied; "
+                        "pass --with-deps to auto-install"
+                    )
+            else:
+                if req in catalog:
+                    visit(req)
+                else:
+                    raise policy_errors.UnknownPolicy(
+                        f"required dep {req!r} of {slug!r} not in catalog"
+                    )
+        if slug not in seen:
+            ordered.append(slug)
+            seen.add(slug)
+
+    for s in slugs:
+        visit(s)
+
+    # 3. Plan exclusive-group swaps.
+    swap_plan: list[tuple[str, str]] = []  # (incumbent, replacement)
+    for s in ordered:
+        meta = catalog[s]
+        if meta.group is None:
+            continue
+        for p in list(state["applied_policies"]):
+            if p["slug"] == s:
+                continue
+            other_meta = catalog.get(p["slug"])
+            if other_meta and other_meta.group == meta.group:
+                swap_plan.append((p["slug"], s))
+
+    # 4. conflicts_with check.
+    for s in ordered:
+        meta = catalog[s]
+        for c in meta.conflicts_with:
+            if c in applied_slugs and not any(c == inc for inc, _ in swap_plan):
+                raise policy_errors.ConflictsWithViolation(
+                    f"'{s}' conflicts with already-applied '{c}'"
+                )
+
+    # 5. Execute swaps (remove incumbent) — non-force; user-edited files preserved.
+    for incumbent, replacement in swap_plan:
+        remove(project_dir, incumbent, source=source, suppress_history=True)
+        # Record one explicit swap event in place of the suppressed remove.
+        state = policy_state.read_state(project_dir)
+        now = datetime.now(timezone.utc).isoformat()
+        state["policy_history"].append({
+            "action": "swap",
+            "from": incumbent,
+            "to": replacement,
+            "at": now,
+            "source": source,
+        })
+        policy_state.write_state(project_dir, state)
+
+    # 6. Apply in dependency order.
+    reports: list[ApplyReport] = []
+    for s in ordered:
+        reports.append(apply(project_dir, catalog[s], source=source))
+    return reports
+
+
 def status(project_dir: Path, catalog: dict[str, policy_loader.PolicyMeta]) -> list[StatusEntry]:
     state = policy_state.read_state(project_dir)
     out: list[StatusEntry] = []
