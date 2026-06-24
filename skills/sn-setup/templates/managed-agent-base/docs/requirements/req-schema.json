@@ -10,7 +10,7 @@
     "id": {
       "type": "string",
       "pattern": "^REQ-[0-9]{3}$",
-      "description": "Zero-padded REQ id, e.g. REQ-001. Auto-assigned by /sn-req-new."
+      "description": "Zero-padded REQ id, e.g. REQ-001. Auto-assigned by /sn-req new."
     },
     "title": {
       "type": "string",

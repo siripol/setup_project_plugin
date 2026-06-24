@@ -27,6 +27,12 @@ Most current items derive from the **microservices template-family design doc** 
 - **Scope**: 9 day-one policies, `sn-setup policy` + `sn-setup profile` CLI, lint, status, upgrade, history, profile-bundled defaults.
 - **Follow-ups**: PR2 profile expansion (worker/cli/library/gateway/mcp-server); PR3 default bundles for new profiles.
 
+### B1.9 `[~]` Command sub-tree migration — branch `feat/command-subtree-migration`
+- **Why**: 16 flat `sn-X-Y.md` slash commands fragment the help surface. Sibling pattern `sn-setup policy <op>` (PR #18) reads better.
+- **Where**: `skills/sn-setup/templates/claude/commands/sn-{sprint,req,knowledge}.md` (new); 16 old files deleted; `scripts/commands_migration.py` (new); `--rename-commands` flag in `sn_init.py`.
+- **Scope**: 3 grouped commands + `summarize` verb (replaces tech-matrix) + migration command for existing scaffolds.
+- **Mark `[x]`**: after PR merges.
+
 ### B1.3 `[ ]` `docs/PROMOTION.md` — local-skill → org-marketplace path
 - **Why**: design §6.5 — explicit promotion workflow (local skill proves useful → review → publish to platform marketplace → others install).
 - **Where**: `skills/sn-setup/templates/managed-agent-base/docs/PROMOTION.md` (new file in scaffold template). Same doc also added to this plugin's own `docs/`.

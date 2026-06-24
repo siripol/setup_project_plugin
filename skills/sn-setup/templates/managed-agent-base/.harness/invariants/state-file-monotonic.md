@@ -11,7 +11,7 @@ For every REQ, the `phase_history` array in `.sn-init/workflow-state.json` is ap
 
 ## Why
 
-`/sn-req-resume` relies on the state file to know where to pick up after a crash. If a previous phase entry can be overwritten, resume picks a stale verdict; if entries can be deleted, resume runs a phase twice and clobbers proof-bundle artefacts. The monotonic invariant is what makes resume safe.
+`/sn-req resume` relies on the state file to know where to pick up after a crash. If a previous phase entry can be overwritten, resume picks a stale verdict; if entries can be deleted, resume runs a phase twice and clobbers proof-bundle artefacts. The monotonic invariant is what makes resume safe.
 
 ## Test strategy
 

@@ -34,10 +34,22 @@ Scaffold a Claude-powered project at Tier 2 (Agent SDK) and/or Tier 3 (Managed A
 | `--dry-run` | off | Print planned tree + diffs, no FS writes |
 | `--verbose` | off | Per-step log to target's `.sn-setup.log` |
 | `--upgrade` | off | Patch-only: pull missing template files into an existing scaffold and bump `template_version`. Never overwrites edited files. |
+| `--rename-commands` | off | Rename flat `sn-X-Y.md` commands to grouped `sn-X.md`. Requires `--upgrade`. |
+| `--force` | off | Bypass sha-check for `--rename-commands` (delete user-edited files anyway). |
 | `--policies=<csv>` | Replace profile defaults with this exact list. | none |
 | `--add-policies=<csv>` | Add policies to the profile defaults. Cannot combine with `--policies=`. | none |
 | `--remove-policies=<csv>` | Remove policies from the profile defaults. Cannot combine with `--policies=`. | none |
 | `--with-deps` | When applying, also install required-by policies. | false |
+
+## Generated grouped slash commands
+
+Scaffolded projects ship 3 grouped commands under `.claude/commands/`:
+
+- `sn-sprint` — verbs: `new | add | run | status | done | remove`
+- `sn-req` — verbs: `new | import | replay | resume | rollback`
+- `sn-knowledge` — verbs: `check | update | promote | demote | summarize`
+
+For existing scaffolds with the old flat commands, run `sn-setup --upgrade --rename-commands`. See `docs/MIGRATION.md`.
 
 ## Sub-commands
 
