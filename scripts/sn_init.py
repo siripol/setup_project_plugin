@@ -120,6 +120,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--upgrade", action="store_true",
                    help="Patch-only: pull missing template files into an existing scaffold and "
                         "bump .sn-init-state.json template_version. Never overwrites edited files.")
+    p.add_argument(
+        "--rename-commands",
+        action="store_true",
+        dest="rename_commands",
+        help="Rename flat sn-X-Y.md slash commands to grouped sn-X.md. "
+             "Requires --upgrade. Idempotent; --force overrides user edits.",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Force destructive ops (currently only --rename-commands).",
+    )
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--policies", default=None,
@@ -187,6 +199,13 @@ def main(argv: list[str] | None = None) -> int:
         args = parser.parse_args(raw)
     except SystemExit as e:
         return errors.EXIT_USAGE if e.code else errors.EXIT_OK
+
+    if getattr(args, "rename_commands", False) and not args.upgrade:
+        print(
+            "sn-setup: --rename-commands requires --upgrade",
+            file=sys.stderr,
+        )
+        return errors.EXIT_USAGE
 
     try:
         return run(args)
@@ -311,6 +330,28 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
             except OSError:
                 pass
         added.append(rel)
+
+    if getattr(args, "rename_commands", False):
+        import commands_migration
+        report = commands_migration.run(
+            target,
+            force=getattr(args, "force", False),
+            dry_run=args.dry_run,
+        )
+        if not args.dry_run:
+            # commands_migration.run already wrote the state file with the
+            # commands_renamed_at + commands_migration block. Re-read so the
+            # downstream state write below merges those fields rather than
+            # clobbering them.
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        print(
+            f"sn-setup: renamed {len(report.from_flat)} commands into "
+            f"{len(report.to_grouped)} groups; "
+            f"retired {len(report.retired)}; "
+            f"skipped {len(report.skipped)} user-edited"
+        )
+        for path in report.skipped:
+            print(f"  skipped: {path}")
 
     # Bump state version + record the upgrade.
     state["template_version"] = TEMPLATE_VERSION
