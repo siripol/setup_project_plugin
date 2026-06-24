@@ -17,3 +17,4 @@ __pycache__/
 # (`__claude__<name>_<timestamp>.md`), exported diagrams, scratch notes.
 # Not part of the plugin's source surface — kept local only.
 temp/
+.superpowers/

@@ -1,0 +1,17 @@
+slug: audit-log-strict
+title: "Audit log: strict (full payload, no spill)"
+version: 1.0.0
+category: observability
+group: null
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Force every Claude tool call into the JSONL audit log with full payloads.
+  No 2 KB blob spill. Useful for regulated services.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/audit-log-strict.md
+  settings_patch: settings.patch.json
+  extras:
+    - extras/hooks/audit-log-strict.sh:.claude/hooks/audit-log-strict.sh

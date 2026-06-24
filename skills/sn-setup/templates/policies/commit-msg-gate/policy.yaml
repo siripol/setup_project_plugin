@@ -1,0 +1,15 @@
+slug: commit-msg-gate
+title: "Commit-msg gate (REQ-NNN / Conventional Commits)"
+version: 1.0.0
+category: workflow
+group: null
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Wraps the existing .githooks/commit-msg hook so commit subjects match the
+  REQ-NNN convention OR a Conventional Commits prefix.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/commit-msg-gate.md
+  settings_patch: settings.patch.json

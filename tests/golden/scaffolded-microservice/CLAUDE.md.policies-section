@@ -1,0 +1,13 @@
+## Policies
+
+Service-level policies in effect. Read the linked doc on demand.
+
+| Category | Slug | Reference | Version |
+|---|---|---|---|
+
+| workflow | commit-msg-gate | `.claude/docs/policies/commit-msg-gate.md` | 1.0.0 |
+| security | secret-scan | `.claude/docs/policies/secret-scan.md` | 1.0.0 |
+| security | supply-chain-scan | `.claude/docs/policies/supply-chain-scan.md` | 1.0.0 |
+| observability | audit-log-strict | `.claude/docs/policies/audit-log-strict.md` | 1.0.0 |
+| security | memory-ordinary | `.claude/docs/policies/memory-ordinary.md` | 1.0.0 |
+| conventions | repository-ecosystem | `.claude/docs/policies/repository-ecosystem.md` | 1.0.0 |

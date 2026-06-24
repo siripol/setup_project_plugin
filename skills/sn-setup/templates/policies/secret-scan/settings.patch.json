@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "policy": "secret-scan",
+        "version": "1.0.0",
+        "matcher": "Write|Edit",
+        "command": ".claude/hooks/secret-scan.sh"
+      }
+    ]
+  }
+}

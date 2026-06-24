@@ -17,17 +17,15 @@ Most current items derive from the **microservices template-family design doc** 
 
 ## Tier 1 — same-week (≤ 1 day each)
 
-### B1.1 `[ ]` Repository Ecosystem table in scaffolded `CLAUDE.md`
-- **Why**: design §4.3 / §5.2 — every scaffolded repo gets a small table of related services, purpose, repo URL. Identical across the org. Today's `CLAUDE.md` has no such table.
-- **Where**: `skills/sn-setup/templates/managed-agent-base/CLAUDE.md` — add `## Repository Ecosystem` block with header + example row + "add your org's services here" note.
-- **Scope**: doc template only, no code.
-- **Estimate**: ~30 min.
+### B1.1 `[x]` Repository Ecosystem table — shipped as the `repository-ecosystem` policy in **PR1 policy catalog** (`docs/superpowers/specs/2026-06-24-policy-catalog-design.md`).
 
-### B1.2 `[ ]` Two-tier memory-policy signal (`ordinary` vs `regulated`)
-- **Why**: design §7.5 — regulated services need auto-memory off + everything committed. Ordinary services keep auto-memory on. Today sn-setup makes no distinction.
-- **Where**: add `regulated: false` field to `.sn-init-state.json` schema in `scripts/sn_init.py`. Add a `## Memory policy` block to scaffolded `CLAUDE.md` explaining both tiers + how to flip the bit.
-- **Scope**: 1 schema field + 1 doc block + 1 flag (`--regulated`).
-- **Estimate**: 2 h.
+### B1.2 `[x]` Two-tier memory-policy signal — shipped as `memory-ordinary` + `memory-regulated` policies (exclusive group `memory-tier`) in **PR1 policy catalog**.
+
+### NEW B1.8 `[~]` Policy catalog (PR1) — branch `feat/policy-catalog`
+- **Why**: composable, versioned policies (spec §0).
+- **Where**: `scripts/policy_*.py`, `skills/sn-setup/templates/policies/<slug>/`, `skills/sn-setup/templates/profile/<P>/default_policies.yaml`.
+- **Scope**: 9 day-one policies, `sn-setup policy` + `sn-setup profile` CLI, lint, status, upgrade, history, profile-bundled defaults.
+- **Follow-ups**: PR2 profile expansion (worker/cli/library/gateway/mcp-server); PR3 default bundles for new profiles.
 
 ### B1.3 `[ ]` `docs/PROMOTION.md` — local-skill → org-marketplace path
 - **Why**: design §6.5 — explicit promotion workflow (local skill proves useful → review → publish to platform marketplace → others install).

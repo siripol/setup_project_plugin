@@ -1,0 +1,18 @@
+slug: secret-scan
+title: "Secret scan"
+version: 1.0.0
+category: security
+group: null
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Pre-tool Write/Edit scan + pre-commit staged-diff scan. Blocks secrets at
+  the closest possible point to authorship.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/secret-scan.md
+  rules: rules/secret-scan.md
+  settings_patch: settings.patch.json
+  extras:
+    - extras/hooks/secret-scan.sh:.claude/hooks/secret-scan.sh

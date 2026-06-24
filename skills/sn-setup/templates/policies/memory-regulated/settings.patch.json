@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "policy": "memory-regulated",
+        "version": "1.0.0",
+        "matcher": "Write",
+        "pattern": "(~/.claude/memory/|\\.claude/local-memory/)",
+        "command": ".claude/hooks/memory-regulated.sh"
+      }
+    ]
+  }
+}

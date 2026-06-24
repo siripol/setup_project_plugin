@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "policy": "supply-chain-scan",
+        "version": "1.0.0",
+        "matcher": "Bash",
+        "pattern": "(npm install|pip install|go get|cargo add)",
+        "command": ".claude/hooks/supply-chain-scan.sh"
+      },
+      {
+        "policy": "secret-scan",
+        "version": "1.0.0",
+        "matcher": "Write|Edit",
+        "command": ".claude/hooks/secret-scan.sh"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "policy": "audit-log-strict",
+        "version": "1.0.0",
+        "matcher": "*",
+        "command": ".claude/hooks/audit-log-strict.sh"
+      }
+    ],
+    "PreCommit": [
+      {
+        "policy": "commit-msg-gate",
+        "version": "1.0.0",
+        "matcher": "*",
+        "command": ".githooks/commit-msg"
+      }
+    ]
+  }
+}

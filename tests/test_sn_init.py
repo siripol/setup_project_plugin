@@ -335,7 +335,16 @@ def test_audit_log_opt_out(tmp_path: Path):
     assert not (project / ".claude" / "hooks" / "audit.py").exists()
     assert not (project / ".claude" / "hooks" / "audit.ts").exists()
     settings = json.loads((project / ".claude" / "settings.json").read_text())
-    assert settings["hooks"] == {}
+    # Audit pipeline hooks must be absent. Policy hooks (added by profile defaults)
+    # may still be present — they are independent of the --no-audit-log flag.
+    all_commands = [
+        entry.get("command", "")
+        for entries in settings["hooks"].values()
+        for entry in entries
+    ]
+    assert not any("audit.sh" in cmd for cmd in all_commands), (
+        "audit.sh hook should not appear when --no-audit-log is passed"
+    )
     state = json.loads((project / ".sn-init-state.json").read_text())
     assert state["flags"]["audit_log"] is False
 
@@ -2082,3 +2091,96 @@ def test_profile_unknown_value_rejected(tmp_path: Path, capsys):
     assert rc == errors.EXIT_USAGE
     err = capsys.readouterr().err
     assert "mainframe" in err
+
+
+# ---------------------------------------------------------------------------
+# Task 12 — scaffold-time policy integration
+
+
+import policy_errors  # type: ignore
+
+
+def test_scaffold_applies_profile_defaults(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--profile=microservice")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    slugs = {p["slug"] for p in state["applied_policies"]}
+    expected = {"repository-ecosystem", "memory-ordinary", "audit-log-strict",
+                "supply-chain-scan", "secret-scan", "commit-msg-gate"}
+    assert slugs == expected
+
+
+def test_scaffold_writes_project_local_profile_defaults(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--profile=microservice")
+    text = (tmp_path / "demo" / ".claude" / "profile-defaults.yaml").read_text()
+    assert "profile: microservice" in text
+    assert "memory-ordinary" in text
+
+
+def test_scaffold_policies_flag_replaces_defaults(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--policies=secret-scan,repository-ecosystem")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    slugs = {p["slug"] for p in state["applied_policies"]}
+    assert slugs == {"secret-scan", "repository-ecosystem"}
+
+
+def test_scaffold_delta_flags(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--profile=microservice",
+         "--add-policies=branch-naming", "--remove-policies=audit-log-strict")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    slugs = {p["slug"] for p in state["applied_policies"]}
+    assert "branch-naming" in slugs
+    assert "audit-log-strict" not in slugs
+
+
+def test_scaffold_combining_replace_and_delta_errors(tmp_path: Path, capsys):
+    rc = _run(tmp_path, "demo", "--no-git",
+              "--policies=secret-scan", "--add-policies=branch-naming")
+    assert rc == policy_errors.EXIT_MIXED_OVERRIDE_FLAGS
+
+
+def test_scaffold_unknown_policy_errors(tmp_path: Path, capsys):
+    rc = _run(tmp_path, "demo", "--no-git", "--policies=foobar")
+    assert rc == policy_errors.EXIT_UNKNOWN_POLICY
+
+
+def test_microservice_golden_snapshot(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git", "--profile=microservice")
+    project = tmp_path / "demo"
+    golden = Path(__file__).parent / "golden" / "scaffolded-microservice"
+
+    # CLAUDE.md ## Policies section equality (ignore the rest of the file).
+    full = (project / "CLAUDE.md").read_text()
+    section = "## Policies\n" + full.split("## Policies\n", 1)[1].split("## ", 1)[0]
+    assert section.strip() == (golden / "CLAUDE.md.policies-section").read_text().strip()
+
+    # profile-defaults equality.
+    assert (project / ".claude" / "profile-defaults.yaml").read_text() == \
+           (golden / "profile-defaults.yaml").read_text()
+
+    # applied_policies (slugs only, sorted) equality.
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    slugs = sorted(p["slug"] for p in state["applied_policies"])
+    assert slugs == json.loads((golden / "applied_policies.json").read_text())
+
+    # settings.json keys+matchers sanity.
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    expected_hooks = json.loads((golden / "settings.json").read_text())
+    # Compare only "hooks" sub-tree because settings.json has many other keys.
+    # Filter to policy entries only (non-policy hooks like rate-limit.sh are excluded).
+    for hook_name, entries in expected_hooks["hooks"].items():
+        actual = settings["hooks"].get(hook_name, [])
+        actual_keys = sorted((e["policy"], e.get("matcher", "")) for e in actual if "policy" in e)
+        expected_keys = sorted((e["policy"], e.get("matcher", "")) for e in entries)
+        assert actual_keys == expected_keys, f"{hook_name}: {actual_keys} != {expected_keys}"
+
+
+def test_add_mode_applies_profile_default_policies(tmp_path: Path):
+    """Add mode must also apply profile-default policies (M4 fix)."""
+    # Non-empty cwd to trigger add mode.
+    (tmp_path / "existing.txt").write_text("x")
+    _run(tmp_path, "--no-git", "--profile=microservice")
+    state = json.loads((tmp_path / ".sn-init-state.json").read_text())
+    slugs = {p["slug"] for p in state["applied_policies"]}
+    # Microservice profile defaults include repository-ecosystem + memory-ordinary.
+    assert "repository-ecosystem" in slugs
+    assert "memory-ordinary" in slugs

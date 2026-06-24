@@ -42,6 +42,13 @@ ${lang}
 
 (Obsidian note path goes here when `--obsidian` is on.)
 
+## Policies
+
+Service-level policies in effect. Read the linked doc on demand.
+
+| Category | Slug | Reference | Version |
+|---|---|---|---|
+
 ## Local notes
 
 Also load `CLAUDE.local.md` for per-developer notes and project-fresh additions. Treat anything there as an override of this file unless contradictory.

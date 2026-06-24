@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "policy": "supply-chain-scan",
+        "version": "1.0.0",
+        "matcher": "Bash",
+        "pattern": "(npm install|pip install|go get|cargo add)",
+        "command": ".claude/hooks/supply-chain-scan.sh"
+      }
+    ]
+  }
+}

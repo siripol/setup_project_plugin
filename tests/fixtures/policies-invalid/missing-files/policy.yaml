@@ -1,0 +1,12 @@
+slug: missing-files
+title: "Missing"
+version: 1.0.0
+category: security
+group: null
+applies_to: [microservice]
+requires: []
+conflicts_with: []
+description: x
+files:
+  claude_md_row: nonexistent.md
+  docs: docs/nonexistent.md

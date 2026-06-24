@@ -1,0 +1,12 @@
+slug: sample-policy
+title: "Sample"
+version: 1.0.0
+category: security
+group: null
+applies_to: [microservice]
+requires: []
+conflicts_with: []
+description: A test fixture.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/sample-policy.md

@@ -34,6 +34,20 @@ Scaffold a Claude-powered project at Tier 2 (Agent SDK) and/or Tier 3 (Managed A
 | `--dry-run` | off | Print planned tree + diffs, no FS writes |
 | `--verbose` | off | Per-step log to target's `.sn-setup.log` |
 | `--upgrade` | off | Patch-only: pull missing template files into an existing scaffold and bump `template_version`. Never overwrites edited files. |
+| `--policies=<csv>` | Replace profile defaults with this exact list. | none |
+| `--add-policies=<csv>` | Add policies to the profile defaults. Cannot combine with `--policies=`. | none |
+| `--remove-policies=<csv>` | Remove policies from the profile defaults. Cannot combine with `--policies=`. | none |
+| `--with-deps` | When applying, also install required-by policies. | false |
+
+## Sub-commands
+
+After the initial scaffold, two sub-trees manage policies in the current
+project:
+
+- `sn-setup policy <list|show|apply|remove|upgrade|status|show-applied|history|lint>` — apply or remove individual policies; see spec §4 for full reference.
+- `sn-setup profile <list|show|add|remove|swap>` — edit the profile→default-policies mapping (auto-detects plugin repo vs scaffolded project).
+
+See `docs/superpowers/specs/2026-06-24-policy-catalog-design.md` for the full design.
 
 ## Behavior contract
 
@@ -50,5 +64,23 @@ Body of this command dispatches to `scripts/sn_init.py`. The script:
 ## Exit codes
 
 `0` ok, `2` usage / bad flag, `3` target dir non-empty + name given, `4` `.claude/` exists in add mode without state file, `5` Obsidian vault unwritable (only when explicit), `6` `--install` failed after retries, `7` validation gate failed, `8` template version mismatch, `99` internal error.
+
+### Additional exit codes (policy / profile sub-trees)
+
+The `sn-setup policy` and `sn-setup profile` sub-commands and scaffold-time `--policies` / `--add-policies` / `--remove-policies` flags introduce these codes (per spec §10):
+
+| Code | Name | When it fires |
+|---|---|---|
+| 10 | `UNKNOWN_POLICY` | Slug not in catalog |
+| 11 | `UNKNOWN_PROFILE` | Profile name unknown |
+| 12 | `EXCLUSIVE_GROUP_CONFLICT` | Group constraint violated (reserved for future `--no-swap`) |
+| 13 | `REQUIRES_NOT_SATISFIED` | Policy needs prerequisite slugs not applied; retry with `--with-deps` |
+| 14 | `USER_EDITED_BLOCKS_OP` | Remove/upgrade hit a user-edited file; pass `--force` to override |
+| 15 | `CWD_AMBIGUOUS_OR_INVALID` | `sn-setup profile` cwd is neither a plugin repo nor a scaffolded project |
+| 16 | `POLICY_NOT_APPLIED` | Remove/upgrade for a slug not in `applied_policies` |
+| 17 | `MIXED_OVERRIDE_FLAGS` | `--policies=` combined with `--add-policies` / `--remove-policies` |
+| 18 | `CATALOG_DOWNGRADE` | State version > catalog version for a slug |
+| 19 | `MALFORMED_PATCH` | `settings.patch.json` entry missing `policy:` field |
+| 20 | `CONFLICTS_WITH_VIOLATION` | Apply violates a `conflicts_with` entry against already-applied policy |
 
 See `skills/sn-setup/SKILL.md` for full design + `README.md` for plugin install.

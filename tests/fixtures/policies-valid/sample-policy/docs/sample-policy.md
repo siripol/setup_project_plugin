@@ -1,0 +1,3 @@
+# Sample
+
+Test fixture body.

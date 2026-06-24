@@ -1,0 +1,12 @@
+slug: bad-version
+title: "Bad"
+version: not-a-semver
+category: security
+group: null
+applies_to: [microservice]
+requires: []
+conflicts_with: []
+description: x
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/bad-version.md

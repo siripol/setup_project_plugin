@@ -122,6 +122,14 @@ def build_parser() -> argparse.ArgumentParser:
                         "bump .sn-init-state.json template_version. Never overwrites edited files.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
+    p.add_argument("--policies", default=None,
+                   help="Comma-separated list of policies to apply (replaces profile defaults).")
+    p.add_argument("--add-policies", default=None, dest="add_policies",
+                   help="Comma-separated list of policies to add to profile defaults.")
+    p.add_argument("--remove-policies", default=None, dest="remove_policies",
+                   help="Comma-separated list of policies to remove from profile defaults.")
+    p.add_argument("--with-deps", action="store_true", dest="with_deps",
+                   help="When applying, also install required-by policies.")
     return p
 
 
@@ -161,10 +169,22 @@ def _resolve_subagents(spec: str) -> set[str]:
     return names
 
 
+SUBTREES = {"policy", "profile"}
+
+
 def main(argv: list[str] | None = None) -> int:
+    raw = sys.argv[1:] if argv is None else list(argv)
+    if raw and raw[0] in SUBTREES:
+        if raw[0] == "policy":
+            import policy_cli
+            return policy_cli.main(raw[1:])
+        if raw[0] == "profile":
+            import profile_cli  # noqa: F401  (lands in Task 14)
+            return profile_cli.main(raw[1:])
+
     parser = build_parser()
     try:
-        args = parser.parse_args(argv)
+        args = parser.parse_args(raw)
     except SystemExit as e:
         return errors.EXIT_USAGE if e.code else errors.EXIT_OK
 
@@ -173,7 +193,11 @@ def main(argv: list[str] | None = None) -> int:
     except errors.SnInitError as e:
         print(f"sn-setup: {e}", file=sys.stderr)
         return e.exit_code
-    except Exception as e:  # pragma: no cover - defensive
+    except Exception as e:
+        import policy_errors
+        if isinstance(e, policy_errors.PolicyError):
+            print(f"sn-setup: {e}", file=sys.stderr)
+            return e.exit_code
         print(f"sn-setup: internal error: {e!r}", file=sys.stderr)
         return errors.EXIT_INTERNAL
 
@@ -338,6 +362,7 @@ def _run_new(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -
     if not args.no_git and not args.dry_run:
         _git_init_commit(target, logger)
 
+    _apply_initial_policies(args, target, logger)
     _print_summary(target, args, mode="new")
     return errors.EXIT_OK
 
@@ -374,6 +399,7 @@ def _run_add(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -
 
     _append_gitignore(target, [".claude/CLAUDE.local.md", ".claude/settings.local.json"], logger)
     _write_state(target, args, mode="add", files=written)
+    _apply_initial_policies(args, target, logger)
     _print_summary(target, args, mode="add", patched=written)
     return errors.EXIT_OK
 
@@ -802,6 +828,67 @@ def _print_agent_sdk_verify_hint(args: argparse.Namespace) -> None:
 
 def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _apply_initial_policies(args: argparse.Namespace, target: Path,
+                            logger: snlog.StepLogger) -> None:
+    """Resolve and apply the project's initial policy set per spec §9."""
+    import yaml as _yaml
+
+    import policy_apply
+    import policy_cli
+    import policy_errors
+
+    # 1. Reject mixed override flags.
+    if args.policies is not None and (args.add_policies or args.remove_policies):
+        raise policy_errors.MixedOverrideFlags(
+            "--policies replaces the default set; --add/--remove cannot combine with it"
+        )
+
+    # 2. Load profile default YAML if --policies is not provided.
+    base_set: list[str] = []
+    profile_defaults_path = (
+        TEMPLATES / "profile" / args.profile / "default_policies.yaml"
+    )
+    if profile_defaults_path.exists():
+        data = _yaml.safe_load(profile_defaults_path.read_text(encoding="utf-8")) or {}
+        base_set = list(data.get("policies") or [])
+
+    # 3. Resolve final set.
+    if args.policies is not None:
+        final = [s.strip() for s in args.policies.split(",") if s.strip()]
+    else:
+        final = list(base_set)
+        if args.add_policies:
+            for s in args.add_policies.split(","):
+                s = s.strip()
+                if s and s not in final:
+                    final.append(s)
+        if args.remove_policies:
+            drop = {s.strip() for s in args.remove_policies.split(",")}
+            final = [s for s in final if s not in drop]
+
+    if not final:
+        return
+
+    # 4. Write project-local profile-defaults.yaml (always the original
+    #    profile bundle, not the resolved final set).
+    proj_defaults = target / ".claude" / "profile-defaults.yaml"
+    proj_defaults.parent.mkdir(parents=True, exist_ok=True)
+    proj_defaults.write_text(
+        f"profile: {args.profile}\npolicies:\n"
+        + "".join(f"  - {s}\n" for s in base_set),
+        encoding="utf-8",
+    )
+
+    # 5. Apply.
+    catalog = policy_cli._load_catalog()
+    source = (
+        "scaffold-default" if args.policies is None and not args.add_policies and not args.remove_policies
+        else "scaffold-override" if args.policies is not None
+        else "scaffold-delta"
+    )
+    policy_apply.apply_many(target, final, catalog, with_deps=args.with_deps, source=source)
 
 
 if __name__ == "__main__":

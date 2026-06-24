@@ -1,0 +1,8 @@
+[
+  "audit-log-strict",
+  "commit-msg-gate",
+  "memory-ordinary",
+  "repository-ecosystem",
+  "secret-scan",
+  "supply-chain-scan"
+]

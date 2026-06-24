@@ -1,0 +1,8 @@
+profile: frontend
+policies:
+  - repository-ecosystem
+  - memory-ordinary
+  - supply-chain-scan
+  - secret-scan
+  - commit-msg-gate
+  - branch-naming

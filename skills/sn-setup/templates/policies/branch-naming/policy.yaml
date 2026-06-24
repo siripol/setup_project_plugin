@@ -1,0 +1,17 @@
+slug: branch-naming
+title: "Branch naming"
+version: 1.0.0
+category: workflow
+group: null
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Pre-push hook that rejects branches not matching feat/* fix/* chore/*
+  docs/* refactor/* test/* prefix.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/branch-naming.md
+  settings_patch: settings.patch.json
+  extras:
+    - extras/hooks/branch-naming.sh:.githooks/pre-push

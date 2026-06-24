@@ -1,0 +1,14 @@
+slug: repository-ecosystem
+title: "Repository Ecosystem table"
+version: 1.0.0
+category: conventions
+group: null
+applies_to: [microservice, bff, frontend]
+requires: []
+conflicts_with: []
+description: |
+  Cross-service awareness from inside a single repo. The full table of
+  related services lives in the policy doc; the CLAUDE.md row points at it.
+files:
+  claude_md_row: claude-md.row.md
+  docs: docs/repository-ecosystem.md
