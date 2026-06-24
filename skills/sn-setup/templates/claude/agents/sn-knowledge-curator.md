@@ -22,4 +22,4 @@ After a sprint completes (all REQs pass triple-signal gate):
 6. Auto-regenerate `<vault>/knowledge/global/tech/README.md` cross-project tech matrix.
 7. Update per-bucket READMEs + change logs.
 
-When ambiguous between buckets, default to project scope. User can promote via `/sn-knowledge-promote`.
+When ambiguous between buckets, default to project scope. User can promote via `/sn-knowledge promote`.

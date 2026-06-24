@@ -1491,7 +1491,7 @@ def test_makefile_targets_runnable(tmp_path: Path):
         cwd=project, capture_output=True, text=True,
     )
     assert r.returncode == 0, r.stderr
-    assert "/sn-sprint-run SPRINT-001 with --workflow-concurrent=3" in r.stdout
+    assert "/sn-sprint run SPRINT-001 with --workflow-concurrent=3" in r.stdout
 
 
 def test_plan_new_files_emits_sn_namespace(tmp_path: Path):

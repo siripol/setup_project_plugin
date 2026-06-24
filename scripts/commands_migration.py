@@ -68,6 +68,7 @@ class MigrationReport:
     to_grouped: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     retired: list[str] = field(default_factory=list)
+    already_done: bool = False  # runtime hint; not persisted to state
 
     def to_dict(self) -> dict:
         return {
@@ -82,7 +83,7 @@ def run(project_dir: Path, *, force: bool = False, dry_run: bool = False) -> Mig
     """Rename flat commands → grouped commands. Mutates state on success."""
     state = policy_state.read_state(project_dir)
     if state.get("commands_renamed_at"):
-        return MigrationReport()
+        return MigrationReport(already_done=True)
 
     cmd_dir = project_dir / ".claude" / "commands"
     cmd_dir.mkdir(parents=True, exist_ok=True)

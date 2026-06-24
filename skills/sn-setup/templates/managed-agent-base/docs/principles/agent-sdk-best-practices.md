@@ -96,7 +96,7 @@ The first message of a session is `SystemMessage(subtype="init")` with `data["se
 ClaudeAgentOptions(resume=session_id)
 ```
 
-This scaffold's orchestrator (`scripts/orchestrator.py`) stores phase + session metadata in `.sn-init/workflow-state.json` so `/sn-req-resume` can pick up after a crash. Same pattern applies to any custom agent that needs to survive a process restart.
+This scaffold's orchestrator (`scripts/orchestrator.py`) stores phase + session metadata in `.sn-init/workflow-state.json` so `/sn-req resume` can pick up after a crash. Same pattern applies to any custom agent that needs to survive a process restart.
 
 ## 8. MCP servers are sandbox-equivalent
 

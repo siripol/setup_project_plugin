@@ -4,13 +4,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 import commands_migration  # type: ignore
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-GROUPED_TEMPLATES = PLUGIN_ROOT / "skills" / "sn-setup" / "templates" / "claude" / "commands"
 
 
 def _seed_scaffold(tmp_path: Path, with_flat: bool = True) -> Path:
@@ -65,6 +62,8 @@ def test_migration_skips_user_edited_without_force(tmp_path: Path):
     # skipped.
     assert len(report.skipped) >= 1  # at least one user-edited file
     # State should still record commands_renamed_at.
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["commands_renamed_at"] is not None
 
 
 def test_migration_force_deletes_edited(tmp_path: Path):

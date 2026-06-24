@@ -1,6 +1,6 @@
 # Commands — `sn-*` reference
 
-Every plugin-provided slash command starts with `sn-`. `/sn-setup` and `/sn-session-report` are entry commands at the plugin level. The other 18 generated commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
+Every plugin-provided slash command starts with `sn-`. `/sn-setup` and `/sn-session-report` are entry commands at the plugin level. The other 7 generated commands are scaffolded into a target project under `.claude/commands/sn-<name>.md` by `/sn-setup` and only show up inside scaffolded projects.
 
 Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispatched by the spec-loop orchestrator; users normally do not invoke them directly.
 
@@ -9,13 +9,14 @@ Eight matching subagents live under `.claude/agents/sn-<name>.md` and are dispat
 | Family | Count | Slash commands |
 |---|---|---|
 | Entry | 2 | `/sn-setup` `/sn-session-report` |
-| Sprint lifecycle | 6 | `/sn-sprint-new` `/sn-sprint-add` `/sn-sprint-remove` `/sn-sprint-run` `/sn-sprint-done` `/sn-sprint-status` |
-| REQ lifecycle | 5 | `/sn-req-new` `/sn-req-import` `/sn-req-rollback` `/sn-req-resume` `/sn-req-replay` |
-| Knowledge (Obsidian) | 5 | `/sn-knowledge-check` `/sn-knowledge-update` `/sn-knowledge-promote` `/sn-knowledge-demote` `/sn-knowledge-tech-matrix` |
+| Sprint lifecycle | 1 | `/sn-sprint <new\|add\|remove\|run\|done\|status>` |
+| REQ lifecycle | 1 | `/sn-req <new\|import\|rollback\|resume\|replay>` |
+| Knowledge (Obsidian) | 1 | `/sn-knowledge <check\|update\|promote\|demote\|summarize>` |
 | GitHub | 1 | `/sn-gh-import` |
 | Verification | 1 | `/sn-verify` |
+| Standalone helpers | 2 | `/claude-local-edit` `/claude-local-show` |
 
-Total: **20 slash commands** (2 entry + 18 generated) + **9 subagents**.
+Total: **9 slash commands** (2 entry + 7 generated) + **9 subagents**.
 
 ---
 
@@ -111,32 +112,32 @@ Since v0.6.0 the report is tuned for **actionability**: top-prompts table is sor
 
 ## Sprint lifecycle commands
 
-### `/sn-sprint-new SLUG=<slug>`
+### `/sn-sprint new SLUG=<slug>`
 
 Create a new `SPRINT-NNN-<slug>/` folder under `docs/sprints/active/` with the standard subfolders (`requirements/`, `exec-plans/`, `tasks/`, `proof/`) and a `sprint.md` manifest seeded from `docs/sprints/template.md`. Sprint counter auto-increments from existing folders. Status starts as `planning`.
 
 ```bash
-/sn-sprint-new SLUG=auth-rev
+/sn-sprint new SLUG=auth-rev
 # → docs/sprints/active/SPRINT-001-auth-rev/
 ```
 
-### `/sn-sprint-add SPRINT=<id> REQ=<id>`
+### `/sn-sprint add SPRINT=<id> REQ=<id>`
 
 Move a REQ from `docs/requirements/active/` into a sprint's `requirements/` subfolder. Appends the REQ id to the sprint's `reqs:` list in `sprint.md`. Preserves traceback frontmatter. Refuses if the REQ is already in a different sprint.
 
 ```bash
-/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-003
+/sn-sprint add SPRINT=SPRINT-001 REQ=REQ-003
 ```
 
-### `/sn-sprint-remove SPRINT=<id> REQ=<id>`
+### `/sn-sprint remove SPRINT=<id> REQ=<id>`
 
-Reverse of `/sn-sprint-add` — move a REQ back to `docs/requirements/active/`. Refuses if the sprint is `running` or `completed`.
+Reverse of `/sn-sprint add` — move a REQ back to `docs/requirements/active/`. Refuses if the sprint is `running` or `completed`.
 
 ```bash
-/sn-sprint-remove SPRINT=SPRINT-001 REQ=REQ-003
+/sn-sprint remove SPRINT=SPRINT-001 REQ=REQ-003
 ```
 
-### `/sn-sprint-run SPRINT=<id>`
+### `/sn-sprint run SPRINT=<id>`
 
 Execute a sprint. The spec-loop driver:
 
@@ -145,23 +146,23 @@ Execute a sprint. The spec-loop driver:
 3. Tags pre-REQ git snapshots: `sn-init/pre-REQ-NNN-<ts>`.
 4. For each REQ (topo-sorted by `requires:`): `sn-planner → sn-task-decomposer → (per task: sn-task-tester + sn-task-executor) → sn-integration-tester → sn-adversary → sn-evaluator`.
 5. **Triple-signal exit gate**: `eval >= threshold AND integration.pass AND adversary.findings_resolved`.
-6. On all-pass: `doc-writer` + `sn-knowledge-curator`. Run `/sn-sprint-done` to archive.
+6. On all-pass: `doc-writer` + `sn-knowledge-curator`. Run `/sn-sprint done` to archive.
 
-State persists to `.sn-init/workflow-state.json`. `/sn-req-resume` resumes after a crash.
+State persists to `.sn-init/workflow-state.json`. `/sn-req resume` resumes after a crash.
 
 ```bash
-/sn-sprint-run SPRINT=SPRINT-001
+/sn-sprint run SPRINT=SPRINT-001
 ```
 
-### `/sn-sprint-done SPRINT=<id>`
+### `/sn-sprint done SPRINT=<id>`
 
 Archive a completed sprint by moving `docs/sprints/active/SPRINT-NNN-*/` to `docs/sprints/completed/`. Refuses if any REQ in the sprint hasn't reached `eval pass`. Triggers `sn-knowledge-curator` to refresh the Obsidian buckets.
 
 ```bash
-/sn-sprint-done SPRINT=SPRINT-001
+/sn-sprint done SPRINT=SPRINT-001
 ```
 
-### `/sn-sprint-status`
+### `/sn-sprint status`
 
 No args. Print a table of every sprint (active + completed) with REQ counts, status, owner, and last update.
 
@@ -175,26 +176,26 @@ SPRINT    SLUG          STATUS     REQs  COMPLETED  OWNER
 
 ## REQ lifecycle commands
 
-### `/sn-req-new SLUG=<slug>`
+### `/sn-req new SLUG=<slug>`
 
 Scaffold a new `REQ-NNN-<slug>.md` under `docs/requirements/active/`. Counter is auto-incremented from the max REQ-NNN across `docs/requirements/active/` and all sprint dirs. Template body comes from `docs/requirements/template.md`.
 
 ```bash
-/sn-req-new SLUG=login-flow
+/sn-req new SLUG=login-flow
 # → docs/requirements/active/REQ-007-login-flow.md
 ```
 
-### `/sn-req-import FILE=<path>`
+### `/sn-req import FILE=<path>`
 
 Convert an `md` / `txt` / `json` / `docx` / `pdf` source into a REQ file. Runs `python scripts/importers/<ext>.py FILE` and writes `docs/requirements/active/REQ-<next>-<slug>.md`. Extracted: title, acceptance bullets, sources, priority hint. Review and edit before assigning the REQ to a sprint.
 
 ```bash
-/sn-req-import FILE=docs/external-spec.pdf
+/sn-req import FILE=docs/external-spec.pdf
 ```
 
-### `/sn-req-rollback REQ=<id>`
+### `/sn-req rollback REQ=<id>`
 
-Reset the working tree to the pre-REQ git snapshot tag created by `/sn-sprint-run`. Effectively:
+Reset the working tree to the pre-REQ git snapshot tag created by `/sn-sprint run`. Effectively:
 
 ```bash
 git reset --hard $(git tag | grep ^sn-init/pre-${REQ}- | sort -r | head -1)
@@ -203,48 +204,48 @@ git reset --hard $(git tag | grep ^sn-init/pre-${REQ}- | sort -r | head -1)
 Aborts if no matching tag exists. Use after a failed sprint to start fresh from the pre-REQ baseline.
 
 ```bash
-/sn-req-rollback REQ=REQ-003
+/sn-req rollback REQ=REQ-003
 ```
 
-### `/sn-req-resume`
+### `/sn-req resume`
 
 No args. Reads `.sn-init/workflow-state.json` to find the active REQ + last in-progress phase, then re-enters the orchestrator at that step. Subagent reruns are idempotent — the state file tracks completion per phase.
 
 ```bash
-/sn-req-resume
+/sn-req resume
 ```
 
-### `/sn-req-replay REQ=<id>`
+### `/sn-req replay REQ=<id>`
 
 Re-run a completed REQ's tasks on a throwaway `replay/REQ-NNN` branch for a regression check. Creates the branch from the pre-REQ snapshot tag, replays each TASK via executor + tester, reports pass/fail. Useful to verify a completed REQ still passes against current dependencies.
 
 ```bash
-/sn-req-replay REQ=REQ-003
+/sn-req replay REQ=REQ-003
 ```
 
 ---
 
 ## Knowledge (Obsidian) commands
 
-All five route through `ObsidianClient` (`scripts/obsidian_client.py`). Backend selection is controlled by the `--obsidian-mcp=auto|on|off` flag (defaults to `auto` — uses the Obsidian MCP server when reachable, falls back to direct filesystem writes).
+All four route through `ObsidianClient` (`scripts/obsidian_client.py`). Backend selection is controlled by the `--obsidian-mcp=auto|on|off` flag (defaults to `auto` — uses the Obsidian MCP server when reachable, falls back to direct filesystem writes).
 
-### `/sn-knowledge-check SPRINT=<id>`
+### `/sn-knowledge check SPRINT=<id>`
 
-Preview the `sn-impact-analyzer` report for a sprint **without** running it. Uses the same pipeline as `/sn-sprint-run` but stops after writing `impact.md` + a summary. No code change, no commits. Use before kicking off a sprint to spot major impacts early.
+Preview the `sn-impact-analyzer` report for a sprint **without** running it. Uses the same pipeline as `/sn-sprint run` but stops after writing `impact.md` + a summary. No code change, no commits. Use before kicking off a sprint to spot major impacts early.
 
 ```bash
-/sn-knowledge-check SPRINT=SPRINT-001
+/sn-knowledge check SPRINT=SPRINT-001
 ```
 
-### `/sn-knowledge-update`
+### `/sn-knowledge update`
 
 No args. Idempotent. Re-reads every completed REQ + PLAN, regenerates per-topic files using the existing traceback frontmatter to detect updates vs. new facts. Auto-regenerates `<vault>/knowledge/global/tech/README.md` cross-project matrix.
 
 ```bash
-/sn-knowledge-update
+/sn-knowledge update
 ```
 
-### `/sn-knowledge-promote TOPIC=<topic>`
+### `/sn-knowledge promote TOPIC=<topic>`
 
 Promote a project-domain fact to org-wide:
 
@@ -255,33 +256,32 @@ mv <vault>/knowledge/projects/<project>/<topic>.md → <vault>/knowledge/global/
 Updates `bucket:` frontmatter; preserves `origin_project:` traceback so the source is still discoverable.
 
 ```bash
-/sn-knowledge-promote TOPIC=auth-policy
+/sn-knowledge promote TOPIC=auth-policy
 ```
 
-### `/sn-knowledge-demote TOPIC=<topic>`
+### `/sn-knowledge demote TOPIC=<topic>`
 
-Reverse of `/sn-knowledge-promote`. Refuses if the topic is referenced by other projects (via traceback frontmatter).
+Reverse of `/sn-knowledge promote`. Refuses if the topic is referenced by other projects (via traceback frontmatter).
 
 ```bash
-/sn-knowledge-demote TOPIC=auth-policy
+/sn-knowledge demote TOPIC=auth-policy
 ```
 
-### `/sn-knowledge-tech-matrix`
+### `/sn-knowledge summarize [TOPIC=<topic>]`
 
-No args. Regenerate the cross-project tech matrix at `<vault>/knowledge/global/tech/README.md`. Scans every `<vault>/knowledge/global/tech/<project>/*.md` and emits a markdown table:
-
-```
-| Project   | Postgres | Redis | Node | Go   |
-|-----------|----------|-------|------|------|
-| demo-app  | 16       | 7     | 22   | —    |
-| billing   | 14       | 7     | —    | 1.23 |
-```
-
-Drift across projects is visible at a glance. Auto-runs at the end of each sprint via `sn-knowledge-curator`.
+Regenerate a summary for the given topic (or the cross-project tech matrix when `TOPIC=tech`). Scans the relevant Obsidian knowledge files and emits a markdown table or summary at `<vault>/shared/summaries/<slug>.md`.
 
 ```bash
-/sn-knowledge-tech-matrix
+/sn-knowledge summarize tech
+# Regenerates <vault>/knowledge/global/tech/README.md (the old /sn-knowledge-tech-matrix behaviour)
+
+/sn-knowledge summarize "postgres versions"
+# Free-form topic summary
 ```
+
+Auto-runs at the end of each sprint via `sn-knowledge-curator`.
+
+> **Note:** `/sn-knowledge-tech-matrix` is retired. Use `/sn-knowledge summarize tech` instead.
 
 ---
 
@@ -337,7 +337,7 @@ make verify          # same as /sn-verify
 
 ## Subagents (dispatched by the orchestrator, not user-invoked)
 
-The spec-loop orchestrator (`scripts/orchestrator.py`) dispatches these eight subagents in order during `/sn-sprint-run`. A ninth subagent — `sn-agent-sdk-reviewer` — is read-only and ad-hoc (you ask Claude to invoke it; no orchestrator phase fires it).
+The spec-loop orchestrator (`scripts/orchestrator.py`) dispatches these eight subagents in order during `/sn-sprint run`. A ninth subagent — `sn-agent-sdk-reviewer` — is read-only and ad-hoc (you ask Claude to invoke it; no orchestrator phase fires it).
 
 | Phase | Subagent | Purpose |
 |---|---|---|
@@ -362,22 +362,22 @@ The scaffolded `Makefile` exposes a thin wrapper for every command (so you can r
 
 | Make target | Equivalent slash command |
 |---|---|
-| `make sprint-new SLUG=...` | `/sn-sprint-new SLUG=...` |
-| `make sprint-add SPRINT=... REQ=...` | `/sn-sprint-add` |
-| `make sprint-remove SPRINT=... REQ=...` | `/sn-sprint-remove` |
-| `make sprint-run SPRINT=...` | `/sn-sprint-run` (Make target prints a hint; orchestrator runs inside Claude Code) |
-| `make sprint-done SPRINT=...` | `/sn-sprint-done` |
-| `make sprint-status` | `/sn-sprint-status` |
-| `make req-new SLUG=...` | `/sn-req-new` |
-| `make req-import FILE=...` | `/sn-req-import` |
-| `make req-rollback REQ=...` | `/sn-req-rollback` |
-| `make req-resume` | `/sn-req-resume` |
-| `make req-replay REQ=...` | `/sn-req-replay` |
-| `make knowledge-check SPRINT=...` | `/sn-knowledge-check` |
-| `make knowledge-update` | `/sn-knowledge-update` |
-| `make knowledge-promote TOPIC=...` | `/sn-knowledge-promote` |
-| `make knowledge-demote TOPIC=...` | `/sn-knowledge-demote` |
-| `make knowledge-tech-matrix` | `/sn-knowledge-tech-matrix` |
+| `make sprint-new SLUG=...` | `/sn-sprint new SLUG=...` |
+| `make sprint-add SPRINT=... REQ=...` | `/sn-sprint add SPRINT=... REQ=...` |
+| `make sprint-remove SPRINT=... REQ=...` | `/sn-sprint remove SPRINT=... REQ=...` |
+| `make sprint-run SPRINT=...` | `/sn-sprint run SPRINT=...` (Make target prints a hint; orchestrator runs inside Claude Code) |
+| `make sprint-done SPRINT=...` | `/sn-sprint done SPRINT=...` |
+| `make sprint-status` | `/sn-sprint status` |
+| `make req-new SLUG=...` | `/sn-req new SLUG=...` |
+| `make req-import FILE=...` | `/sn-req import FILE=...` |
+| `make req-rollback REQ=...` | `/sn-req rollback REQ=...` |
+| `make req-resume` | `/sn-req resume` |
+| `make req-replay REQ=...` | `/sn-req replay REQ=...` |
+| `make knowledge-check SPRINT=...` | `/sn-knowledge check SPRINT=...` |
+| `make knowledge-update` | `/sn-knowledge update` |
+| `make knowledge-promote TOPIC=...` | `/sn-knowledge promote TOPIC=...` |
+| `make knowledge-demote TOPIC=...` | `/sn-knowledge demote TOPIC=...` |
+| `make knowledge-tech-matrix` | `/sn-knowledge summarize tech` (retired name: `/sn-knowledge-tech-matrix`) |
 | `make gh-import` | `/sn-gh-import` |
 | `make verify` | `/sn-verify` |
 

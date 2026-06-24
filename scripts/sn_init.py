@@ -344,14 +344,18 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
             # downstream state write below merges those fields rather than
             # clobbering them.
             state = json.loads(state_path.read_text(encoding="utf-8"))
-        print(
-            f"sn-setup: renamed {len(report.from_flat)} commands into "
-            f"{len(report.to_grouped)} groups; "
-            f"retired {len(report.retired)}; "
-            f"skipped {len(report.skipped)} user-edited"
-        )
-        for path in report.skipped:
-            print(f"  skipped: {path}")
+        if report.already_done:
+            ts = state.get("commands_renamed_at", "unknown")
+            print(f"sn-setup: commands already renamed at {ts}; no-op.")
+        else:
+            print(
+                f"sn-setup: renamed {len(report.from_flat)} commands into "
+                f"{len(report.to_grouped)} groups; "
+                f"retired {len(report.retired)}; "
+                f"skipped {len(report.skipped)} user-edited"
+            )
+            for path in report.skipped:
+                print(f"  skipped: {path}")
 
     # Bump state version + record the upgrade.
     state["template_version"] = TEMPLATE_VERSION

@@ -13,12 +13,12 @@ Claude Code plugin shipping two entry skills:
 
 ```mermaid
 flowchart LR
-    A[/sn-setup/] --> B[/sn-req-new/]
-    B --> C[/sn-sprint-new + add/]
-    C --> D[/sn-sprint-run/]
+    A[/sn-setup/] --> B[/sn-req new/]
+    B --> C[/sn-sprint new + add/]
+    C --> D[/sn-sprint run/]
     D --> E{pass?}
     E -- no --> D
-    E -- yes --> F[/sn-sprint-done/]
+    E -- yes --> F[/sn-sprint done/]
 ```
 
 Full walkthrough in [`WORKFLOW.md`](WORKFLOW.md). Per-command reference in [`COMMANDS.md`](COMMANDS.md).
@@ -94,7 +94,7 @@ The local-path source watches the directory, so a `git pull` (or a code edit) re
   - **new mode** — empty cwd OR `name` arg → full scaffold + git init + commit.
   - **add mode** — non-empty cwd + no `name` → patches missing `.claude/` files only (idempotent via `.sn-init-state.json`).
   - **upgrade mode** — `--upgrade` re-runs the scaffold over an existing project, adds files that didn't exist yet, never overwrites user edits.
-- `/sn-verify` (scaffolded) — checks `src/agent.{py,ts,go}` against the six mechanically-checkable [Agent SDK best practices](skills/sn-setup/templates/managed-agent-base/docs/principles/agent-sdk-best-practices.md). For prose-analysis rules invoke the `sn-agent-sdk-reviewer` subagent. See [`COMMANDS.md`](COMMANDS.md) for the full list of 18 generated commands + 9 subagents.
+- `/sn-verify` (scaffolded) — checks `src/agent.{py,ts,go}` against the six mechanically-checkable [Agent SDK best practices](skills/sn-setup/templates/managed-agent-base/docs/principles/agent-sdk-best-practices.md). For prose-analysis rules invoke the `sn-agent-sdk-reviewer` subagent. See [`COMMANDS.md`](COMMANDS.md) for the full command reference.
 
 ## Quickstart
 
@@ -178,13 +178,13 @@ Each carries a capability manifest (`tools:`, `can_modify:`, `can_delegate:`, `c
 
 Generated commands and subagents are scaffolded with a flat `sn-` filename prefix (no subdir), so Claude Code surfaces them as `/sn-<name>` and `sn-<name>` — distinct from user-authored commands while keeping `/`-autocomplete a single sweep through the `sn-` block. The entry command itself stays `/sn-setup`.
 
-Examples: `/sn-knowledge-update`, `/sn-sprint-run`, `/sn-req-new`, subagent `sn-knowledge-curator`.
+Examples: `/sn-knowledge update`, `/sn-sprint run`, `/sn-req new`, subagent `sn-knowledge-curator`.
 
 ## Spec-loop workflow
 
 1. User writes `REQ-NNN-<slug>.md` into `docs/requirements/active/` (or `make req-import FILE=...`).
 2. Group into sprints: `make sprint-new SLUG=...`, `make sprint-add SPRINT=... REQ=...`.
-3. Run: `make sprint-run SPRINT=...` (orchestrator dispatches subagents, surfaced as `/sn-sprint-run` inside Claude Code).
+3. Run: `make sprint-run SPRINT=...` (orchestrator dispatches subagents, surfaced as `/sn-sprint run` inside Claude Code).
 4. **Mandatory pre-sprint impact check** — `sn-impact-analyzer` writes `impact.md`. Major impact → halt + `AskUserQuestion`.
 5. Per REQ (topo-sorted): `sn-planner → sn-task-decomposer → sn-task-executor + sn-task-tester → sn-integration-tester → sn-adversary → sn-evaluator → sn-knowledge-curator → doc-writer`.
 6. **Triple-signal exit gate**: `eval_score ≥ threshold` AND `integration.pass` AND `adversary.findings_resolved`.
