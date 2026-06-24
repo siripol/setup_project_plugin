@@ -434,8 +434,13 @@ def test_workflow_spec_loop_default_ships_workflow_files(tmp_path: Path):
     for name in ("task-decomposer", "task-executor", "task-tester", "integration-tester",
                  "evaluator", "adversary", "knowledge-curator", "impact-analyzer"):
         assert (agents / f"sn-{name}.md").exists(), f"missing workflow subagent: sn-{name}"
-    for slash in ("sprint-new", "sprint-add", "sprint-run", "sprint-done", "sprint-status",
-                  "req-new", "req-import", "req-rollback", "req-resume", "req-replay",
+    # Grouped commands (Task 1+)
+    assert (commands / "sn-sprint.md").exists(), "missing workflow command: sn-sprint"
+    # Old flat sprint files must not exist after Task 1
+    for old_flat in ("sprint-new", "sprint-add", "sprint-run", "sprint-done", "sprint-status"):
+        assert not (commands / f"sn-{old_flat}.md").exists(), f"old flat file should not exist: sn-{old_flat}"
+    # Individual req and knowledge flat files still exist at this stage (consolidated in later tasks)
+    for slash in ("req-new", "req-import", "req-rollback", "req-resume", "req-replay",
                   "knowledge-check", "knowledge-update", "knowledge-promote",
                   "knowledge-demote", "knowledge-tech-matrix", "gh-import"):
         assert (commands / f"sn-{slash}.md").exists(), f"missing workflow command: sn-{slash}"
