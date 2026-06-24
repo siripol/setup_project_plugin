@@ -221,7 +221,7 @@ make check-invariants               # list .harness/invariants/ + their test fil
 The scaffold ships three seed invariants the `sn-adversary` subagent must respect — each is a small `.md` file with a paired test:
 
 - `capability-manifest-respected.md` — every Edit/Write hits a path inside the active subagent's `can_modify:` glob list. Replays the JSONL audit log.
-- `state-file-monotonic.md` — `.sn-init/workflow-state.json` `phase_history` is append-only with monotonic UTC timestamps. Underpins safe `/sn-req-resume`.
+- `state-file-monotonic.md` — `.sn-init/workflow-state.json` `phase_history` is append-only with monotonic UTC timestamps. Underpins safe `/sn-req resume`.
 - `audit-log-complete.md` — every `PreToolUse` audit record has a matching `PostToolUse` with the same `tool_use_id`. Catches killed shells, hook crashes, log corruption.
 
 Add a new invariant when a sprint adds an architectural rule that the codebase must keep honouring. The adversary will read your invariant body during the next sprint and try to falsify it.
@@ -498,7 +498,7 @@ gh release create v1.0.0 --generate-notes
 
 For unattended sprint runs, pair this plugin with Anthropic's official [`ralph-wiggum`](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum) plugin. Ralph wraps any prompt in a `while true` loop that re-feeds the prompt every iteration until a completion-promise string appears in stdout.
 
-No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`. The orchestrator (`scripts/orchestrator.py`) is the load-bearing piece: it emits the `DONE:` / `BLOCKED:` promise strings verbatim on stdout via `_emit_promise()`, so Ralph's pattern match works out of the box without any extra glue.
+No wrapper command is needed — Ralph integrates directly with `/sn-sprint run`. The orchestrator (`scripts/orchestrator.py`) is the load-bearing piece: it emits the `DONE:` / `BLOCKED:` promise strings verbatim on stdout via `_emit_promise()`, so Ralph's pattern match works out of the box without any extra glue.
 
 ### One-time install
 
@@ -509,7 +509,7 @@ No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`
 ### Run a sprint autonomously
 
 ```
-/ralph-loop "/sn-sprint-run SPRINT=SPRINT-001" \
+/ralph-loop "/sn-sprint run SPRINT=SPRINT-001" \
   --max-iterations 20 \
   --completion-promise "DONE: SPRINT-001 triple-signal pass" \
   --halt-promise       "BLOCKED: SPRINT-001"
@@ -517,7 +517,7 @@ No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`
 
 | Flag | Meaning |
 |---|---|
-| Positional prompt | `/sn-sprint-run SPRINT=<id>` — the inner command this plugin already ships |
+| Positional prompt | `/sn-sprint run SPRINT=<id>` — the inner command this plugin already ships |
 | `--max-iterations` | Secondary ceiling. The `scripts/safety.py` circuit breaker is the primary stop |
 | `--completion-promise` | The orchestrator emits `DONE: <SPRINT-id> triple-signal pass` exactly once when the triple-signal gate passes and `sn-knowledge-curator` finishes writing facts |
 | `--halt-promise` | Prefix-matches all three `BLOCKED:` reasons (`breaker tripped`, `rate-limit exhausted`, `max iterations reached`) so Ralph terminates on any safety stop |
@@ -535,12 +535,12 @@ No wrapper command is needed — Ralph integrates directly with `/sn-sprint-run`
 
 | Situation | Command |
 |---|---|
-| Session crashed mid-sprint | `/sn-req-resume` |
-| REQ failed, want to start over from the pre-REQ baseline | `/sn-req-rollback REQ=REQ-NNN` |
-| Regression check a completed REQ against current deps | `/sn-req-replay REQ=REQ-NNN` |
-| REQ should not be in this sprint after all | `/sn-sprint-remove SPRINT=... REQ=...` |
-| Knowledge fact turned out to be project-specific | `/sn-knowledge-demote TOPIC=...` |
-| Knowledge fact applies org-wide | `/sn-knowledge-promote TOPIC=...` |
+| Session crashed mid-sprint | `/sn-req resume` |
+| REQ failed, want to start over from the pre-REQ baseline | `/sn-req rollback REQ=REQ-NNN` |
+| Regression check a completed REQ against current deps | `/sn-req replay REQ=REQ-NNN` |
+| REQ should not be in this sprint after all | `/sn-sprint remove SPRINT=... REQ=...` |
+| Knowledge fact turned out to be project-specific | `/sn-knowledge demote TOPIC=...` |
+| Knowledge fact applies org-wide | `/sn-knowledge promote TOPIC=...` |
 | Circuit breaker tripped on a REQ | `make safety-reset-breaker REQ=REQ-NNN` |
 | Rate-limit hit | `make safety-reset-rate-limit` |
 
