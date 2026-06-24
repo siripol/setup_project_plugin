@@ -444,10 +444,13 @@ def test_workflow_spec_loop_default_ships_workflow_files(tmp_path: Path):
     # Old flat req files must not exist after Task 2
     for old_flat in ("req-new", "req-import", "req-rollback", "req-resume", "req-replay"):
         assert not (commands / f"sn-{old_flat}.md").exists(), f"old flat file should not exist: sn-{old_flat}"
-    # Individual knowledge flat files still exist at this stage (consolidated in later tasks)
-    for slash in ("knowledge-check", "knowledge-update", "knowledge-promote",
-                  "knowledge-demote", "knowledge-tech-matrix", "gh-import"):
-        assert (commands / f"sn-{slash}.md").exists(), f"missing workflow command: sn-{slash}"
+    # Grouped knowledge command (Task 3)
+    assert (commands / "sn-knowledge.md").exists(), "missing workflow command: sn-knowledge"
+    # Old flat knowledge files must not exist after Task 3
+    for old_flat in ("knowledge-check", "knowledge-update", "knowledge-promote", "knowledge-demote", "knowledge-tech-matrix"):
+        assert not (commands / f"sn-{old_flat}.md").exists(), f"old flat file should not exist: sn-{old_flat}"
+    # Individual command files still exist
+    assert (commands / "sn-gh-import.md").exists(), "missing workflow command: sn-gh-import"
     # Old bare-name and colon-namespace layouts must not be present anymore.
     assert not (agents / "knowledge-curator.md").exists()
     assert not (commands / "sprint-run.md").exists()
@@ -1500,7 +1503,7 @@ def test_plan_new_files_emits_sn_namespace(tmp_path: Path):
     ])
     files = sn_init._plan_new_files(args, target)
     rels = {rel for rel, _ in files}
-    assert ".claude/commands/sn-knowledge-update.md" in rels
+    assert ".claude/commands/sn-knowledge.md" in rels
     assert ".claude/agents/sn-knowledge-curator.md" in rels
     # No file should land under any subdir under commands/ or agents/.
     assert not any(rel.startswith(".claude/commands/sn/") for rel in rels)
@@ -2193,3 +2196,77 @@ def test_add_mode_applies_profile_default_policies(tmp_path: Path):
     # Microservice profile defaults include repository-ecosystem + memory-ordinary.
     assert "repository-ecosystem" in slugs
     assert "memory-ordinary" in slugs
+
+
+# ---------------------------------------------------------------------------
+# Task 6: command sub-tree migration integration tests
+
+
+def test_new_scaffold_writes_grouped_commands_only(tmp_path: Path):
+    """A fresh scaffold contains the 3 grouped command files + no flat."""
+    _run(tmp_path, "demo", "--no-git")
+    cmd_dir = tmp_path / "demo" / ".claude" / "commands"
+    # Grouped present.
+    for grouped in ("sn-sprint.md", "sn-req.md", "sn-knowledge.md"):
+        assert (cmd_dir / grouped).exists()
+    # Flat absent.
+    for flat in (
+        "sn-sprint-new.md", "sn-sprint-add.md", "sn-sprint-run.md",
+        "sn-sprint-status.md", "sn-sprint-done.md", "sn-sprint-remove.md",
+        "sn-req-new.md", "sn-req-import.md", "sn-req-replay.md",
+        "sn-req-resume.md", "sn-req-rollback.md",
+        "sn-knowledge-check.md", "sn-knowledge-update.md",
+        "sn-knowledge-promote.md", "sn-knowledge-demote.md",
+    ):
+        assert not (cmd_dir / flat).exists(), f"flat file leaked into scaffold: {flat}"
+
+
+def test_new_scaffold_does_not_ship_tech_matrix_md(tmp_path: Path):
+    _run(tmp_path, "demo", "--no-git")
+    cmd_dir = tmp_path / "demo" / ".claude" / "commands"
+    assert not (cmd_dir / "sn-knowledge-tech-matrix.md").exists()
+
+
+def test_grouped_command_frontmatter_valid(tmp_path: Path):
+    """Each grouped .md ships a YAML frontmatter with name + description."""
+    import yaml as _yaml
+    _run(tmp_path, "demo", "--no-git")
+    cmd_dir = tmp_path / "demo" / ".claude" / "commands"
+    for grouped in ("sn-sprint.md", "sn-req.md", "sn-knowledge.md"):
+        text = (cmd_dir / grouped).read_text()
+        assert text.startswith("---\n"), f"{grouped} missing frontmatter"
+        # Extract the YAML block between the leading --- and the next ---.
+        _, block, _body = text.split("---\n", 2)
+        meta = _yaml.safe_load(block)
+        assert meta["name"] == grouped.removesuffix(".md")
+        assert "description" in meta and meta["description"]
+
+
+def test_upgrade_rename_commands_flag_requires_upgrade(tmp_path: Path, capsys):
+    """sn-setup --rename-commands (without --upgrade) → exit 2."""
+    # Need a scaffold + state file first.
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    rc = _run(project, "--rename-commands")
+    assert rc == errors.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "--rename-commands requires --upgrade" in err
+
+
+def test_upgrade_rename_commands_end_to_end(tmp_path: Path):
+    """Scaffold a project, drop in a fake old flat file, run --upgrade
+    --rename-commands --force, verify it gets removed and state updated."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    cmd_dir = project / ".claude" / "commands"
+    # Simulate a legacy scaffold by writing one fake flat file.
+    (cmd_dir / "sn-sprint-new.md").write_text("# legacy sn-sprint-new\n")
+    rc = _run(project, "--upgrade", "--rename-commands", "--force")
+    assert rc == errors.EXIT_OK
+    assert not (cmd_dir / "sn-sprint-new.md").exists()
+    # Grouped files already shipped during initial scaffold; still present.
+    assert (cmd_dir / "sn-sprint.md").exists()
+    # State recorded.
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["commands_renamed_at"] is not None
+    assert "sn-sprint-new" in state["commands_migration"]["from_flat"]

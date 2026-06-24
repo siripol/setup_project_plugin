@@ -1,6 +1,6 @@
 ---
 name: sn-knowledge
-description: Knowledge / Obsidian vault operations. Sub-commands: check, update, promote, demote, summarize. Invoke as `/sn-knowledge <verb> [args]`.
+description: "Knowledge / Obsidian vault operations. Sub-commands: check, update, promote, demote, summarize. Invoke as `/sn-knowledge <verb> [args]`."
 ---
 
 # /sn-knowledge <verb> [args]

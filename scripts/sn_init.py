@@ -283,7 +283,7 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
         raise errors.SnInitError(f"could not read state file: {e}") from e
 
     prev_version = state.get("template_version", "")
-    if prev_version == TEMPLATE_VERSION:
+    if prev_version == TEMPLATE_VERSION and not getattr(args, "rename_commands", False):
         print(f"sn-setup: already at template version {TEMPLATE_VERSION}; nothing to do.")
         return errors.EXIT_OK
 

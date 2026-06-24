@@ -1,6 +1,6 @@
 ---
 name: sn-req
-description: Requirement operations. Sub-commands: new, import, replay, resume, rollback. Invoke as `/sn-req <verb> [args]`.
+description: "Requirement operations. Sub-commands: new, import, replay, resume, rollback. Invoke as `/sn-req <verb> [args]`."
 ---
 
 # /sn-req <verb> [args]

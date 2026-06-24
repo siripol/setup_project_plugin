@@ -1,6 +1,6 @@
 ---
 name: sn-sprint
-description: Spec-loop sprint operations. Sub-commands: new, add, run, status, done, remove. Invoke as `/sn-sprint <verb> [args]`.
+description: "Spec-loop sprint operations. Sub-commands: new, add, run, status, done, remove. Invoke as `/sn-sprint <verb> [args]`."
 ---
 
 # /sn-sprint <verb> [args]
