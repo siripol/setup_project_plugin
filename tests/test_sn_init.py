@@ -439,9 +439,13 @@ def test_workflow_spec_loop_default_ships_workflow_files(tmp_path: Path):
     # Old flat sprint files must not exist after Task 1
     for old_flat in ("sprint-new", "sprint-add", "sprint-run", "sprint-done", "sprint-status"):
         assert not (commands / f"sn-{old_flat}.md").exists(), f"old flat file should not exist: sn-{old_flat}"
-    # Individual req and knowledge flat files still exist at this stage (consolidated in later tasks)
-    for slash in ("req-new", "req-import", "req-rollback", "req-resume", "req-replay",
-                  "knowledge-check", "knowledge-update", "knowledge-promote",
+    # Grouped req command (Task 2)
+    assert (commands / "sn-req.md").exists(), "missing workflow command: sn-req"
+    # Old flat req files must not exist after Task 2
+    for old_flat in ("req-new", "req-import", "req-rollback", "req-resume", "req-replay"):
+        assert not (commands / f"sn-{old_flat}.md").exists(), f"old flat file should not exist: sn-{old_flat}"
+    # Individual knowledge flat files still exist at this stage (consolidated in later tasks)
+    for slash in ("knowledge-check", "knowledge-update", "knowledge-promote",
                   "knowledge-demote", "knowledge-tech-matrix", "gh-import"):
         assert (commands / f"sn-{slash}.md").exists(), f"missing workflow command: sn-{slash}"
     # Old bare-name and colon-namespace layouts must not be present anymore.
