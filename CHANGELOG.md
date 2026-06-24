@@ -8,6 +8,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Command sub-tree migration** (B1.9). Regroups 16 flat `sn-X-Y.md` slash commands into 3 grouped `sn-X.md` files matching the `sn-setup policy <op>` pattern:
+  - `sn-sprint <new|add|run|status|done|remove>`
+  - `sn-req <new|import|replay|resume|rollback>`
+  - `sn-knowledge <check|update|promote|demote|summarize>`
+- **Retired** `sn-knowledge-tech-matrix`. Use `sn-knowledge summarize tech` (or any free-form topic) instead. Output persists to `<vault>/shared/summaries/<slug>.md`.
+- **Migration**: existing scaffolds run `sn-setup --upgrade --rename-commands` once. Idempotent; sha-checked; `--force` for user-edited files. See `docs/MIGRATION.md`.
+- **State**: `.sn-init-state.json` gains `commands_renamed_at` + `commands_migration` block.
+
 - **Profile overlays** — new `--profile=microservice|bff|frontend` flag (default `microservice`; alias `service` → `microservice`). Picks one of three template overlays under `skills/sn-setup/templates/profile/<profile>/`:
   - `microservice` — backend service shape. Ships `docs/PROFILE.md`, `docs/API.md`, `docs/OBSERVABILITY.md`.
   - `bff` — Backend-for-Frontend shape (go-first; ts also supported). Ships `docs/PROFILE.md`, `docs/BFF-INTEGRATION.md`, `docs/DOWNSTREAMS.md`.

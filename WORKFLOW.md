@@ -6,18 +6,18 @@ This walks through the full `sn-*` command flow inside a scaffolded project: wri
 
 ```mermaid
 flowchart LR
-    A[/sn-setup/] --> B[/sn-req-new/]
-    B --> C[/sn-sprint-new + add/]
-    C --> D[/sn-sprint-run/]
+    A[/sn-setup/] --> B[/sn-req new/]
+    B --> C[/sn-sprint new + add/]
+    C --> D[/sn-sprint run/]
     D --> E{pass?}
     E -- no --> D
-    E -- yes --> F[/sn-sprint-done/]
+    E -- yes --> F[/sn-sprint done/]
     F --> G[/sn-session-report/]
 ```
 
 `/sn-session-report` (v0.6.0+) closes the loop — after a sprint lands, it renders a tunability-ranked usage report into the Obsidian vault so the next sprint can target the highest-ROI prompts. See [§9](#9-session-usage-analysis--sn-session-report-v060).
 
-## Inside `/sn-sprint-run`
+## Inside `/sn-sprint run`
 
 ```mermaid
 sequenceDiagram
@@ -27,7 +27,7 @@ sequenceDiagram
     participant S as subagents
     participant V as vault
 
-    U->>O: /sn-sprint-run
+    U->>O: /sn-sprint run
     O->>S: impact → plan → tasks → integrate → adversary → evaluate
     S-->>O: triple-signal verdict
     alt pass
@@ -77,18 +77,18 @@ claude  # restart Claude Code session if commands don't appear immediately
 
 Two ways — pick whichever fits your input.
 
-### 1a. From scratch (`/sn-req-new`)
+### 1a. From scratch (`/sn-req new`)
 
 ```
-/sn-req-new SLUG=login-flow
+/sn-req new SLUG=login-flow
 ```
 
 Result: `docs/requirements/active/REQ-001-login-flow.md` is created from `docs/requirements/template.md`. Edit the file — fill in the title, acceptance criteria bullets, and any `requires:` / `eval_threshold:` fields.
 
-### 1b. From an existing document (`/sn-req-import`)
+### 1b. From an existing document (`/sn-req import`)
 
 ```
-/sn-req-import FILE=docs/external-spec.pdf
+/sn-req import FILE=docs/external-spec.pdf
 ```
 
 Result: the importer runs the appropriate parser (`md` / `txt` / `json` / `docx` / `pdf`), extracts the title and acceptance bullets, and writes `docs/requirements/active/REQ-NNN-<slug>.md`. Always review and edit before continuing.
@@ -130,7 +130,7 @@ Optional deps: `pyyaml`, `jsonschema`. Missing deps print an install hint and ex
 A sprint is a folder under `docs/sprints/active/` that bundles related REQs to run together.
 
 ```
-/sn-sprint-new SLUG=auth-rev
+/sn-sprint new SLUG=auth-rev
 ```
 
 Result: `docs/sprints/active/SPRINT-001-auth-rev/` with subfolders `requirements/`, `exec-plans/`, `tasks/`, `proof/` and a `sprint.md` manifest.
@@ -138,17 +138,17 @@ Result: `docs/sprints/active/SPRINT-001-auth-rev/` with subfolders `requirements
 Add your REQ:
 
 ```
-/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-001
+/sn-sprint add SPRINT=SPRINT-001 REQ=REQ-001
 ```
 
 The REQ moves from `docs/requirements/active/` into the sprint's `requirements/` subfolder and its id is appended to the sprint's `reqs:` list.
 
-Repeat `/sn-sprint-add` for each requirement that belongs in this sprint. Topological order (the `requires:` field on each REQ) is resolved automatically when the sprint runs.
+Repeat `/sn-sprint add` for each requirement that belongs in this sprint. Topological order (the `requires:` field on each REQ) is resolved automatically when the sprint runs.
 
 Inspect:
 
 ```
-/sn-sprint-status
+/sn-sprint status
 ```
 
 You should see your sprint in the active list with `REQs 1` and `status: planning`.
@@ -158,7 +158,7 @@ You should see your sprint in the active list with `REQs 1` and `status: plannin
 Before kicking off the sprint, run an impact check that only invokes `sn-impact-analyzer` — it reads every Obsidian knowledge file and every other active sprint and reports whether your REQ would touch a major contract.
 
 ```
-/sn-knowledge-check SPRINT=SPRINT-001
+/sn-knowledge check SPRINT=SPRINT-001
 ```
 
 Result: `docs/sprints/active/SPRINT-001-auth-rev/impact.md` with `Affected topics`, `Conflicting facts`, `Major impacts`, `Minor impacts`. No code change, no commits.
@@ -170,7 +170,7 @@ If the report flags `HIGH` impacts, edit the REQ or the existing knowledge files
 This is the main command. It dispatches the full chain of `sn-*` subagents and only stops on a major impact or on a failure of the triple-signal exit gate.
 
 ```
-/sn-sprint-run SPRINT=SPRINT-001
+/sn-sprint run SPRINT=SPRINT-001
 ```
 
 What happens for each REQ, in order:
@@ -187,12 +187,12 @@ What happens for each REQ, in order:
 | evaluate | `sn-evaluator` | `eval_score` 0-100 against acceptance criteria |
 | curate | `sn-knowledge-curator` | new entries in the Obsidian knowledge vault |
 
-Before each REQ starts, a `sn-init/pre-REQ-NNN-<ts>` git tag is laid down so you can roll back with `/sn-req-rollback REQ=REQ-NNN` if things go wrong.
+Before each REQ starts, a `sn-init/pre-REQ-NNN-<ts>` git tag is laid down so you can roll back with `/sn-req rollback REQ=REQ-NNN` if things go wrong.
 
 State is written to `.sn-init/workflow-state.json` after every phase. If your session crashes mid-run, restart and run:
 
 ```
-/sn-req-resume
+/sn-req resume
 ```
 
 The orchestrator picks up at the last completed phase.
@@ -231,7 +231,7 @@ Add a new invariant when a sprint adds an architectural rule that the codebase m
 Once every REQ in the sprint has reached `eval pass`:
 
 ```
-/sn-sprint-done SPRINT=SPRINT-001
+/sn-sprint done SPRINT=SPRINT-001
 ```
 
 This:
@@ -245,10 +245,10 @@ This:
 `sn-knowledge-curator` already ran at the end of the sprint, but you can refresh the vault on demand:
 
 ```
-/sn-knowledge-update                                # idempotent, re-reads every completed REQ
-/sn-knowledge-promote TOPIC=auth-policy             # projects/<p>/<topic>.md → global/shared/
-/sn-knowledge-demote  TOPIC=auth-policy             # global/shared/ → projects/<p>/
-/sn-knowledge-tech-matrix                           # regen cross-project tech table only
+/sn-knowledge update                                # idempotent, re-reads every completed REQ
+/sn-knowledge promote TOPIC=auth-policy             # projects/<p>/<topic>.md → global/shared/
+/sn-knowledge demote  TOPIC=auth-policy             # global/shared/ → projects/<p>/
+/sn-knowledge summarize tech                        # regen cross-project tech table only
 ```
 
 Each writes through `scripts/obsidian_client.py`, which probes MCP (`mcp__obsidian__*`, `mcp__mcp-obsidian__*`, `mcp__obsidian-mcp__*`) first and falls back to direct filesystem writes if no Obsidian MCP server is reachable.
@@ -294,21 +294,21 @@ cd /tmp
 cd demo-auth
 
 # REQ
-/sn-req-new SLUG=login-flow
+/sn-req new SLUG=login-flow
 # (edit docs/requirements/active/REQ-001-login-flow.md to fill in acceptance criteria)
 
 # Sprint
-/sn-sprint-new SLUG=auth-rev
-/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-001
+/sn-sprint new SLUG=auth-rev
+/sn-sprint add SPRINT=SPRINT-001 REQ=REQ-001
 
 # Preview impact, optional
-/sn-knowledge-check SPRINT=SPRINT-001
+/sn-knowledge check SPRINT=SPRINT-001
 
 # Run the spec-loop
-/sn-sprint-run SPRINT=SPRINT-001
+/sn-sprint run SPRINT=SPRINT-001
 
 # Archive
-/sn-sprint-done SPRINT=SPRINT-001
+/sn-sprint done SPRINT=SPRINT-001
 ```
 
 After `sprint-done`:
@@ -338,39 +338,39 @@ sequenceDiagram
     participant GH as git + GitHub
 
     Note over U,FS: 1. Create 5 requirements
-    U->>FS: /sn-req-new SLUG=login-flow
+    U->>FS: /sn-req new SLUG=login-flow
     Note right of FS: REQ-001-login-flow.md
-    U->>FS: /sn-req-new SLUG=session-expiry
-    U->>FS: /sn-req-new SLUG=lockout-policy
-    U->>FS: /sn-req-new SLUG=invoice-create
-    U->>FS: /sn-req-new SLUG=invoice-pdf
+    U->>FS: /sn-req new SLUG=session-expiry
+    U->>FS: /sn-req new SLUG=lockout-policy
+    U->>FS: /sn-req new SLUG=invoice-create
+    U->>FS: /sn-req new SLUG=invoice-pdf
     Note right of FS: REQ-002…005 written
 
     Note over U,S1: 2. Build sprint 1 (auth)
-    U->>S1: /sn-sprint-new SLUG=auth
+    U->>S1: /sn-sprint new SLUG=auth
     Note right of S1: SPRINT-001 folder created
-    U->>S1: /sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-001
-    U->>S1: /sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-002
-    U->>S1: /sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-003
-    U->>S1: /sn-knowledge-check SPRINT=SPRINT-001
+    U->>S1: /sn-sprint add SPRINT=SPRINT-001 REQ=REQ-001
+    U->>S1: /sn-sprint add SPRINT=SPRINT-001 REQ=REQ-002
+    U->>S1: /sn-sprint add SPRINT=SPRINT-001 REQ=REQ-003
+    U->>S1: /sn-knowledge check SPRINT=SPRINT-001
     Note right of S1: impact.md preview (no code change)
 
     Note over U,S1: 3. Run sprint 1 spec-loop
-    U->>S1: /sn-sprint-run SPRINT=SPRINT-001
+    U->>S1: /sn-sprint run SPRINT=SPRINT-001
     S1->>S1: impact → plan → tasks → integrate → adversary → evaluate
     S1->>V: sn-knowledge-curator writes auth facts
     S1-->>U: triple-signal pass
-    U->>FS: /sn-sprint-done SPRINT=SPRINT-001
+    U->>FS: /sn-sprint done SPRINT=SPRINT-001
     Note right of FS: archived → docs/sprints/completed/
 
     Note over U,S2: 4. Build + run sprint 2 (invoicing)
-    U->>S2: /sn-sprint-new SLUG=invoicing
-    U->>S2: /sn-sprint-add SPRINT=SPRINT-002 REQ=REQ-004
-    U->>S2: /sn-sprint-add SPRINT=SPRINT-002 REQ=REQ-005
-    U->>S2: /sn-sprint-run SPRINT=SPRINT-002
+    U->>S2: /sn-sprint new SLUG=invoicing
+    U->>S2: /sn-sprint add SPRINT=SPRINT-002 REQ=REQ-004
+    U->>S2: /sn-sprint add SPRINT=SPRINT-002 REQ=REQ-005
+    U->>S2: /sn-sprint run SPRINT=SPRINT-002
     S2->>V: sn-knowledge-curator writes invoicing facts
     S2-->>U: triple-signal pass
-    U->>FS: /sn-sprint-done SPRINT=SPRINT-002
+    U->>FS: /sn-sprint done SPRINT=SPRINT-002
 
     Note over U,GH: 5. Cut the release
     U->>GH: git tag -a v1.0.0 -m "auth + invoicing"
@@ -384,14 +384,14 @@ sequenceDiagram
 #### Step 1 — Create 5 requirements
 
 ```
-/sn-req-new SLUG=login-flow         # → REQ-001
-/sn-req-new SLUG=session-expiry     # → REQ-002
-/sn-req-new SLUG=lockout-policy     # → REQ-003
-/sn-req-new SLUG=invoice-create     # → REQ-004
-/sn-req-new SLUG=invoice-pdf        # → REQ-005
+/sn-req new SLUG=login-flow         # → REQ-001
+/sn-req new SLUG=session-expiry     # → REQ-002
+/sn-req new SLUG=lockout-policy     # → REQ-003
+/sn-req new SLUG=invoice-create     # → REQ-004
+/sn-req new SLUG=invoice-pdf        # → REQ-005
 ```
 
-What each `/sn-req-new` does:
+What each `/sn-req new` does:
 
 - Scans `docs/requirements/active/` and every sprint dir to find the max `REQ-NNN`, then increments. So calling it five times in a row gives you `REQ-001` through `REQ-005` automatically.
 - Copies `docs/requirements/template.md` into `docs/requirements/active/REQ-NNN-<slug>.md`.
@@ -406,41 +406,41 @@ For this scenario, set `requires: [REQ-001]` on `REQ-004-invoice-create.md` so t
 #### Step 2 — Build sprint 1 (auth: REQ-001..003)
 
 ```
-/sn-sprint-new SLUG=auth                       # → SPRINT-001
-/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-001
-/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-002
-/sn-sprint-add SPRINT=SPRINT-001 REQ=REQ-003
-/sn-knowledge-check SPRINT=SPRINT-001          # optional preview
+/sn-sprint new SLUG=auth                       # → SPRINT-001
+/sn-sprint add SPRINT=SPRINT-001 REQ=REQ-001
+/sn-sprint add SPRINT=SPRINT-001 REQ=REQ-002
+/sn-sprint add SPRINT=SPRINT-001 REQ=REQ-003
+/sn-knowledge check SPRINT=SPRINT-001          # optional preview
 ```
 
 What happens:
 
-- `/sn-sprint-new` creates `docs/sprints/active/SPRINT-001-auth/` with subfolders (`requirements/`, `exec-plans/`, `tasks/`, `proof/`) and a `sprint.md` manifest with `status: planning`.
-- Each `/sn-sprint-add` moves a REQ from `docs/requirements/active/` into the sprint's `requirements/` subfolder and appends the id to `sprint.md`'s `reqs:` list.
-- `/sn-knowledge-check` runs only the `sn-impact-analyzer` subagent and writes `impact.md` — no code changes, no commits. If the report flags `HIGH` impacts (e.g. "REQ-002 changes the session-TTL contract used by other projects"), edit the REQ or the existing Obsidian knowledge files before running the sprint.
+- `/sn-sprint new` creates `docs/sprints/active/SPRINT-001-auth/` with subfolders (`requirements/`, `exec-plans/`, `tasks/`, `proof/`) and a `sprint.md` manifest with `status: planning`.
+- Each `/sn-sprint add` moves a REQ from `docs/requirements/active/` into the sprint's `requirements/` subfolder and appends the id to `sprint.md`'s `reqs:` list.
+- `/sn-knowledge check` runs only the `sn-impact-analyzer` subagent and writes `impact.md` — no code changes, no commits. If the report flags `HIGH` impacts (e.g. "REQ-002 changes the session-TTL contract used by other projects"), edit the REQ or the existing Obsidian knowledge files before running the sprint.
 
 #### Step 3 — Run sprint 1 spec-loop
 
 ```
-/sn-sprint-run SPRINT=SPRINT-001
-/sn-sprint-done SPRINT=SPRINT-001
+/sn-sprint run SPRINT=SPRINT-001
+/sn-sprint done SPRINT=SPRINT-001
 ```
 
 What happens:
 
-- `/sn-sprint-run` dispatches the orchestrator through every REQ in topological order (`requires:` field): impact → plan → decompose → execute → test → integrate → adversary → evaluate → curate. Each phase is one subagent call; `.sn-init/workflow-state.json` is updated after every phase so `/sn-req-resume` can pick up after a crash.
+- `/sn-sprint run` dispatches the orchestrator through every REQ in topological order (`requires:` field): impact → plan → decompose → execute → test → integrate → adversary → evaluate → curate. Each phase is one subagent call; `.sn-init/workflow-state.json` is updated after every phase so `/sn-req resume` can pick up after a crash.
 - Each REQ has to pass the triple-signal gate (`eval_score ≥ threshold AND integration.pass AND adversary.findings_resolved`) before the orchestrator moves on.
 - On all-pass, `sn-knowledge-curator` writes `projects/payments/auth-policy.md`, `session-ttl.md`, `lockout-counter.md` to the Obsidian vault.
-- `/sn-sprint-done` refuses if any REQ is still non-pass; otherwise it moves the whole `SPRINT-001-auth/` folder into `docs/sprints/completed/` and re-runs the curator once to regenerate the cross-project tech matrix.
+- `/sn-sprint done` refuses if any REQ is still non-pass; otherwise it moves the whole `SPRINT-001-auth/` folder into `docs/sprints/completed/` and re-runs the curator once to regenerate the cross-project tech matrix.
 
 #### Step 4 — Build + run sprint 2 (invoicing: REQ-004..005)
 
 ```
-/sn-sprint-new SLUG=invoicing                  # → SPRINT-002
-/sn-sprint-add SPRINT=SPRINT-002 REQ=REQ-004
-/sn-sprint-add SPRINT=SPRINT-002 REQ=REQ-005
-/sn-sprint-run SPRINT=SPRINT-002
-/sn-sprint-done SPRINT=SPRINT-002
+/sn-sprint new SLUG=invoicing                  # → SPRINT-002
+/sn-sprint add SPRINT=SPRINT-002 REQ=REQ-004
+/sn-sprint add SPRINT=SPRINT-002 REQ=REQ-005
+/sn-sprint run SPRINT=SPRINT-002
+/sn-sprint done SPRINT=SPRINT-002
 ```
 
 Same shape as sprint 1 with two REQs and the optional knowledge-check skipped. Because `REQ-004` declared `requires: [REQ-001]`, the orchestrator reads the completed REQs from `docs/sprints/completed/SPRINT-001-auth/` and lets the dependency resolve without any extra ceremony.
@@ -466,27 +466,27 @@ If you prefer to run the whole example as one shell session (after editing the R
 
 ```bash
 # Step 1 — 5 REQs
-/sn-req-new SLUG=login-flow
-/sn-req-new SLUG=session-expiry
-/sn-req-new SLUG=lockout-policy
-/sn-req-new SLUG=invoice-create
-/sn-req-new SLUG=invoice-pdf
+/sn-req new SLUG=login-flow
+/sn-req new SLUG=session-expiry
+/sn-req new SLUG=lockout-policy
+/sn-req new SLUG=invoice-create
+/sn-req new SLUG=invoice-pdf
 # edit each REQ-NNN-*.md, then continue
 
 # Step 2 — sprint 1 build
-/sn-sprint-new SLUG=auth
-for r in REQ-001 REQ-002 REQ-003; do /sn-sprint-add SPRINT=SPRINT-001 REQ=$r; done
-/sn-knowledge-check SPRINT=SPRINT-001
+/sn-sprint new SLUG=auth
+for r in REQ-001 REQ-002 REQ-003; do /sn-sprint add SPRINT=SPRINT-001 REQ=$r; done
+/sn-knowledge check SPRINT=SPRINT-001
 
 # Step 3 — sprint 1 run + archive
-/sn-sprint-run  SPRINT=SPRINT-001
-/sn-sprint-done SPRINT=SPRINT-001
+/sn-sprint run  SPRINT=SPRINT-001
+/sn-sprint done SPRINT=SPRINT-001
 
 # Step 4 — sprint 2
-/sn-sprint-new SLUG=invoicing
-for r in REQ-004 REQ-005; do /sn-sprint-add SPRINT=SPRINT-002 REQ=$r; done
-/sn-sprint-run  SPRINT=SPRINT-002
-/sn-sprint-done SPRINT=SPRINT-002
+/sn-sprint new SLUG=invoicing
+for r in REQ-004 REQ-005; do /sn-sprint add SPRINT=SPRINT-002 REQ=$r; done
+/sn-sprint run  SPRINT=SPRINT-002
+/sn-sprint done SPRINT=SPRINT-002
 
 # Step 5 — release
 git tag -a v1.0.0 -m "v1.0.0 — auth + invoicing"
