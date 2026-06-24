@@ -8,6 +8,11 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Layer 4 service docs** (B1.3 + B1.4 + B1.6, REQ-DOCS-001). Every scaffolded project now ships three new doc templates under `docs/`:
+  - `PROMOTION.md` — local-skill → org-marketplace checklist + PR template snippet.
+  - `PREREQUISITES.md` — minimum tool / runtime / lang versions table.
+  - `GOVERNANCE-SERVICE-LEVEL.md` — `.claude/` ownership, CODEOWNERS, regulated-data signaling, migration handoff playbook.
+
 - **Command sub-tree migration** (B1.9). Regroups 16 flat `sn-X-Y.md` slash commands into 3 grouped `sn-X.md` files matching the `sn-setup policy <op>` pattern:
   - `sn-sprint <new|add|run|status|done|remove>`
   - `sn-req <new|import|replay|resume|rollback>`

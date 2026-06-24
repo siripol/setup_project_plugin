@@ -117,6 +117,9 @@ def _expected_top_level(name: str) -> list[str]:
         "docs/requirements/template.md",
         "docs/sprints/template.md",
         "docs/tech-debt-tracker.md",
+        "docs/PROMOTION.md",
+        "docs/PREREQUISITES.md",
+        "docs/GOVERNANCE-SERVICE-LEVEL.md",
         # lang go overlay
         "go.mod",
         "src/agent.go",
