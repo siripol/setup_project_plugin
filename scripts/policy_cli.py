@@ -30,6 +30,11 @@ def _load_catalog() -> dict[str, policy_loader.PolicyMeta]:
 
 
 def main(argv: list[str]) -> int:
+    # PDPA sub-tree owns its own parser; dispatch before argparse touches argv.
+    if argv and argv[0] == "pdpa":
+        import policy_pdpa
+        return policy_pdpa.main(argv[1:])
+
     parser = argparse.ArgumentParser(prog="sn-setup policy", add_help=True)
     sub = parser.add_subparsers(dest="cmd", required=True)
 

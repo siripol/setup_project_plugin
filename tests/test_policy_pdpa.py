@@ -108,3 +108,30 @@ def test_pdpa_allowlist_list_missing_file_errors(tmp_path: Path, capsys):
     assert rc == 2
     err = capsys.readouterr().err
     assert "not initialized" in err
+
+
+import policy_cli  # type: ignore
+
+
+def test_pdpa_dispatched_from_policy_cli(tmp_path: Path):
+    project = _scaffold(tmp_path)
+    old = Path.cwd()
+    try:
+        os.chdir(project)
+        rc = policy_cli.main(["pdpa", "allowlist", "list"])
+    finally:
+        os.chdir(old)
+    assert rc == 0
+
+
+def test_sn_init_dispatches_policy_pdpa(tmp_path: Path):
+    """sn-setup policy pdpa allowlist list should reach policy_pdpa.main."""
+    import sn_init  # type: ignore
+    project = _scaffold(tmp_path)
+    old = Path.cwd()
+    try:
+        os.chdir(project)
+        rc = sn_init.main(["policy", "pdpa", "allowlist", "list"])
+    finally:
+        os.chdir(old)
+    assert rc == 0
