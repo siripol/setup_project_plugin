@@ -59,15 +59,13 @@ Most current items derive from the **microservices template-family design doc** 
 - In-scope fix: sensitive-path deny patterns added to `templates/claude/settings.json` (closes control 1).
 - Carved follow-ups: **B1.7a** CI guard against `--dangerously-skip-permissions`; **B1.7b** make `security-auditor` default for regulated profiles.
 
-### B1.7a `[ ]` CI / docs guidance against `--dangerously-skip-permissions`
-- **Why**: design §7.2 control #4. Flag bypasses the entire permission system before hooks fire; can't be blocked from inside the scaffold.
-- **Where**: scaffolded `.github/workflows/ci.yml` adds a step scanning commit history / PR body for the flag; `docs/GOVERNANCE-SERVICE-LEVEL.md` notes the prohibition.
-- **Estimate**: ~1 h.
+### B1.7a `[x]` CI guard against `--dangerously-skip-permissions` — **shipped feat/b1.7-followups** (REQ-SEC-002)
+- Scaffolded `.github/workflows/ci.yml` greps the diff + commit messages for the flag on every push/PR; fails the job on match.
+- `docs/GOVERNANCE-SERVICE-LEVEL.md` gains a `## Permission bypass — forbidden` section.
 
-### B1.7b `[ ]` Make `security-auditor` subagent default for regulated profiles
-- **Why**: design §7.2 control #6. Today `security-auditor` is opt-in (`OPTIONAL_SUBAGENTS`). Regulated services should default to it.
-- **Where**: `scripts/sn_init.py` — when `memory-regulated` or `pdpa-compliance` policy is in the apply set, auto-add `security-auditor` to subagent defaults. Document in `docs/GOVERNANCE-SERVICE-LEVEL.md`.
-- **Estimate**: ~2 h.
+### B1.7b `[x]` `security-auditor` default for regulated profiles — **shipped feat/b1.7-followups** (REQ-SEC-003)
+- `scripts/sn_init.py` resolves the planned policy set early; if `memory-regulated` or `pdpa-compliance` is present, appends `security-auditor` to `args.subagents` (honors `--subagents=none`).
+- `docs/GOVERNANCE-SERVICE-LEVEL.md` documents the auto-add.
 
 ---
 

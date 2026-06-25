@@ -56,6 +56,26 @@ If this service handles regulated personal data (PDPA-class):
 
 The plugin's `memory-regulated` policy denies writes to `~/.claude/memory/` and `.claude/local-memory/` so auto-memory cannot accumulate non-committed context. `audit-log-strict` forces every Claude tool call into the JSONL audit log without payload-spill. `secret-scan` blocks secret-shaped writes before they hit disk.
 
+## Permission bypass — forbidden
+
+The Claude Code CLI flag `--dangerously-skip-permissions` bypasses the entire permission system before any project-side hook can fire. Plugin hooks (chokepoint-gate, secret-scan, sensitive-path deny, etc.) cannot enforce against it from inside the scaffold.
+
+This service team treats use of the flag as a **policy violation**:
+
+- The scaffolded `.github/workflows/ci.yml` runs a `Block --dangerously-skip-permissions` step on every push + pull-request. It greps the diff + commit messages for the flag and fails the job on match.
+- Reviewers reject PRs that propose adding the flag to any script, doc, runbook, or commit message — even in comments.
+- If you genuinely need to disable a specific hook for a single tool call, edit `.claude/settings.json` `permissions.deny` or the corresponding hook's matcher. Never reach for the global bypass.
+
+Background: plugin design `§7.2` control #4, audit doc `docs/HOOK-AUDIT-2026-06-25.md`.
+
+## Security-auditor subagent — regulated default
+
+When this service's initial scaffold applies a regulated-data policy (`memory-regulated` or `pdpa-compliance`), `sn-setup` automatically adds the `security-auditor` subagent to the default set. The subagent reviews diffs for AuthZ regressions, secret handling, and audit-log integrity.
+
+- Override behavior: pass `--subagents=none` to explicitly opt out (not recommended for regulated services).
+- Confirm presence: `ls .claude/agents/security-auditor.md` after scaffold.
+- Background: plugin design `§7.2` control #6, audit doc `docs/HOOK-AUDIT-2026-06-25.md`.
+
 ## Migration handoff
 
 When this service is handed to another team:

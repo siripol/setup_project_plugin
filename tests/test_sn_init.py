@@ -2276,3 +2276,40 @@ def test_upgrade_rename_commands_end_to_end(tmp_path: Path):
     state = json.loads((project / ".sn-init-state.json").read_text())
     assert state["commands_renamed_at"] is not None
     assert "sn-sprint-new" in state["commands_migration"]["from_flat"]
+
+
+def test_b1_7a_ci_blocks_dangerous_flag_step(tmp_path: Path):
+    """B1.7a — scaffolded CI workflow contains the Block --dangerously-skip-permissions step."""
+    _run(tmp_path, "demo", "--no-git")
+    ci_path = tmp_path / "demo" / ".github" / "workflows" / "ci.yml"
+    assert ci_path.exists()
+    text = ci_path.read_text()
+    assert "Block --dangerously-skip-permissions" in text
+    assert "--dangerously-skip-permissions" in text
+    assert "exit 1" in text  # the gate must hard-fail, not warn
+
+
+def test_b1_7b_regulated_policy_auto_adds_security_auditor(tmp_path: Path):
+    """B1.7b — when --policies includes a regulated-data slug, security-auditor
+    is auto-added to the default subagent set and shipped in .claude/agents/."""
+    _run(tmp_path, "demo", "--no-git", "--policies=memory-regulated,repository-ecosystem")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    assert (agents / "security-auditor.md").exists()
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert "security-auditor" in state["flags"]["subagents"]
+
+
+def test_b1_7b_ordinary_default_does_not_auto_add(tmp_path: Path):
+    """B1.7b — default microservice scaffold (memory-ordinary, no regulated)
+    must NOT ship security-auditor unless explicitly requested."""
+    _run(tmp_path, "demo", "--no-git")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    assert not (agents / "security-auditor.md").exists()
+
+
+def test_b1_7b_subagents_none_honored_even_with_regulated(tmp_path: Path):
+    """B1.7b — explicit --subagents=none opts out of the auto-add."""
+    _run(tmp_path, "demo", "--no-git",
+         "--policies=memory-regulated", "--subagents=none")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    assert not (agents / "security-auditor.md").exists()

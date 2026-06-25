@@ -256,6 +256,12 @@ def run(args: argparse.Namespace) -> int:
         # state/logging consistency but skip the overlay later.
         args.framework = DEFAULT_FRAMEWORK
 
+    # B1.7b: regulated-data policies auto-add security-auditor to the default
+    # subagent set, so the scaffold ships .claude/agents/security-auditor.md.
+    # Must run BEFORE _render_claude builds the scaffold tree. Skipped when
+    # the user explicitly opted out via --subagents=none.
+    _auto_add_security_auditor_for_regulated(args)
+
     if args.upgrade:
         return _run_upgrade(args, cwd)
 
@@ -873,6 +879,66 @@ def _print_agent_sdk_verify_hint(args: argparse.Namespace) -> None:
 
 def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+REGULATED_POLICY_SLUGS = frozenset({"memory-regulated", "pdpa-compliance"})
+
+
+def _resolve_planned_policy_set(args: argparse.Namespace) -> list[str]:
+    """Compute which policies WILL be applied at scaffold time.
+
+    Mirrors the resolution in `_apply_initial_policies` but runs early
+    (before the scaffold materializes) so other steps can react to the
+    final set. Pure function; no filesystem mutation.
+    """
+    import yaml as _yaml
+
+    if getattr(args, "policies", None) is not None:
+        return [s.strip() for s in args.policies.split(",") if s.strip()]
+
+    base_set: list[str] = []
+    profile_defaults_path = (
+        TEMPLATES / "profile" / getattr(args, "profile", "microservice") / "default_policies.yaml"
+    )
+    if profile_defaults_path.exists():
+        data = _yaml.safe_load(profile_defaults_path.read_text(encoding="utf-8")) or {}
+        base_set = list(data.get("policies") or [])
+
+    final = list(base_set)
+    if getattr(args, "add_policies", None):
+        for s in args.add_policies.split(","):
+            s = s.strip()
+            if s and s not in final:
+                final.append(s)
+    if getattr(args, "remove_policies", None):
+        drop = {s.strip() for s in args.remove_policies.split(",")}
+        final = [s for s in final if s not in drop]
+    return final
+
+
+def _auto_add_security_auditor_for_regulated(args: argparse.Namespace) -> None:
+    """B1.7b: when the scaffold will apply a regulated-data policy, append
+    `security-auditor` to args.subagents so the scaffold ships
+    .claude/agents/security-auditor.md by default. Honors --subagents=none.
+    """
+    subagents_spec = getattr(args, "subagents", "") or ""
+    if subagents_spec.strip().lower() == "none":
+        return  # explicit opt-out
+
+    planned = _resolve_planned_policy_set(args)
+    if not REGULATED_POLICY_SLUGS.intersection(planned):
+        return
+
+    requested = {s.strip() for s in subagents_spec.split(",") if s.strip()}
+    if "security-auditor" in requested or "all" in requested:
+        return  # already covered
+
+    requested.add("security-auditor")
+    args.subagents = ",".join(sorted(requested))
+    print(
+        "sn-setup: regulated policy detected — added security-auditor to default subagents.",
+        file=sys.stderr,
+    )
 
 
 def _apply_initial_policies(args: argparse.Namespace, target: Path,

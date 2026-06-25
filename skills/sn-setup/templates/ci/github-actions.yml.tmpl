@@ -8,6 +8,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Block --dangerously-skip-permissions
+        # Design §7.2 control #4: this CLI flag bypasses Claude Code's
+        # permission system at the harness layer, before any hook fires.
+        # The plugin cannot enforce it from inside the scaffold; we detect
+        # it CI-side instead.
+        run: |
+          set -euo pipefail
+          NEEDLE='--dangerously-skip-permissions'
+          if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
+            git fetch origin "${GITHUB_BASE_REF}" --depth=50
+            DIFF=$(git diff "origin/${GITHUB_BASE_REF}...HEAD" || true)
+            MSGS=$(git log "origin/${GITHUB_BASE_REF}...HEAD" --format=%B || true)
+          else
+            DIFF=$(git log -1 --format=%B || true)
+            MSGS="$DIFF"
+          fi
+          if printf '%s\n%s' "$DIFF" "$MSGS" | grep -F -- "$NEEDLE" >/dev/null 2>&1; then
+            echo "::error::Found '$NEEDLE' in this change. The flag bypasses Claude Code's permission system and is forbidden by service-level governance. See docs/GOVERNANCE-SERVICE-LEVEL.md."
+            exit 1
+          fi
       - name: Set up language toolchain
         run: |
           if [ -f go.mod ]; then echo "go detected"; fi
