@@ -21,7 +21,30 @@
       "Bash(npx tsc:*)",
       "Bash(npx vitest:*)"
     ],
-    "deny": []
+    "deny": [
+      "Write(/etc/**)",
+      "Write(/root/**)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Write(~/.config/gcloud/**)",
+      "Write(~/.kube/**)",
+      "Write(~/.docker/**)",
+      "Write(~/.netrc)",
+      "Write(~/.pgpass)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Edit(/etc/**)",
+      "Edit(/root/**)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/.aws/**)",
+      "Edit(~/.config/gcloud/**)",
+      "Edit(~/.kube/**)",
+      "Edit(~/.docker/**)",
+      "Edit(~/.netrc)",
+      "Edit(~/.pgpass)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)"
+    ]
   },
   "hooks": {
     "PreToolUse": [

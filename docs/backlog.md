@@ -45,11 +45,8 @@ Most current items derive from the **microservices template-family design doc** 
 - **Scope**: doc table.
 - **Estimate**: ~1 h.
 
-### B1.5 `[ ]` Operationalize load-on-demand context split (`.claude/docs/` vs `.claude/rules/`)
-- **Why**: design Principle 3 / §3.3 / §5.3 — keep `CLAUDE.md` minimal; push detail into `.claude/docs/` (skill-loaded on demand) + `.claude/rules/` (always-on but short). sn-setup's scaffold already has `.claude/` but the distinction isn't enforced or documented.
-- **Where**: add `templates/claude/docs/ARCHITECTURE.md` stub + `templates/claude/rules/README.md` explaining the split. Update scaffolded `CLAUDE.md` with a 1-paragraph context-policy block.
-- **Scope**: 2 new template files + 1 paragraph in `CLAUDE.md`.
-- **Estimate**: ~2 h.
+### B1.5 `[x]` Load-on-demand context split — **shipped feat/tier1-finish** (REQ-CTX-001)
+- Adds `templates/claude/docs/{README,ARCHITECTURE}.md` + `templates/claude/rules/README.md` + `## Context policy` paragraph in scaffolded `CLAUDE.md`.
 
 ### B1.6 `[x]` `docs/GOVERNANCE-SERVICE-LEVEL.md` — **shipped feat/layer4-docs** (REQ-DOCS-001)
 - **Why**: design §7.4 / §9 — service teams treat `.claude/` like code: who owns edits, how to promote local skills, how to signal regulated-data status. Today: no template.
@@ -57,11 +54,20 @@ Most current items derive from the **microservices template-family design doc** 
 - **Scope**: 1-page doc.
 - **Estimate**: ~1 h.
 
-### B1.7 `[ ]` Audit hooks against design's mandatory controls
-- **Why**: design §7.2 + Principle 1 — `core-guardrails` controls (sensitive-path deny rules, network-command restriction, marketplace allow-list, no automatic permission bypass, supply-chain scan, in-session security review, audit log) must all be present and unmissable. Need to verify the current `settings.json` + hooks scaffold covers each.
-- **Where**: audit `skills/sn-setup/templates/claude/settings.json`, `templates/claude/hooks/*`, `templates/managed-agent-base/scripts/safety.py`. Produce a checklist matrix + close any gaps with new hook entries.
-- **Scope**: read-and-tick exercise + small hook additions if gaps surface.
-- **Estimate**: ~3 h for audit; gap-fix scope TBD.
+### B1.7 `[x]` Mandatory-controls hook audit — **shipped feat/tier1-finish** (REQ-SEC-001)
+- Audit doc at `docs/HOOK-AUDIT-2026-06-25.md`. Verdict: 3 PASS / 2 PARTIAL (carved) / 1 FAIL (fixed in PR) / 1 N-A.
+- In-scope fix: sensitive-path deny patterns added to `templates/claude/settings.json` (closes control 1).
+- Carved follow-ups: **B1.7a** CI guard against `--dangerously-skip-permissions`; **B1.7b** make `security-auditor` default for regulated profiles.
+
+### B1.7a `[ ]` CI / docs guidance against `--dangerously-skip-permissions`
+- **Why**: design §7.2 control #4. Flag bypasses the entire permission system before hooks fire; can't be blocked from inside the scaffold.
+- **Where**: scaffolded `.github/workflows/ci.yml` adds a step scanning commit history / PR body for the flag; `docs/GOVERNANCE-SERVICE-LEVEL.md` notes the prohibition.
+- **Estimate**: ~1 h.
+
+### B1.7b `[ ]` Make `security-auditor` subagent default for regulated profiles
+- **Why**: design §7.2 control #6. Today `security-auditor` is opt-in (`OPTIONAL_SUBAGENTS`). Regulated services should default to it.
+- **Where**: `scripts/sn_init.py` — when `memory-regulated` or `pdpa-compliance` policy is in the apply set, auto-add `security-auditor` to subagent defaults. Document in `docs/GOVERNANCE-SERVICE-LEVEL.md`.
+- **Estimate**: ~2 h.
 
 ---
 
