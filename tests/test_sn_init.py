@@ -2326,3 +2326,60 @@ def test_b2_1a_repository_ecosystem_doc_has_per_profile_sections(tmp_path: Path)
     assert "## Microservice — foreground peers" in text
     assert "## BFF — foreground downstreams" in text
     assert "## Frontend — foreground its BFF" in text
+
+
+def test_b2_5_pdpa_apply_writes_hooks_and_config(tmp_path: Path):
+    """Applying pdpa-compliance ships hooks (+x), allowlist, data dirs, and
+    doc templates."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    # Apply pdpa-compliance with auto-install deps.
+    rc = _run(project, "policy", "apply", "pdpa-compliance", "--with-deps")
+    assert rc == errors.EXIT_OK
+    # Hooks
+    h_a = project / ".claude" / "hooks" / "pdpa-data-handler-scan.sh"
+    h_b = project / ".claude" / "hooks" / "pdpa-retention-check.sh"
+    assert h_a.exists()
+    assert h_b.exists()
+    # Hooks are +x.
+    import stat
+    assert h_a.stat().st_mode & stat.S_IXUSR
+    assert h_b.stat().st_mode & stat.S_IXUSR
+    # Allowlist YAML.
+    assert (project / ".claude" / "config" / "pdpa-allowlist.yaml").exists()
+    # Data dirs.
+    for sub in ("subjects", "consents", "exports"):
+        assert (project / "data" / sub / ".gitkeep").exists()
+    assert (project / "data" / "README.md").exists()
+    # Doc templates.
+    for name in (
+        "data-classification-template.md",
+        "retention-policy-template.md",
+        "consent-records-template.md",
+        "breach-notification-runbook.md",
+    ):
+        assert (project / "docs" / "compliance" / name).exists()
+
+
+def test_b2_5_pdpa_apply_settings_carries_policy_marker(tmp_path: Path):
+    """Hook entries are tagged policy: 'pdpa-compliance'."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    _run(project, "policy", "apply", "pdpa-compliance", "--with-deps")
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    pre = settings["hooks"]["PreToolUse"]
+    pdpa_entries = [e for e in pre if e.get("policy") == "pdpa-compliance"]
+    assert len(pdpa_entries) == 2
+    matchers = sorted(e["matcher"] for e in pdpa_entries)
+    assert matchers == ["Write", "Write|Edit"]
+
+
+def test_b2_5_pdpa_apply_records_version_2(tmp_path: Path):
+    """State entry for pdpa-compliance is version 2.0.0."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    _run(project, "policy", "apply", "pdpa-compliance", "--with-deps")
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    pdpa = [p for p in state["applied_policies"] if p["slug"] == "pdpa-compliance"]
+    assert len(pdpa) == 1
+    assert pdpa[0]["version"] == "2.0.0"
