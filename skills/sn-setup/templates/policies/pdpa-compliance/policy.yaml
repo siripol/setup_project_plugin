@@ -19,3 +19,4 @@ files:
   extras:
     - "extras/hooks/pdpa-data-handler-scan.sh:.claude/hooks/pdpa-data-handler-scan.sh"
     - "extras/config/pdpa-allowlist.yaml:.claude/config/pdpa-allowlist.yaml"
+    - "extras/hooks/pdpa-retention-check.sh:.claude/hooks/pdpa-retention-check.sh"

@@ -101,3 +101,53 @@ def test_b2_5_data_handler_scan_no_jq_degrades_gracefully(tmp_path: Path, monkey
     result = _run_hook("pdpa-data-handler-scan.sh", project, payload)
     assert result.returncode == 0
     assert "jq not installed" in result.stderr
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq not installed in CI sandbox")
+def test_b2_5_retention_check_blocks_missing_sidecar(tmp_path: Path):
+    project = _stage_project(tmp_path)
+    target = project / "data" / "users.csv"
+    target.parent.mkdir(parents=True)
+    payload = {"tool_input": {"file_path": str(target), "content": "id,name\n"}}
+    result = _run_hook("pdpa-retention-check.sh", project, payload)
+    assert result.returncode == 2
+    assert "Missing sidecar" in result.stderr
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq not installed in CI sandbox")
+def test_b2_5_retention_check_allows_valid_sidecar(tmp_path: Path):
+    project = _stage_project(tmp_path)
+    target = project / "data" / "users.csv"
+    target.parent.mkdir(parents=True)
+    sidecar = target.with_name(target.name + ".meta.yaml")
+    sidecar.write_text(
+        "retention_days: 365\n"
+        "data_subject: customer\n"
+        "lawful_basis: contract\n"
+        "data_categories: [name, email]\n"
+        "controller: orders-team\n"
+        "last_reviewed: 2026-06-26\n"
+    )
+    payload = {"tool_input": {"file_path": str(target), "content": "id,name\n"}}
+    result = _run_hook("pdpa-retention-check.sh", project, payload)
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq not installed in CI sandbox")
+def test_b2_5_retention_check_blocks_invalid_lawful_basis(tmp_path: Path):
+    project = _stage_project(tmp_path)
+    target = project / "data" / "users.csv"
+    target.parent.mkdir(parents=True)
+    sidecar = target.with_name(target.name + ".meta.yaml")
+    sidecar.write_text(
+        "retention_days: 365\n"
+        "data_subject: customer\n"
+        "lawful_basis: unknown\n"
+        "data_categories: [name]\n"
+        "controller: orders-team\n"
+        "last_reviewed: 2026-06-26\n"
+    )
+    payload = {"tool_input": {"file_path": str(target), "content": "x"}}
+    result = _run_hook("pdpa-retention-check.sh", project, payload)
+    assert result.returncode == 2
+    assert "lawful_basis" in result.stderr

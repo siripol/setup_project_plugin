@@ -6,6 +6,13 @@
         "version": "2.0.0",
         "matcher": "Write|Edit",
         "command": ".claude/hooks/pdpa-data-handler-scan.sh"
+      },
+      {
+        "policy": "pdpa-compliance",
+        "version": "2.0.0",
+        "matcher": "Write",
+        "pattern": "data/.*",
+        "command": ".claude/hooks/pdpa-retention-check.sh"
       }
     ]
   }
