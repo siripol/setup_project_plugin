@@ -103,11 +103,34 @@ Most current items derive from the **microservices template-family design doc** 
 - **Where**: `skills/sn-setup/templates/managed-agent-base/docs/{ARCHITECTURE,REPO-STRATEGY,SECURITY,GOVERNANCE}.md`. Real content per the design doc, not outlines.
 - **Estimate**: 1 day per doc → 3–4 days bundled.
 
-### B2.5 `[ ]` PDPA compliance pack (`--compliance=pdpa|none`)
-- **Why**: design §8 — opt-in `compliance-pack` for PDPA. Provides hooks + guidance + audit-log strictness for services handling personal data.
-- **Where**: new `--compliance=pdpa|none` flag (default `none`). When `pdpa`: scaffold `.claude/rules/compliance-pdpa.md` (developer-facing guidance), wire a `claude-security-guidance.md` reference into hooks, force-flip `regulated: true` in `.sn-init-state.json` (per B1.2), enforce committed-memory tier.
-- **New template subtree**: `skills/sn-setup/templates/compliance/pdpa/`.
-- **Estimate**: 1–2 days (rules content + hook wiring + audit-log strictness).
+### B2.5 `[x]` PDPA compliance pack (full enforcement) — **shipped feat/pdpa-pack** (REQ-PDPA-001)
+- pdpa-compliance@1.0.0 (signal-only) → 2.0.0 (full enforcement).
+- Hook A `pdpa-data-handler-scan.sh` (PreToolUse on Write|Edit; PII regex over 6 patterns; skip-on-allowlist-match).
+- Hook B `pdpa-retention-check.sh` (PreToolUse on Write to `data/`; sidecar verification).
+- `sn-setup policy pdpa allowlist <list|add|remove|explain>` sub-sub-command (`scripts/policy_pdpa.py`).
+- Scaffolded `data/{subjects,consents,exports}/` + 4 doc templates under `docs/compliance/`.
+
+### B2.5a `[ ]` Retention review-staleness enforcement
+- Hook B today only validates `last_reviewed:` shape (`YYYY-MM-DD`). Enforce ≤ 365 days.
+- **Where**: `pdpa-retention-check.sh`.
+- **Estimate**: ~1 h.
+
+### B2.5b `[ ]` Consent-check hook
+- New `pdpa-consent-check.sh` (PreToolUse on `data/subjects/<id>/**`) verifying `data/consents/<id>.yaml` exists with valid `purposes` + `expires_at`.
+- **Estimate**: ~2 h.
+
+### B2.5c `[ ]` Audit-log breach detection rules
+- Cross-policy integration with `audit-log-strict` to flag exfiltration patterns (sudden large Read on `data/**`).
+- **Estimate**: ~1 day.
+
+### B2.5d `[ ]` CI auto-rotate sidecar `last_reviewed:` on PR approval
+- GitHub Actions step that bumps the date when a reviewer approves a sidecar.
+- **Estimate**: ~2 h.
+
+### B2.5e `[ ]` Luhn validation for PAN regex
+- Today: pattern catches PAN shapes. Add Luhn check to reduce false positives.
+- **Where**: `pdpa-data-handler-scan.sh`.
+- **Estimate**: ~1 h.
 
 ---
 
