@@ -8,6 +8,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **B1.7 follow-ups** (B1.7a + B1.7b, REQ-SEC-002 + REQ-SEC-003). Closes the two Tier 1 items carved during B1.7's hook audit:
+  - **B1.7a — CI guard against `--dangerously-skip-permissions`**: scaffolded `.github/workflows/ci.yml` greps the diff + commit messages on every push/PR; CI fails on match. `docs/GOVERNANCE-SERVICE-LEVEL.md` gains a `## Permission bypass — forbidden` section explaining why the flag is prohibited.
+  - **B1.7b — `security-auditor` default for regulated profiles**: when a scaffold's resolved policy set includes `memory-regulated` (or future `pdpa-compliance`), `security-auditor` is automatically added to `args.subagents` so the scaffold ships `.claude/agents/security-auditor.md` by default. Honors explicit `--subagents=none` opt-out. Documented in `GOVERNANCE-SERVICE-LEVEL.md` under `## Security-auditor subagent — regulated default`.
+
 - **Layer 4 service docs** (B1.3 + B1.4 + B1.6, REQ-DOCS-001). Every scaffolded project now ships three new doc templates under `docs/`:
   - `PROMOTION.md` — local-skill → org-marketplace checklist + PR template snippet.
   - `PREREQUISITES.md` — minimum tool / runtime / lang versions table.
