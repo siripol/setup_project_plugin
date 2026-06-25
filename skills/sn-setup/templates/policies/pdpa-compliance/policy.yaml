@@ -1,14 +1,16 @@
 slug: pdpa-compliance
-title: "PDPA compliance (signal-only stub)"
-version: 1.0.0
+title: "PDPA compliance (full enforcement)"
+version: 2.0.0
 category: security
 group: null
 applies_to: [microservice, bff]
 requires: [memory-regulated, audit-log-strict, secret-scan]
 conflicts_with: []
 description: |
-  Signal-only stub in v1. Requires memory-regulated + audit-log-strict +
-  secret-scan. Full PDPA enforcement is backlog item B2.5.
+  Full PDPA enforcement: PreToolUse PII scan over 4 pattern families,
+  PreToolUse retention-sidecar check on data/*, project-managed allowlist,
+  4 doc templates, scaffolded data/ dirs. Manifest expands across tasks 2-4
+  to add settings_patch + extras entries.
 files:
   claude_md_row: claude-md.row.md
   docs: docs/pdpa-compliance.md
