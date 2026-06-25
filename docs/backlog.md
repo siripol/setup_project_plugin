@@ -81,7 +81,7 @@ Most current items derive from the **microservices template-family design doc** 
   - State records `profile` + `framework`; `--upgrade` reads them.
   - Per-profile docs (PROFILE / API / OBSERVABILITY for microservice; PROFILE / BFF-INTEGRATION / DOWNSTREAMS for bff; PROFILE / DESIGN / ACCESSIBILITY / BROWSER-MATRIX for frontend) and per-framework docs (FRAMEWORK.md).
 - **Follow-ups (deferred, not blocking 1.x)**:
-  - **B2.1a** Repository Ecosystem table per profile (foreground downstreams for BFF, foreground BFF for frontend). Depends on **B1.1** landing first.
+  - **B2.1a** `[x]` Repository Ecosystem table per profile — **shipped feat/b2.1a-ecosystem-foregrounding** (REQ-PROF-001). `repository-ecosystem` policy doc now has 3 profile sections (microservice/BFF/frontend); version bumps to 1.1.0.
   - **B2.1b** Plugin install entries — wire `bff-patterns` + `contracts-sync` for BFF, `a11y-checker` for frontend. Depends on **B2.3** marketplace consumer.
   - **B2.1c** Per-profile subagents — `bff-integration-reviewer`, `a11y-auditor`. Lives under `templates/profile/<profile>/.claude/agents/`.
 

@@ -8,6 +8,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Profile-aware Repo Ecosystem foregrounding** (B2.1a, REQ-PROF-001). `repository-ecosystem` policy doc gains three profile-specific sections (microservice peers / BFF downstreams / frontend BFF + direct deps) so Claude has profile-appropriate cross-service guidance from the always-on policies table. Policy version bumps `1.0.0` → `1.1.0`.
+
 - **B1.7 follow-ups** (B1.7a + B1.7b, REQ-SEC-002 + REQ-SEC-003). Closes the two Tier 1 items carved during B1.7's hook audit:
   - **B1.7a — CI guard against `--dangerously-skip-permissions`**: scaffolded `.github/workflows/ci.yml` greps the diff + commit messages on every push/PR; CI fails on match. `docs/GOVERNANCE-SERVICE-LEVEL.md` gains a `## Permission bypass — forbidden` section explaining why the flag is prohibited.
   - **B1.7b — `security-auditor` default for regulated profiles**: when a scaffold's resolved policy set includes `memory-regulated` (or future `pdpa-compliance`), `security-auditor` is automatically added to `args.subagents` so the scaffold ships `.claude/agents/security-auditor.md` by default. Honors explicit `--subagents=none` opt-out. Documented in `GOVERNANCE-SERVICE-LEVEL.md` under `## Security-auditor subagent — regulated default`.
