@@ -27,19 +27,19 @@ Most current items derive from the **microservices template-family design doc** 
 - **Scope**: 9 day-one policies, `sn-setup policy` + `sn-setup profile` CLI, lint, status, upgrade, history, profile-bundled defaults.
 - **Follow-ups**: PR2 profile expansion (worker/cli/library/gateway/mcp-server); PR3 default bundles for new profiles.
 
-### B1.9 `[~]` Command sub-tree migration — branch `feat/command-subtree-migration`
-- **Why**: 16 flat `sn-X-Y.md` slash commands fragment the help surface. Sibling pattern `sn-setup policy <op>` (PR #18) reads better.
-- **Where**: `skills/sn-setup/templates/claude/commands/sn-{sprint,req,knowledge}.md` (new); 16 old files deleted; `scripts/commands_migration.py` (new); `--rename-commands` flag in `sn_init.py`.
-- **Scope**: 3 grouped commands + `summarize` verb (replaces tech-matrix) + migration command for existing scaffolds.
-- **Mark `[x]`**: after PR merges.
+### B1.9 `[x]` Command sub-tree migration — **shipped PR #19** (merge `ede959b`, 2026-06-25)
+- Regrouped 16 flat `sn-X-Y.md` → 3 grouped `sn-X.md` (`sn-sprint`, `sn-req`, `sn-knowledge`).
+- Retired `sn-knowledge-tech-matrix`; replaced by `sn-knowledge summarize <topic>` (pure LLM, persists to `<vault>/shared/summaries/<slug>.md`).
+- Migration command: `sn-setup --upgrade --rename-commands` (idempotent, sha-checked via `OLD_FLAT_SHAS` snapshot, `--force` for user-edited).
+- 238/238 tests (was 225). Spec + plan + requirements + post-merge retrospective in vault.
 
-### B1.3 `[ ]` `docs/PROMOTION.md` — local-skill → org-marketplace path
+### B1.3 `[x]` `docs/PROMOTION.md` — **shipped feat/layer4-docs** (REQ-DOCS-001)
 - **Why**: design §6.5 — explicit promotion workflow (local skill proves useful → review → publish to platform marketplace → others install).
 - **Where**: `skills/sn-setup/templates/managed-agent-base/docs/PROMOTION.md` (new file in scaffold template). Same doc also added to this plugin's own `docs/`.
 - **Scope**: 1-page doc with a checklist + PR template snippet.
 - **Estimate**: ~1 h.
 
-### B1.4 `[ ]` `docs/PREREQUISITES.md` — minimum tool versions
+### B1.4 `[x]` `docs/PREREQUISITES.md` — **shipped feat/layer4-docs** (REQ-DOCS-001)
 - **Why**: design §9.2 / §12.1 — every scaffolded service ships a table of required CLI / runtime / tool minimums for reproducibility.
 - **Where**: `skills/sn-setup/templates/managed-agent-base/docs/PREREQUISITES.md`. Cover Claude Code version, lang runtime per `--lang=`, `ant` CLI, `node`, `git`.
 - **Scope**: doc table.
@@ -51,7 +51,7 @@ Most current items derive from the **microservices template-family design doc** 
 - **Scope**: 2 new template files + 1 paragraph in `CLAUDE.md`.
 - **Estimate**: ~2 h.
 
-### B1.6 `[ ]` `docs/GOVERNANCE-SERVICE-LEVEL.md`
+### B1.6 `[x]` `docs/GOVERNANCE-SERVICE-LEVEL.md` — **shipped feat/layer4-docs** (REQ-DOCS-001)
 - **Why**: design §7.4 / §9 — service teams treat `.claude/` like code: who owns edits, how to promote local skills, how to signal regulated-data status. Today: no template.
 - **Where**: `skills/sn-setup/templates/managed-agent-base/docs/GOVERNANCE-SERVICE-LEVEL.md`. Concrete playbook, not philosophy.
 - **Scope**: 1-page doc.
@@ -67,7 +67,7 @@ Most current items derive from the **microservices template-family design doc** 
 
 ## Tier 2 — next-sprint (1–3 days each)
 
-### B2.1 `[~]` Profile overlays (`--profile=microservice|bff|frontend`) — branch `feat/profiles`
+### B2.1 `[x]` Profile overlays (`--profile=microservice|bff|frontend`) — **shipped PR #17** (merge `e07a713`, 2026-06-23)
 - **Why**: design §6.6 / §9.5 — repos have distinct shapes (backend microservice, BFF aggregator, frontend) but share the same foundation. Originally scoped as BFF-only; extended to cover microservice + frontend at the same time so the multi-profile concept lands as one coherent change.
 - **What shipped on this branch**:
   - New `--profile=microservice|bff|frontend` flag (default `microservice`; alias `service`→`microservice`).
