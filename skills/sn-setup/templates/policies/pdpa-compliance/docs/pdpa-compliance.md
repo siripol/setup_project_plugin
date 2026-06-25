@@ -57,6 +57,26 @@ Doc templates land under `docs/compliance/`:
 - `consent-records-template.md` — consent YAML shape + lookup flow.
 - `breach-notification-runbook.md` — PDPA §37 detect/contain/assess/notify.
 
+## Expected friction (and how to handle it)
+
+The PII regex patterns are conservative — better false positives than false negatives. Common cases that trigger blocks:
+
+- **Long numeric strings**: timestamps (`1736726400000`), build numbers, version strings, large IDs may match Thai NI 13-digit (`\b[0-9]{13}\b`) or PAN (4-4-4-4) patterns.
+- **Code samples in docs**: example JWTs, fake API keys, sample addresses.
+- **Database migrations**: SQL with seed data containing realistic-looking PII.
+
+When you hit a block on a path the regex shouldn't be scanning:
+
+```bash
+sn-setup policy pdpa allowlist add "migrations/**"
+sn-setup policy pdpa allowlist add "db/**"
+sn-setup policy pdpa allowlist add "scripts/seed-data/**"
+```
+
+The seeded allowlist already covers `test/**`, `tests/**`, `**/fixtures/**`, `docs/examples/**`. Extend it for your project's structure.
+
+False-positive reduction via Luhn validation for the PAN pattern is **B2.5e**; not in scope today.
+
 ## Carved follow-ups
 
 - B2.5a: review-staleness enforcement (≤ 365 days on `last_reviewed:`).

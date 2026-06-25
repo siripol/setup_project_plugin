@@ -43,6 +43,10 @@ def _write_globs(path: Path, globs: list[str]) -> None:
 
 
 def _validate_glob(glob: str) -> None:
+    if not glob.strip():
+        raise policy_errors.PolicyError(
+            "allowlist glob rejected: empty glob"
+        )
     if "../" in glob or glob.startswith("../"):
         raise policy_errors.PolicyError(
             "allowlist glob rejected: directory traversal forbidden"

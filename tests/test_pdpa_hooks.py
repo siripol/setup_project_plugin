@@ -85,7 +85,6 @@ def test_b2_5_data_handler_scan_skips_allowlisted_path(tmp_path: Path):
     assert result.returncode == 0, f"expected allow, got {result.returncode}; stderr={result.stderr}"
 
 
-@pytest.mark.skipif(shutil.which("jq") is None, reason="jq not installed in CI sandbox")
 def test_b2_5_data_handler_scan_no_jq_degrades_gracefully(tmp_path: Path, monkeypatch):
     """Smoke test that the hook exits 0 with a stderr warning when jq is masked."""
     project = _stage_project(tmp_path)

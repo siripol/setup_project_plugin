@@ -1,10 +1,19 @@
 # Project-scoped PDPA scan exemptions.
 # Managed via: sn-setup policy pdpa allowlist {list|add|remove|explain}.
 # Hand-edits OK but the command validates globs.
+#
+# Matching semantics: patterns are matched via shell `case` (in the hook)
+# and Python `fnmatch` (in the CLI). Neither implements a true `**`
+# globstar — `*` matches any chars including `/`. Practical effect:
+#   - "test/**" matches "test/foo" AND "test/foo/bar/baz" (good).
+#   - "**/*_test.go" does NOT match a repo-root "x_test.go" (no leading dir).
+# Add a separate root-level entry like "*_test.go" if you need that.
 allowlist:
   - "test/**"
   - "tests/**"
   - "**/*.test.*"
+  - "*.test.*"          # NEW — root-level test files
   - "**/*_test.go"
+  - "*_test.go"         # NEW — root-level Go tests
   - "**/fixtures/**"
   - "docs/examples/**"

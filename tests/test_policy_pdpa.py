@@ -59,6 +59,12 @@ def test_pdpa_allowlist_add_idempotent(tmp_path: Path):
     assert text.count("src/**") == 1
 
 
+def test_pdpa_allowlist_add_refuses_empty_glob(tmp_path: Path):
+    project = _scaffold(tmp_path)
+    rc = _run(project, "allowlist", "add", "")
+    assert rc == 2
+
+
 def test_pdpa_allowlist_add_refuses_traversal(tmp_path: Path, capsys):
     project = _scaffold(tmp_path)
     rc = _run(project, "allowlist", "add", "../escape")

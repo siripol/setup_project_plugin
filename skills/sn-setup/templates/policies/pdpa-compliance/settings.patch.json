@@ -11,7 +11,7 @@
         "policy": "pdpa-compliance",
         "version": "2.0.0",
         "matcher": "Write",
-        "pattern": "data/.*",
+        "_comment_pattern": "data/.* (informational; hook self-filters)",
         "command": ".claude/hooks/pdpa-retention-check.sh"
       }
     ]
