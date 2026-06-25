@@ -1,0 +1,10 @@
+# Project-scoped PDPA scan exemptions.
+# Managed via: sn-setup policy pdpa allowlist {list|add|remove|explain}.
+# Hand-edits OK but the command validates globs.
+allowlist:
+  - "test/**"
+  - "tests/**"
+  - "**/*.test.*"
+  - "**/*_test.go"
+  - "**/fixtures/**"
+  - "docs/examples/**"

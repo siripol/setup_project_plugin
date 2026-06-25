@@ -15,3 +15,7 @@ files:
   claude_md_row: claude-md.row.md
   docs: docs/pdpa-compliance.md
   rules: rules/pdpa-compliance.md
+  settings_patch: settings.patch.json
+  extras:
+    - "extras/hooks/pdpa-data-handler-scan.sh:.claude/hooks/pdpa-data-handler-scan.sh"
+    - "extras/config/pdpa-allowlist.yaml:.claude/config/pdpa-allowlist.yaml"
