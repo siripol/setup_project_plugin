@@ -2313,3 +2313,16 @@ def test_b1_7b_subagents_none_honored_even_with_regulated(tmp_path: Path):
          "--policies=memory-regulated", "--subagents=none")
     agents = tmp_path / "demo" / ".claude" / "agents"
     assert not (agents / "security-auditor.md").exists()
+
+
+def test_b2_1a_repository_ecosystem_doc_has_per_profile_sections(tmp_path: Path):
+    """B2.1a — applied repository-ecosystem policy doc must have one
+    foregrounding section per profile (microservice / BFF / frontend) so
+    Claude has profile-specific guidance from the always-on policies table."""
+    _run(tmp_path, "demo", "--no-git")
+    doc = tmp_path / "demo" / ".claude" / "docs" / "policies" / "repository-ecosystem.md"
+    assert doc.exists()
+    text = doc.read_text()
+    assert "## Microservice — foreground peers" in text
+    assert "## BFF — foreground downstreams" in text
+    assert "## Frontend — foreground its BFF" in text
