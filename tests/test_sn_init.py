@@ -2383,3 +2383,34 @@ def test_b2_5_pdpa_apply_records_version_2(tmp_path: Path):
     pdpa = [p for p in state["applied_policies"] if p["slug"] == "pdpa-compliance"]
     assert len(pdpa) == 1
     assert pdpa[0]["version"] == "2.0.0"
+
+
+def test_b2_5_pdpa_upgrade_from_v1_to_v2(tmp_path: Path):
+    """Scaffold a project, hand-fake a 1.0.0 application of pdpa-compliance
+    in state, then run `sn-setup policy upgrade pdpa-compliance` and verify
+    the state version moves to 2.0.0 and the v2 files land."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+
+    # Fake a v1.0.0 application in state. (We don't ship a v1.0.0 catalog
+    # anymore; this fixture mimics what a real legacy state would carry.)
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    state["applied_policies"].append({
+        "slug": "pdpa-compliance",
+        "version": "1.0.0",
+        "applied_at": "2026-01-01T00:00:00+00:00",
+        "content_sha": {},  # empty → all files treated as "fresh" by upgrade
+        "settings_marker": "pdpa-compliance",
+    })
+    (project / ".sn-init-state.json").write_text(json.dumps(state, indent=2) + "\n")
+
+    rc = _run(project, "policy", "upgrade", "pdpa-compliance")
+    assert rc == errors.EXIT_OK
+
+    state2 = json.loads((project / ".sn-init-state.json").read_text())
+    pdpa = [p for p in state2["applied_policies"] if p["slug"] == "pdpa-compliance"]
+    assert len(pdpa) == 1
+    assert pdpa[0]["version"] == "2.0.0"
+    # New files should be in place.
+    assert (project / ".claude" / "hooks" / "pdpa-data-handler-scan.sh").exists()
+    assert (project / "docs" / "compliance" / "retention-policy-template.md").exists()
