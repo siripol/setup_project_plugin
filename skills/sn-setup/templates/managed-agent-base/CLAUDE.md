@@ -49,6 +49,16 @@ Service-level policies in effect. Read the linked doc on demand.
 | Category | Slug | Reference | Version |
 |---|---|---|---|
 
+## Context policy
+
+Three tiers of context, by load behavior:
+
+- **This file** — always-on, deliberately minimal. Identity, profile, the policies table, and section pointers only.
+- **`.claude/rules/<slug>.md`** — always-on, short (≤ 50 tokens each). Hard rules that must fire every turn. See `.claude/rules/README.md`.
+- **`.claude/docs/<slug>.md`** — load-on-demand. Long bodies; Claude reads when work touches the topic. See `.claude/docs/README.md`.
+
+Free-form vault syntheses via `/sn-knowledge summarize <topic>` write to `<vault>/shared/summaries/<slug>.md` and are zero-cost until referenced.
+
 ## Local notes
 
 Also load `CLAUDE.local.md` for per-developer notes and project-fresh additions. Treat anything there as an override of this file unless contradictory.

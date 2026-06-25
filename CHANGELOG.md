@@ -13,6 +13,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
   - `PREREQUISITES.md` — minimum tool / runtime / lang versions table.
   - `GOVERNANCE-SERVICE-LEVEL.md` — `.claude/` ownership, CODEOWNERS, regulated-data signaling, migration handoff playbook.
 
+- **Load-on-demand context split** (B1.5, REQ-CTX-001). Codifies the design's three-tier context model in every fresh scaffold:
+  - `CLAUDE.md` — always-on, minimal (identity + profile + policies table + section pointers).
+  - `.claude/rules/<slug>.md` — always-on, ≤ 50 tokens each. Hard rules only.
+  - `.claude/docs/<slug>.md` — load-on-demand. Long bodies; Claude reads when work touches the topic.
+  - Ships `.claude/docs/{README,ARCHITECTURE}.md`, `.claude/rules/README.md`, and a `## Context policy` paragraph in scaffolded `CLAUDE.md`.
+
+- **Mandatory-controls hook audit** (B1.7, REQ-SEC-001). Audited the scaffold's `.claude/settings.json` + `.claude/hooks/*` + `scripts/safety.py` against the design's §7.2 list. Audit doc at `docs/HOOK-AUDIT-2026-06-25.md`. Verdict: 3 PASS / 2 PARTIAL (carved as **B1.7a** + **B1.7b**) / 1 FAIL (fixed in PR) / 1 N-A.
+  - **Fixed in PR**: sensitive-path deny patterns added to default `settings.json` `permissions.deny`. Now blocks Write/Edit to `~/.ssh/`, `~/.aws/`, `~/.config/gcloud/`, `~/.kube/`, `~/.docker/`, `~/.netrc`, `~/.pgpass`, `**/.env`, `**/.env.*`, `/etc/**`, `/root/**`.
+
 - **Command sub-tree migration** (B1.9). Regroups 16 flat `sn-X-Y.md` slash commands into 3 grouped `sn-X.md` files matching the `sn-setup policy <op>` pattern:
   - `sn-sprint <new|add|run|status|done|remove>`
   - `sn-req <new|import|replay|resume|rollback>`
