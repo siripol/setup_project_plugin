@@ -8,6 +8,12 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Per-profile subagents** (B2.1c, REQ-PROF-002). BFF and frontend profiles now ship profile-specific reviewer subagents:
+  - `--profile=bff` → `.claude/agents/bff-integration-reviewer.md` (downstream contract drift, error-envelope shape, retry/timeout config, partial-response handling, authn/authz boundary).
+  - `--profile=frontend` → `.claude/agents/a11y-auditor.md` (WCAG 2.2 AA: images, focus management, semantic HTML + ARIA, forms, color/motion/contrast).
+  - `--profile=microservice` unchanged — generic subagent set remains sufficient.
+  - No scaffold-logic change required; `_render_profile`'s rglob walker auto-copies anything under `templates/profile/<P>/.claude/agents/`.
+
 - **PDPA pack — full enforcement** (B2.5, REQ-PDPA-001). Upgrades `pdpa-compliance` catalog policy from `1.0.0` (signal-only) to `2.0.0` (full enforcement). Ships:
   - **Hook A** `pdpa-data-handler-scan.sh` — PreToolUse on Write/Edit. Bash regex over 6 PII patterns (Thai NI 13-digit, email, Thai mobile/landline, credit-card PAN, passport). Skip-on-allowlist-match.
   - **Hook B** `pdpa-retention-check.sh` — PreToolUse on Write to `data/*`. Verifies sibling `<file>.meta.yaml` sidecar with 6 required keys (`retention_days`, `data_subject`, `lawful_basis`, `data_categories`, `controller`, `last_reviewed`).

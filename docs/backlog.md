@@ -83,7 +83,7 @@ Most current items derive from the **microservices template-family design doc** 
 - **Follow-ups (deferred, not blocking 1.x)**:
   - **B2.1a** `[x]` Repository Ecosystem table per profile — **shipped feat/b2.1a-ecosystem-foregrounding** (REQ-PROF-001). `repository-ecosystem` policy doc now has 3 profile sections (microservice/BFF/frontend); version bumps to 1.1.0.
   - **B2.1b** Plugin install entries — wire `bff-patterns` + `contracts-sync` for BFF, `a11y-checker` for frontend. Depends on **B2.3** marketplace consumer.
-  - **B2.1c** Per-profile subagents — `bff-integration-reviewer`, `a11y-auditor`. Lives under `templates/profile/<profile>/.claude/agents/`.
+  - **B2.1c** `[x]` Per-profile subagents — **shipped feat/b2.1c-subagents** (REQ-PROF-002). `bff-integration-reviewer.md` ships with `--profile=bff`; `a11y-auditor.md` ships with `--profile=frontend`. `_render_profile`'s rglob already copied them; no scaffold-logic change needed.
 
 ### B2.2 `[ ]` Optional workspace layer (Layer 3) — `--workspace`
 - **Why**: design §4 / §9.6 / §12.2 step 4 — optional cross-service virtual-monorepo for orgs past a certain scale. Stays gitignored; lives sibling to repos.
