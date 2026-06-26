@@ -1,0 +1,6 @@
+{
+  "workspace_version": "1.0.0",
+  "name": "${workspace_name}",
+  "created_at": "${created_at}",
+  "services": []
+}
