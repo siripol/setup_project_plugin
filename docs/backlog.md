@@ -85,7 +85,7 @@ Most current items derive from the **microservices template-family design doc** 
   - **B2.1b** Plugin install entries — wire `bff-patterns` + `contracts-sync` for BFF, `a11y-checker` for frontend. Depends on **B2.3** marketplace consumer.
   - **B2.1c** `[x]` Per-profile subagents — **shipped feat/b2.1c-subagents** (REQ-PROF-002). `bff-integration-reviewer.md` ships with `--profile=bff`; `a11y-auditor.md` ships with `--profile=frontend`. `_render_profile`'s rglob already copied them; no scaffold-logic change needed.
 
-### B2.2 `[ ]` Optional workspace layer (Layer 3) — `--workspace`
+### B2.2 `[x]` Optional workspace layer (Layer 3) — `--workspace` — **Shipped** in PR for `feat/workspace-layer`.
 - **Why**: design §4 / §9.6 / §12.2 step 4 — optional cross-service virtual-monorepo for orgs past a certain scale. Stays gitignored; lives sibling to repos.
 - **Where**: new `--workspace` flag in `scripts/sn_init.py`. When set, scaffold sibling `<name>-workspace/` with `WORKSPACE.md` (registry template), `CLAUDE.md` (ecosystem table), `MIGRATION.md` (adoption guide), `scripts/{launch,sync,status}` (bash stubs).
 - **New template subtree**: `skills/sn-setup/templates/workspace/`.
@@ -161,6 +161,19 @@ Most current items derive from the **microservices template-family design doc** 
 3. **B2.2** (2 days) — Optional workspace layer. Off-by-default, light to build, valuable when teams scale.
 
 The biggest single architectural gap (B3.1 marketplace) feeds every later Tier-2 item. Shipping B1.* + Tier-2 first prepares the ground without locking in a marketplace shape prematurely.
+
+---
+
+## B2.2 carved follow-ups
+
+| ID | Title | Tier | Trigger to revisit |
+|---|---|---|---|
+| B2.2-FU-1 | Workspace upgrade command (`sn-setup workspace upgrade`) | 3 | Template format breaks back-compat |
+| B2.2-FU-2 | Workspace slash commands (`/sn-workspace-status`, etc.) | 3 | Slash-command UX becomes dominant |
+| B2.2-FU-3 | Parallel exec for `status` / `sync` | 3 | User reports >5s wall-clock with ≥10 services |
+| B2.2-FU-4 | Marketplace divergence warning in `workspace add` | 2 | B2.3 marketplace consumer ships |
+| B2.2-FU-5 | `sn-setup workspace doctor` — registry / gitignore drift detector | 3 | Drift complaints surface |
+| B2.2-FU-6 | `workspace-coordinator` cross-repo refactor subagent | 3 | Real cross-repo refactor use case arrives |
 
 ---
 
