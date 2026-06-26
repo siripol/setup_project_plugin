@@ -113,6 +113,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--obsidian-mcp", choices=OBSIDIAN_MCP_CHOICES,
                    default="auto", dest="obsidian_mcp")
     p.add_argument("--prompt", default=None)
+    p.add_argument("--workspace", action="store_true",
+                   help="Pair-scaffold a sibling workspace dir aggregating this project.")
+    p.add_argument("--workspace-name", default=None, dest="workspace_name",
+                   help="Workspace dir name (default: <project>-workspace).")
     p.add_argument("--workflow", choices=WORKFLOW_CHOICES, default="spec-loop")
     p.add_argument("--subagents", default=",".join(DEFAULT_SUBAGENTS),
                    help="Comma-list, 'all', or 'none'")
@@ -412,6 +416,9 @@ def _run_new(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -
     logger.set_target(target)
 
     _write_state(target, args, mode="new", files=[str(p) for p, _ in files])
+
+    if getattr(args, "workspace", False) and not args.dry_run:
+        _pair_with_workspace(args, target, logger)
 
     if not args.no_git and not args.dry_run:
         _git_init_commit(target, logger)
@@ -847,6 +854,41 @@ def _git_init_commit(target: Path, logger: snlog.StepLogger) -> None:
         logger.info("git not found, skipping init+commit")
     except subprocess.CalledProcessError as e:
         logger.info(f"git step failed: {e}")
+
+
+def _pair_with_workspace(args: argparse.Namespace, target: Path, logger: snlog.StepLogger) -> None:
+    """Scaffold a sibling workspace + register the project under it.
+
+    R8 mitigation: this runs AFTER _write_state so .sn-init-state.json is on
+    disk and workspace_cli._cmd_add can auto-collect profile/lang/regulated.
+    """
+    import workspace_cli  # type: ignore
+
+    ws_name = args.workspace_name or f"{target.name}-workspace"
+    ws_dir = target.parent / ws_name
+
+    # workspace_cli._cmd_add requires a git repo. If --no-git was passed we do
+    # a bare `git init` here so the registration step can succeed. The commit
+    # is omitted (same as --no-git semantics).
+    if not (target / ".git").exists():
+        try:
+            subprocess.run(["git", "init", "-q"], cwd=target, check=True,
+                           capture_output=True)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass  # git not available; add will fail gracefully
+
+    old = Path.cwd()
+    try:
+        os.chdir(target.parent)
+        # init: skip if workspace already exists (P4 idempotency).
+        if not (ws_dir / ".workspace" / "registry.json").exists():
+            rc = workspace_cli.main(["init", ws_name])
+            if rc != 0:
+                return
+        os.chdir(ws_dir)
+        workspace_cli.main(["add", str(target)])
+    finally:
+        os.chdir(old)
 
 
 def _print_tree(target: Path, files: list[tuple[str, str]]) -> None:
