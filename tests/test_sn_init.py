@@ -2414,3 +2414,31 @@ def test_b2_5_pdpa_upgrade_from_v1_to_v2(tmp_path: Path):
     # New files should be in place.
     assert (project / ".claude" / "hooks" / "pdpa-data-handler-scan.sh").exists()
     assert (project / "docs" / "compliance" / "retention-policy-template.md").exists()
+
+
+def test_b2_1c_bff_profile_ships_integration_reviewer(tmp_path: Path):
+    """B2.1c — BFF profile scaffold ships bff-integration-reviewer subagent."""
+    _run(tmp_path, "demo", "--no-git", "--profile=bff", "--lang=go")
+    agent = tmp_path / "demo" / ".claude" / "agents" / "bff-integration-reviewer.md"
+    assert agent.exists()
+    text = agent.read_text()
+    assert "name: bff-integration-reviewer" in text
+    assert "Downstream contract drift" in text
+
+
+def test_b2_1c_frontend_profile_ships_a11y_auditor(tmp_path: Path):
+    """B2.1c — frontend profile scaffold ships a11y-auditor subagent."""
+    _run(tmp_path, "demo", "--no-git", "--profile=frontend", "--lang=ts")
+    agent = tmp_path / "demo" / ".claude" / "agents" / "a11y-auditor.md"
+    assert agent.exists()
+    text = agent.read_text()
+    assert "name: a11y-auditor" in text
+    assert "WCAG 2.2" in text
+
+
+def test_b2_1c_microservice_profile_ships_neither(tmp_path: Path):
+    """B2.1c — microservice profile scaffold ships neither profile subagent."""
+    _run(tmp_path, "demo", "--no-git", "--profile=microservice")
+    agents = tmp_path / "demo" / ".claude" / "agents"
+    assert not (agents / "bff-integration-reviewer.md").exists()
+    assert not (agents / "a11y-auditor.md").exists()

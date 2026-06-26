@@ -550,9 +550,16 @@ def _render_profile(args: argparse.Namespace, project_name: str) -> list[tuple[s
         if path.is_dir():
             continue
         rel = path.relative_to(profile_dir)
+        # Mirror the `templates/claude/` → `.claude/` rename used by
+        # `_render_claude`; profile overlays can ship a `claude/` subtree
+        # (e.g. profile-specific subagents) without tripping the repo's
+        # `.claude/` gitignore rule.
+        rel_str = str(rel)
+        if rel_str.startswith("claude/"):
+            rel_str = ".claude/" + rel_str[len("claude/"):]
         content = path.read_text(encoding="utf-8")
         content = _substitute(content, ctx)
-        files.append((str(rel), content))
+        files.append((rel_str, content))
     return files
 
 
