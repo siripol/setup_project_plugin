@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "policy": "pdpa-compliance",
+        "version": "2.0.0",
+        "matcher": "Write|Edit",
+        "command": ".claude/hooks/pdpa-data-handler-scan.sh"
+      },
+      {
+        "policy": "pdpa-compliance",
+        "version": "2.0.0",
+        "matcher": "Write",
+        "_comment_pattern": "data/.* (informational; hook self-filters)",
+        "command": ".claude/hooks/pdpa-retention-check.sh"
+      }
+    ]
+  }
+}

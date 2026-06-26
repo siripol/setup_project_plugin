@@ -1,15 +1,30 @@
 slug: pdpa-compliance
-title: "PDPA compliance (signal-only stub)"
-version: 1.0.0
+title: "PDPA compliance (full enforcement)"
+version: 2.0.0
 category: security
 group: null
 applies_to: [microservice, bff]
 requires: [memory-regulated, audit-log-strict, secret-scan]
 conflicts_with: []
 description: |
-  Signal-only stub in v1. Requires memory-regulated + audit-log-strict +
-  secret-scan. Full PDPA enforcement is backlog item B2.5.
+  Full PDPA enforcement: PreToolUse PII scan over 4 pattern families,
+  PreToolUse retention-sidecar check on data/*, project-managed allowlist,
+  4 doc templates, scaffolded data/ dirs. Manifest expands across tasks 2-4
+  to add settings_patch + extras entries.
 files:
   claude_md_row: claude-md.row.md
   docs: docs/pdpa-compliance.md
   rules: rules/pdpa-compliance.md
+  settings_patch: settings.patch.json
+  extras:
+    - "extras/hooks/pdpa-data-handler-scan.sh:.claude/hooks/pdpa-data-handler-scan.sh"
+    - "extras/config/pdpa-allowlist.yaml:.claude/config/pdpa-allowlist.yaml"
+    - "extras/hooks/pdpa-retention-check.sh:.claude/hooks/pdpa-retention-check.sh"
+    - "extras/data/README.md:data/README.md"
+    - "extras/data/subjects/.gitkeep:data/subjects/.gitkeep"
+    - "extras/data/consents/.gitkeep:data/consents/.gitkeep"
+    - "extras/data/exports/.gitkeep:data/exports/.gitkeep"
+    - "extras/docs/compliance/data-classification-template.md:docs/compliance/data-classification-template.md"
+    - "extras/docs/compliance/retention-policy-template.md:docs/compliance/retention-policy-template.md"
+    - "extras/docs/compliance/consent-records-template.md:docs/compliance/consent-records-template.md"
+    - "extras/docs/compliance/breach-notification-runbook.md:docs/compliance/breach-notification-runbook.md"

@@ -8,6 +8,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **PDPA pack — full enforcement** (B2.5, REQ-PDPA-001). Upgrades `pdpa-compliance` catalog policy from `1.0.0` (signal-only) to `2.0.0` (full enforcement). Ships:
+  - **Hook A** `pdpa-data-handler-scan.sh` — PreToolUse on Write/Edit. Bash regex over 6 PII patterns (Thai NI 13-digit, email, Thai mobile/landline, credit-card PAN, passport). Skip-on-allowlist-match.
+  - **Hook B** `pdpa-retention-check.sh` — PreToolUse on Write to `data/*`. Verifies sibling `<file>.meta.yaml` sidecar with 6 required keys (`retention_days`, `data_subject`, `lawful_basis`, `data_categories`, `controller`, `last_reviewed`).
+  - **`sn-setup policy pdpa allowlist <list|add|remove|explain>`** — manages project-local `.claude/config/pdpa-allowlist.yaml`.
+  - Scaffolded `data/{subjects,consents,exports}/` with `.gitkeep` + README.
+  - Four doc templates under `docs/compliance/`: data-classification-template, retention-policy-template, consent-records-template, breach-notification-runbook.
+  - Upgrade path: `sn-setup policy upgrade pdpa-compliance` on a `1.0.0` scaffold → `2.0.0`.
+  - Carved follow-ups: **B2.5a** review-staleness, **B2.5b** consent-check hook, **B2.5c** audit-log breach detection, **B2.5d** CI auto-rotate `last_reviewed`, **B2.5e** Luhn validation.
+
 - **Profile-aware Repo Ecosystem foregrounding** (B2.1a, REQ-PROF-001). `repository-ecosystem` policy doc gains three profile-specific sections (microservice peers / BFF downstreams / frontend BFF + direct deps) so Claude has profile-appropriate cross-service guidance from the always-on policies table. Policy version bumps `1.0.0` → `1.1.0`.
 
 - **B1.7 follow-ups** (B1.7a + B1.7b, REQ-SEC-002 + REQ-SEC-003). Closes the two Tier 1 items carved during B1.7's hook audit:

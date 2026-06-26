@@ -1,1 +1,1 @@
-| security | pdpa-compliance | `.claude/docs/policies/pdpa-compliance.md` | 1.0.0 |
+| security | pdpa-compliance | `.claude/docs/policies/pdpa-compliance.md` | 2.0.0 |

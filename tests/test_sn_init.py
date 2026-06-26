@@ -2326,3 +2326,91 @@ def test_b2_1a_repository_ecosystem_doc_has_per_profile_sections(tmp_path: Path)
     assert "## Microservice — foreground peers" in text
     assert "## BFF — foreground downstreams" in text
     assert "## Frontend — foreground its BFF" in text
+
+
+def test_b2_5_pdpa_apply_writes_hooks_and_config(tmp_path: Path):
+    """Applying pdpa-compliance ships hooks (+x), allowlist, data dirs, and
+    doc templates."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    # Apply pdpa-compliance with auto-install deps.
+    rc = _run(project, "policy", "apply", "pdpa-compliance", "--with-deps")
+    assert rc == errors.EXIT_OK
+    # Hooks
+    h_a = project / ".claude" / "hooks" / "pdpa-data-handler-scan.sh"
+    h_b = project / ".claude" / "hooks" / "pdpa-retention-check.sh"
+    assert h_a.exists()
+    assert h_b.exists()
+    # Hooks are +x.
+    import stat
+    assert h_a.stat().st_mode & stat.S_IXUSR
+    assert h_b.stat().st_mode & stat.S_IXUSR
+    # Allowlist YAML.
+    assert (project / ".claude" / "config" / "pdpa-allowlist.yaml").exists()
+    # Data dirs.
+    for sub in ("subjects", "consents", "exports"):
+        assert (project / "data" / sub / ".gitkeep").exists()
+    assert (project / "data" / "README.md").exists()
+    # Doc templates.
+    for name in (
+        "data-classification-template.md",
+        "retention-policy-template.md",
+        "consent-records-template.md",
+        "breach-notification-runbook.md",
+    ):
+        assert (project / "docs" / "compliance" / name).exists()
+
+
+def test_b2_5_pdpa_apply_settings_carries_policy_marker(tmp_path: Path):
+    """Hook entries are tagged policy: 'pdpa-compliance'."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    _run(project, "policy", "apply", "pdpa-compliance", "--with-deps")
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    pre = settings["hooks"]["PreToolUse"]
+    pdpa_entries = [e for e in pre if e.get("policy") == "pdpa-compliance"]
+    assert len(pdpa_entries) == 2
+    matchers = sorted(e["matcher"] for e in pdpa_entries)
+    assert matchers == ["Write", "Write|Edit"]
+
+
+def test_b2_5_pdpa_apply_records_version_2(tmp_path: Path):
+    """State entry for pdpa-compliance is version 2.0.0."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    _run(project, "policy", "apply", "pdpa-compliance", "--with-deps")
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    pdpa = [p for p in state["applied_policies"] if p["slug"] == "pdpa-compliance"]
+    assert len(pdpa) == 1
+    assert pdpa[0]["version"] == "2.0.0"
+
+
+def test_b2_5_pdpa_upgrade_from_v1_to_v2(tmp_path: Path):
+    """Scaffold a project, hand-fake a 1.0.0 application of pdpa-compliance
+    in state, then run `sn-setup policy upgrade pdpa-compliance` and verify
+    the state version moves to 2.0.0 and the v2 files land."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+
+    # Fake a v1.0.0 application in state. (We don't ship a v1.0.0 catalog
+    # anymore; this fixture mimics what a real legacy state would carry.)
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    state["applied_policies"].append({
+        "slug": "pdpa-compliance",
+        "version": "1.0.0",
+        "applied_at": "2026-01-01T00:00:00+00:00",
+        "content_sha": {},  # empty → all files treated as "fresh" by upgrade
+        "settings_marker": "pdpa-compliance",
+    })
+    (project / ".sn-init-state.json").write_text(json.dumps(state, indent=2) + "\n")
+
+    rc = _run(project, "policy", "upgrade", "pdpa-compliance")
+    assert rc == errors.EXIT_OK
+
+    state2 = json.loads((project / ".sn-init-state.json").read_text())
+    pdpa = [p for p in state2["applied_policies"] if p["slug"] == "pdpa-compliance"]
+    assert len(pdpa) == 1
+    assert pdpa[0]["version"] == "2.0.0"
+    # New files should be in place.
+    assert (project / ".claude" / "hooks" / "pdpa-data-handler-scan.sh").exists()
+    assert (project / "docs" / "compliance" / "retention-policy-template.md").exists()
