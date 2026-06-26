@@ -181,7 +181,7 @@ def _resolve_subagents(spec: str) -> set[str]:
     return names
 
 
-SUBTREES = {"policy", "profile"}
+SUBTREES = {"policy", "profile", "workspace"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -193,6 +193,9 @@ def main(argv: list[str] | None = None) -> int:
         if raw[0] == "profile":
             import profile_cli  # noqa: F401  (lands in Task 14)
             return profile_cli.main(raw[1:])
+        if raw[0] == "workspace":
+            import workspace_cli
+            return workspace_cli.main(raw[1:])
 
     parser = build_parser()
     try:
