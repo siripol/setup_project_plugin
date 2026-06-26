@@ -886,7 +886,9 @@ def _pair_with_workspace(args: argparse.Namespace, target: Path, logger: snlog.S
             if rc != 0:
                 return
         os.chdir(ws_dir)
-        workspace_cli.main(["add", str(target)])
+        rc = workspace_cli.main(["add", str(target)])
+        if rc != 0:
+            logger.info(f"workspace add failed: rc={rc}")
     finally:
         os.chdir(old)
 

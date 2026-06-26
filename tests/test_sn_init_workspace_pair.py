@@ -44,7 +44,7 @@ def test_workspace_name_flag_overrides_default(tmp_path: Path):
 
 
 def test_workspace_flag_idempotent_on_existing_workspace(tmp_path: Path):
-    """P4: re-running scaffold into the same workspace skips init but add upserts."""
+    """P4: re-running scaffold into the same workspace skips init; subsequent add registers the new project (no duplicate slug)."""
     _run_sn_init(tmp_path, "demo", "--workspace", "--no-git")
     rc = _run_sn_init(tmp_path, "demo2", "--workspace", "--workspace-name=demo-workspace", "--no-git")
     assert rc == 0
