@@ -101,7 +101,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--tier", choices=TIER_CHOICES, default="both")
     p.add_argument("--license", choices=LICENSE_CHOICES, default="none", dest="license_kind")
-    p.add_argument("--no-git", action="store_true")
+    p.add_argument("--no-git", action="store_true",
+                   help="Skip git init + initial commit. Note: pairing this with --workspace will "
+                        "still create a bare .git/ dir on the project so the workspace can register "
+                        "it (no commit is made).")
     p.add_argument("--install", action="store_true")
     p.add_argument("--retry", type=int, default=3)
     p.add_argument("--no-ci", action="store_true")
@@ -865,6 +868,10 @@ def _pair_with_workspace(args: argparse.Namespace, target: Path, logger: snlog.S
     import workspace_cli  # type: ignore
 
     ws_name = args.workspace_name or f"{target.name}-workspace"
+    if ws_name == target.name:
+        raise errors.UsageError(
+            f"--workspace-name {ws_name!r} collides with project name; pick a different name"
+        )
     ws_dir = target.parent / ws_name
 
     # workspace_cli._cmd_add requires a git repo. If --no-git was passed we do
@@ -884,6 +891,7 @@ def _pair_with_workspace(args: argparse.Namespace, target: Path, logger: snlog.S
         if not (ws_dir / ".workspace" / "registry.json").exists():
             rc = workspace_cli.main(["init", ws_name])
             if rc != 0:
+                logger.info(f"workspace init failed: rc={rc}")
                 return
         os.chdir(ws_dir)
         rc = workspace_cli.main(["add", str(target)])

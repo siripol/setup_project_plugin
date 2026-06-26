@@ -31,6 +31,10 @@ This workspace is a **convenience layer**, not a build orchestrator. It does not
 
 If your team needs those, layer a real monorepo tool on top. The workspace gives you single-editor + `git status`/`pull` aggregation; not build orchestration.
 
+## Interaction with `--no-git`
+
+`sn-setup new|demo --workspace --no-git` creates a sibling workspace and registers the scaffolded project, but the project skips the initial git commit. A bare `.git/` directory is created on the project so the workspace can register it; no commit is made and no remote is set. If you want a truly git-free project, omit `--workspace`.
+
 ## Compatibility with B2.3 marketplace consumer (future)
 
 When the marketplace consumer (`--marketplace=<src>`) lands, scaffolded services install plugins via marketplace. Workspace `add` will read each member's `installed_plugins` block and warn on divergence (e.g. "service A pinned `core-guardrails@1.2`, service B pinned `@1.3`"). Until B2.3, this section is informational only.

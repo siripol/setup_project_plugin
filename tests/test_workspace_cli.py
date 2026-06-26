@@ -6,8 +6,6 @@ import os
 import subprocess
 from pathlib import Path
 
-import pytest
-
 import errors  # type: ignore
 import sn_init  # type: ignore
 import workspace_cli  # type: ignore

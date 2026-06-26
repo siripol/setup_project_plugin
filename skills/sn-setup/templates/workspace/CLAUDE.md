@@ -9,9 +9,9 @@ Cross-cutting context for a virtual monorepo of N services. Each service has its
 ## Repository Ecosystem
 
 <!-- registry:begin -->
-| Service | Purpose | Repo | Profile |
-|---|---|---|---|
-| _(none yet)_ | — | — | — |
+| Service | Repo | Profile |
+|---|---|---|
+| _(none yet)_ | — | — |
 <!-- registry:end -->
 
 (Auto-populated from `.workspace/registry.json` by `sn-setup workspace list`. Foreground by usage frequency, not alphabetical.)

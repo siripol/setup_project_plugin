@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 
+import errors  # type: ignore
 import sn_init  # type: ignore
 
 
@@ -51,3 +52,13 @@ def test_workspace_flag_idempotent_on_existing_workspace(tmp_path: Path):
     reg = json.loads((tmp_path / "demo-workspace" / ".workspace" / "registry.json").read_text())
     slugs = [s["slug"] for s in reg["services"]]
     assert set(slugs) == {"demo", "demo2"}
+
+
+def test_workspace_name_colliding_with_project_name_rejected(tmp_path: Path):
+    """P5: --workspace-name == project name → UsageError, no scaffold."""
+    rc = _run_sn_init(tmp_path, "demo", "--workspace", "--workspace-name=demo", "--no-git")
+    assert rc == errors.EXIT_USAGE
+    # The guard fires inside _pair_with_workspace, after the scaffold
+    # materializes. Assert workspace dir was NOT created (the collision was
+    # caught before any workspace init ran).
+    assert not (tmp_path / "demo" / ".workspace").exists()

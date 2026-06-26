@@ -81,10 +81,9 @@ def _cmd_init(ns: argparse.Namespace) -> int:
             except OSError:
                 pass
 
-    # Force-fix registry.json: even after templating, ensure the JSON has the
-    # right shape (placeholder substitution writes a literal "${...}" if the
-    # template was created with shell-style placeholders that re module
-    # didn't catch).
+    # Force-fix the registry: even after str.replace templating, ensure
+    # the JSON has authoritative values. Defensive against template drift
+    # (someone editing the template registry.json by hand and breaking it).
     reg_path = target / REGISTRY_REL
     reg = json.loads(reg_path.read_text(encoding="utf-8"))
     reg["workspace_version"] = WORKSPACE_VERSION
@@ -203,7 +202,7 @@ def _cmd_remove(ns: argparse.Namespace) -> int:
     return errors.EXIT_OK
 
 
-def _cmd_list(ns: argparse.Namespace) -> int:
+def _cmd_list(_ns: argparse.Namespace) -> int:
     root = _find_workspace_root()
     if root is None:
         print("sn-setup workspace: not inside a workspace",
@@ -254,16 +253,15 @@ def _workspace_table(services: list[dict]) -> str:
 
 def _claude_ecosystem_table(services: list[dict]) -> str:
     """Markdown table for workspace-level CLAUDE.md."""
-    rows = ["| Service | Purpose | Repo | Profile |",
-            "|---|---|---|---|"]
+    rows = ["| Service | Repo | Profile |",
+            "|---|---|---|"]
     if not services:
-        rows.append("| _(none yet)_ | — | — | — |")
+        rows.append("| _(none yet)_ | — | — |")
     else:
         for s in services:
-            purpose = s.get("profile") or "—"
             repo = s.get("repo_url") or s["path"]
             rows.append(
-                f"| {s['slug']} | {purpose} | `{repo}` | {s.get('profile') or '—'} |"
+                f"| {s['slug']} | `{repo}` | {s.get('profile') or '—'} |"
             )
     return "\n".join(rows)
 
