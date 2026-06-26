@@ -252,3 +252,42 @@ def test_dispatch_via_sn_init_workspace_subtree(tmp_path: Path):
         os.chdir(old)
     assert rc == 0
     assert (tmp_path / "ws" / ".workspace" / "registry.json").is_file()
+
+
+def test_status_invokes_bash_script(tmp_path: Path, monkeypatch):
+    """T17: status delegates to scripts/status.sh, cwd=ws."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    calls: list[tuple[list[str], str]] = []
+    def fake_call(argv, cwd=None):
+        calls.append((argv, cwd))
+        return 0
+    monkeypatch.setattr("workspace_cli.subprocess.call", fake_call)
+    _run(ws, "status")
+    assert calls == [(["bash", str(ws / "scripts" / "status.sh")], str(ws))]
+
+
+def test_sync_invokes_bash_script(tmp_path: Path, monkeypatch):
+    """T18: sync delegates to scripts/sync.sh."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    calls: list[tuple[list[str], str]] = []
+    def fake_call(argv, cwd=None):
+        calls.append((argv, cwd))
+        return 0
+    monkeypatch.setattr("workspace_cli.subprocess.call", fake_call)
+    _run(ws, "sync")
+    assert calls == [(["bash", str(ws / "scripts" / "sync.sh")], str(ws))]
+
+
+def test_launch_invokes_bash_script(tmp_path: Path, monkeypatch):
+    """T19: launch delegates to scripts/launch.sh."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    calls: list[tuple[list[str], str]] = []
+    def fake_call(argv, cwd=None):
+        calls.append((argv, cwd))
+        return 0
+    monkeypatch.setattr("workspace_cli.subprocess.call", fake_call)
+    _run(ws, "launch")
+    assert calls == [(["bash", str(ws / "scripts" / "launch.sh")], str(ws))]

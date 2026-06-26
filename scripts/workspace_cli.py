@@ -283,8 +283,17 @@ def _regenerate_markers(path: Path, new_block: str) -> None:
 
 
 def _cmd_run_script(verb: str) -> int:
-    # Filled in Task 3.
-    raise NotImplementedError
+    root = _find_workspace_root()
+    if root is None:
+        print("sn-setup workspace: not inside a workspace",
+              file=sys.stderr)
+        return errors.EXIT_USAGE
+    script = root / "scripts" / f"{verb}.sh"
+    if not script.exists():
+        print(f"sn-setup workspace: missing {script}",
+              file=sys.stderr)
+        return errors.EXIT_INTERNAL
+    return subprocess.call(["bash", str(script)], cwd=str(root))
 
 
 def main(argv: list[str]) -> int:

@@ -13,15 +13,16 @@ if [[ ! -f "${REGISTRY}" ]]; then
 fi
 
 if command -v jq >/dev/null 2>&1; then
-  mapfile -t SVC_LINES < <(jq -r '.services[] | "\(.slug)\t\(.path)"' "${REGISTRY}")
+  SVC_RAW="$(jq -r '.services[] | "\(.slug)\t\(.path)"' "${REGISTRY}")"
 else
-  mapfile -t SVC_LINES < <(awk '
+  SVC_RAW="$(awk '
     /"slug":/ { gsub(/[",]/, "", $2); slug=$2 }
     /"path":/ { gsub(/[",]/, "", $2); print slug "\t" $2 }
-  ' "${REGISTRY}")
+  ' "${REGISTRY}")"
 fi
 
-for line in "${SVC_LINES[@]}"; do
+while IFS= read -r line; do
+  [[ -z "${line}" ]] && continue
   slug="${line%%	*}"
   rel_path="${line##*	}"
   abs_path="${WORKSPACE_ROOT}/${rel_path}"
@@ -40,4 +41,4 @@ for line in "${SVC_LINES[@]}"; do
   else
     echo "skip ${slug}: pull --ff-only failed (non-fast-forward?)" >&2
   fi
-done
+done <<< "${SVC_RAW}"

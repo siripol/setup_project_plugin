@@ -14,16 +14,17 @@ fi
 
 # Parse services array: prefer jq, fallback to awk.
 if command -v jq >/dev/null 2>&1; then
-  mapfile -t SVC_LINES < <(jq -r '.services[] | "\(.slug)\t\(.path)"' "${REGISTRY}")
+  SVC_RAW="$(jq -r '.services[] | "\(.slug)\t\(.path)"' "${REGISTRY}")"
 else
   # awk fallback: parse slug + path pairs from the services array.
-  mapfile -t SVC_LINES < <(awk '
+  SVC_RAW="$(awk '
     /"slug":/ { gsub(/[",]/, "", $2); slug=$2 }
     /"path":/ { gsub(/[",]/, "", $2); print slug "\t" $2 }
-  ' "${REGISTRY}")
+  ' "${REGISTRY}")"
 fi
 
-for line in "${SVC_LINES[@]}"; do
+while IFS= read -r line; do
+  [[ -z "${line}" ]] && continue
   slug="${line%%	*}"
   rel_path="${line##*	}"
   abs_path="${WORKSPACE_ROOT}/${rel_path}"
@@ -37,4 +38,4 @@ for line in "${SVC_LINES[@]}"; do
   ahead="${ahead_behind##*	}"
   dirty=$(git -C "${abs_path}" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   echo "slug=${slug} branch=${branch} ahead=${ahead} behind=${behind} dirty=${dirty}"
-done
+done <<< "${SVC_RAW}"
