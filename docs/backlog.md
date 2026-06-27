@@ -192,7 +192,7 @@ The biggest single architectural gap (B3.1 marketplace) feeds every later Tier-2
 | B2.2-FU-1 | Workspace upgrade command (`sn-setup workspace upgrade`) | 3 | Template format breaks back-compat |
 | B2.2-FU-2 | Workspace slash commands (`/sn-workspace-status`, etc.) | 3 | Slash-command UX becomes dominant |
 | B2.2-FU-3 | Parallel exec for `status` / `sync` | 3 | User reports >5s wall-clock with ≥10 services |
-| B2.2-FU-4 | Marketplace divergence warning in `workspace add` | 2 | B2.3 marketplace consumer ships (now unblocked) |
+| B2.2-FU-4 | Marketplace divergence warning in `workspace add` `[x]` | 2 | Shipped `feat/marketplace-divergence-warning` (REQ-WS-002) |
 | B2.2-FU-5 | `sn-setup workspace doctor` — registry / gitignore drift detector | 3 | Drift complaints surface |
 | B2.2-FU-6 | `workspace-coordinator` cross-repo refactor subagent | 3 | Real cross-repo refactor use case arrives |
 
