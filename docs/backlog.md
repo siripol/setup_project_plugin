@@ -91,12 +91,16 @@ Most current items derive from the **microservices template-family design doc** 
 - **New template subtree**: `skills/sn-setup/templates/workspace/`.
 - **Estimate**: 2 days (scaffold logic, bash scripts, registry JSON format).
 
-### B2.3 `[ ]` Internal plugin-marketplace consumer model (`--marketplace=<source>`)
-- **Why**: design §6.1 / §6.2 / §9.3 — Layer 1 requires `core-workflow` + `core-guardrails` to be **installed** from an internal marketplace, not template-baked. Without the consumer side wired, the platform layer can't exist later.
-- **Where**: new flag `--marketplace=<source>` in `scripts/sn_init.py`. When set: generate `.claude-plugin/marketplace.json` (consumer-side; references the org's marketplace source) + `.claude/settings.json` `installed_plugins` block listing the mandatory + chosen optional packs.
-- **New template subtree**: `skills/sn-setup/templates/marketplace-consumer/`.
-- **Estimate**: 2 days (scaffold logic + marketplace.json schema + docs).
-- **Note**: doesn't require the platform-marketplace repo to exist — consumer can reference a `source: "./"` placeholder until the platform lands.
+### B2.3 `[x]` Internal plugin-marketplace consumer model (`--marketplace=<source>`) — **shipped feat/marketplace-consumer** (REQ-MKT-001)
+- Flag `--marketplace=<source>` in `scripts/sn_init.py` accepts git URL or local path; org/repo shorthand rejected (platform-ambiguous).
+- New template subtree `skills/sn-setup/templates/marketplace-consumer/default/` ships `.claude-plugin/marketplace.json` (consumer manifest) + `claude/hooks/marketplace-bootstrap.sh` (SessionStart warn-then-self-deactivate) + `settings.patch.json` (documentation only — actual merge happens inline in `_inject_marketplace_into_settings`).
+- `installed_plugins` block in `.claude/settings.json` seeded with `core-workflow` + `core-guardrails` (mandatory) + per-profile opt-ins (`contracts-sync`, `bff-patterns` for bff) + `compliance-pack` when regulated policy planned.
+- Catalog itself (which plugins exist + semver pins) lives inside `core-workflow` (human doc) and `core-guardrails` (machine manifest + missing-plugin check hook). Both packs ship in **B3.1**; this PR is consumer wiring only.
+- Bootstrap hook self-deactivates once `.claude/plugins/core-guardrails/` exists on disk.
+- 12 new tests; baseline 297 → 309 passed + 1 skipped.
+- Vault: [[../obsidian_sharedknowledge/projects/setup_project_plugin/requirements/marketplace-consumer.md]] (REQ-MKT-001).
+- Carved follow-ups (Tier 2/3): `B2.3-FU-1` multiple-marketplace support, `B2.3-FU-2` plugin version pinning syntax (waits on B3.1+B3.2), `B2.3-FU-3` auto-install on first session (explicitly out of scope — bootstrap is warn-only).
+- Unblocks `B2.2-FU-4` (marketplace divergence warning in `workspace add`).
 
 ### B2.4 `[x]` Layer-4 governance docs — `ARCHITECTURE.md`, `REPO-STRATEGY.md`, `SECURITY.md`, `GOVERNANCE.md` — **shipped feat/layer4-governance-docs** (REQ-DOCS-002)
 - 4 docs land under `skills/sn-setup/templates/managed-agent-base/docs/`. Each ~120-180 lines real prose per design §3 / §4 / §7 / §9.2.
@@ -188,9 +192,19 @@ The biggest single architectural gap (B3.1 marketplace) feeds every later Tier-2
 | B2.2-FU-1 | Workspace upgrade command (`sn-setup workspace upgrade`) | 3 | Template format breaks back-compat |
 | B2.2-FU-2 | Workspace slash commands (`/sn-workspace-status`, etc.) | 3 | Slash-command UX becomes dominant |
 | B2.2-FU-3 | Parallel exec for `status` / `sync` | 3 | User reports >5s wall-clock with ≥10 services |
-| B2.2-FU-4 | Marketplace divergence warning in `workspace add` | 2 | B2.3 marketplace consumer ships |
+| B2.2-FU-4 | Marketplace divergence warning in `workspace add` | 2 | B2.3 marketplace consumer ships (now unblocked) |
 | B2.2-FU-5 | `sn-setup workspace doctor` — registry / gitignore drift detector | 3 | Drift complaints surface |
 | B2.2-FU-6 | `workspace-coordinator` cross-repo refactor subagent | 3 | Real cross-repo refactor use case arrives |
+
+---
+
+## B2.3 carved follow-ups
+
+| ID | Title | Tier | Trigger to revisit |
+|---|---|---|---|
+| B2.3-FU-1 | Multi-marketplace support (comma-separated `--marketplace=A,B`) | 3 | Real demand for vendor-shared marketplace alongside org-internal |
+| B2.3-FU-2 | Plugin version pinning syntax in `installed_plugins` entries | 2 | B3.1 catalog + B3.2 CI pin verification land |
+| B2.3-FU-3 | Auto-install on first session (replace warn-only hook) | 3 | Explicitly out — manual install is the design choice; reopen only if friction reports dominate |
 
 ---
 
