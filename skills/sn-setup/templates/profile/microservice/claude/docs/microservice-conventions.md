@@ -83,7 +83,7 @@ Distributed trace spans wrap each handler. Spans carry the request_id and propag
 
 ### Audit log
 
-The plugin's audit hook writes a JSONL line per Claude tool call. Service-side audit events (login, role change, regulated-data access) write a separate JSONL stream with field-named records, distinct from operational logs. The audit stream's retention follows the regulated-tier policy when applicable.
+Service-side audit events (login, role change, regulated-data access) write a dedicated JSONL stream with field-named records, distinct from operational logs and distinct from the Claude tool-call audit stream the plugin manages (see `docs/GOVERNANCE-SERVICE-LEVEL.md` for the latter). The audit stream's retention follows the regulated-tier policy when applicable.
 
 ## API versioning
 
@@ -97,7 +97,7 @@ Within a major version: add fields, do not remove or rename. Clients ignore unkn
 
 ### Deprecation
 
-Deprecated endpoints emit a `Deprecation` and `Sunset` header (per RFC 8594 / 9745) plus a structured log line per call. After the sunset date, the endpoint returns 410 Gone.
+Deprecated endpoints emit a `Deprecation` and `Sunset` header (per RFC 8594 for Sunset; the Deprecation header is the IETF httpapi-deprecation-header standard) plus a structured log line per call. After the sunset date, the endpoint returns 410 Gone.
 
 ## When to escalate to a major version bump
 

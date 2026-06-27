@@ -2,6 +2,9 @@
 name: microservice-reviewer
 description: Review PR diffs for this microservice against the microservice review checklist — API contract drift, error envelope consistency, observability tags, persistence patterns, regulated-data handling. Dispatch on PRs touching handlers, services, or persistence code.
 tools: [Read, Glob, Grep]
+can_modify: []
+can_delegate: []
+chokepoint_gate: false
 ---
 
 # Microservice reviewer — ${name}
