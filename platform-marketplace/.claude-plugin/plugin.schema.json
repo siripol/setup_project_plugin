@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/siripol/setup_project_plugin/platform-marketplace/plugin.schema.json",
+  "title": "Per-plugin manifest",
+  "description": "Source of truth for a single plugin. Lives at <plugin>/.claude-plugin/plugin.json. The marketplace catalog entry is validated against this manifest by scripts/validate_marketplace.py.",
+  "type": "object",
+  "required": ["name", "version", "type", "owners"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Plugin semver MAJOR.MINOR.PATCH."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["mandatory", "opt-in"]
+    },
+    "owners": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    },
+    "description": {"type": "string"},
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version_constraint"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "version_constraint": {
+            "type": "string",
+            "pattern": "^[~^]?\\d+(\\.\\d+)?(\\.\\d+)?$"
+          }
+        }
+      }
+    },
+    "min_consumer_version": {"type": "string"},
+    "min_template_version": {"type": "string"},
+    "claude_components": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hooks": {"type": "array", "items": {"type": "string"}},
+        "commands": {"type": "array", "items": {"type": "string"}},
+        "skills": {"type": "array", "items": {"type": "string"}},
+        "agents": {"type": "array", "items": {"type": "string"}},
+        "docs": {"type": "array", "items": {"type": "string"}},
+        "settings_patch": {"type": "string"}
+      }
+    },
+    "install_targets": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Informational: paths inside consumer .claude/ this plugin contributes to."
+    },
+    "deprecated": {"type": "boolean", "default": false},
+    "deprecation_message": {"type": "string"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"deprecated": {"const": true}}, "required": ["deprecated"]},
+      "then": {"required": ["deprecation_message"]}
+    }
+  ]
+}

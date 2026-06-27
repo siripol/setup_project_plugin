@@ -1,0 +1,12 @@
+{
+  "$schema": "./marketplace.schema.json",
+  "schema_version": "1.0",
+  "marketplace": {
+    "name": "sn-platform-marketplace",
+    "version": "0.1.0",
+    "owners": ["@siripol/platform"],
+    "description": "Internal-only plugin marketplace for setup_project_plugin scaffolds. Producer side of Layer 1 (REQ-MKT-002).",
+    "source_repo": "https://github.com/siripol/setup_project_plugin.git"
+  },
+  "plugins": []
+}
