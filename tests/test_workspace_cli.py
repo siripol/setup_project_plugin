@@ -289,3 +289,185 @@ def test_launch_invokes_bash_script(tmp_path: Path, monkeypatch):
     monkeypatch.setattr("workspace_cli.subprocess.call", fake_call)
     _run(ws, "launch")
     assert calls == [(["bash", str(ws / "scripts" / "launch.sh")], str(ws))]
+
+
+# ---------------------------------------------------------------------------
+# B2.2-FU-4 — marketplace divergence warning
+
+
+def _wire_marketplace(repo: Path, *, source: str | None = "./",
+                      plugins: list[str] | None = None) -> None:
+    """Drop minimal .claude/settings.json + .claude-plugin/marketplace.json
+    into a fake repo so the divergence check has something to compare.
+    """
+    if plugins is not None:
+        claude_dir = repo / ".claude"
+        claude_dir.mkdir(exist_ok=True)
+        settings = {"installed_plugins": [{"name": n} for n in plugins]}
+        (claude_dir / "settings.json").write_text(json.dumps(settings))
+    if source is not None:
+        plugin_dir = repo / ".claude-plugin"
+        plugin_dir.mkdir(exist_ok=True)
+        manifest = {"marketplace": {"name": "org-internal", "source": source}}
+        (plugin_dir / "marketplace.json").write_text(json.dumps(manifest))
+
+
+def test_b22fu4_no_warning_when_identical(tmp_path: Path, capsys):
+    """B2.2-FU-4 — identical marketplace state across members → silent add."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    _wire_marketplace(a, source="./", plugins=["core-workflow", "core-guardrails"])
+    _wire_marketplace(b, source="./", plugins=["core-workflow", "core-guardrails"])
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()  # clear
+    rc = _run(ws, "add", str(b))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "marketplace source mismatch" not in err
+    assert "missing mandatory" not in err
+    assert "installed_plugins set differs" not in err
+
+
+def test_b22fu4_no_warning_first_member(tmp_path: Path, capsys):
+    """B2.2-FU-4 — first member added to empty workspace → silent (nothing to compare)."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    _wire_marketplace(a, source="./", plugins=["core-workflow", "core-guardrails"])
+
+    rc = _run(ws, "add", str(a))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠" not in err
+
+
+def test_b22fu4_source_mismatch_critical(tmp_path: Path, capsys):
+    """B2.2-FU-4 — different marketplace.source → 🔴 critical, add still succeeds."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    _wire_marketplace(a, source="https://github.com/orgA/mkt.git",
+                      plugins=["core-workflow", "core-guardrails"])
+    _wire_marketplace(b, source="https://github.com/orgB/mkt.git",
+                      plugins=["core-workflow", "core-guardrails"])
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(b))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠ critical: marketplace source mismatch" in err
+    assert "orgA" in err and "orgB" in err
+    assert "svc-a" in err
+
+
+def test_b22fu4_missing_mandatory_critical(tmp_path: Path, capsys):
+    """B2.2-FU-4 — new member missing core-guardrails → 🔴 critical."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    _wire_marketplace(a, source="./", plugins=["core-workflow", "core-guardrails"])
+    _wire_marketplace(b, source="./", plugins=["core-workflow"])  # missing core-guardrails
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(b))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠ critical: new member missing mandatory plugin 'core-guardrails'" in err
+    assert "svc-a" in err
+
+
+def test_b22fu4_plugin_set_diff_warn(tmp_path: Path, capsys):
+    """B2.2-FU-4 — installed_plugins set differs (extra opt-in) → 🟡 warn."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="bff", lang="go")
+    _wire_marketplace(a, source="./", plugins=["core-workflow", "core-guardrails"])
+    _wire_marketplace(b, source="./",
+                      plugins=["core-workflow", "core-guardrails",
+                               "contracts-sync", "bff-patterns"])
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(b))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠ warn: installed_plugins set differs" in err
+    assert "new-only=['bff-patterns', 'contracts-sync']" in err
+    # Mandatory plugins must not appear in the yellow diff (covered in red path).
+    assert "core-workflow" not in err.split("⚠ warn:")[-1]
+    assert "core-guardrails" not in err.split("⚠ warn:")[-1]
+
+
+def test_b22fu4_legacy_member_silent(tmp_path: Path, capsys):
+    """B2.2-FU-4 — new member without marketplace state (pre-B2.3 scaffold) → silent."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    _wire_marketplace(a, source="./", plugins=["core-workflow", "core-guardrails"])
+    # b has no .claude/settings.json, no .claude-plugin/marketplace.json.
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(b))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠" not in err
+
+
+def test_b22fu4_legacy_existing_silent_for_that_member(tmp_path: Path, capsys):
+    """B2.2-FU-4 — existing member without marketplace state is skipped in
+    pairwise compare; other comparable members still drive findings.
+    """
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    c = _fake_git_repo(tmp_path, "svc-c", profile="microservice", lang="go")
+    # a is legacy (no marketplace state); b carries it; c carries a divergent source.
+    _wire_marketplace(b, source="https://github.com/orgA/mkt.git",
+                      plugins=["core-workflow", "core-guardrails"])
+    _wire_marketplace(c, source="https://github.com/orgB/mkt.git",
+                      plugins=["core-workflow", "core-guardrails"])
+
+    _run(ws, "add", str(a))
+    _run(ws, "add", str(b))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(c))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠ critical: marketplace source mismatch" in err
+    assert "svc-b" in err
+    assert "svc-a" not in err  # legacy member silently skipped
+
+
+def test_b22fu4_returns_zero_on_critical_findings(tmp_path: Path, capsys):
+    """B2.2-FU-4 — critical findings do NOT block add (warn-only contract)."""
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    _wire_marketplace(a, source="https://github.com/orgA/mkt.git",
+                      plugins=["core-workflow", "core-guardrails"])
+    _wire_marketplace(b, source="https://github.com/orgB/mkt.git",
+                      plugins=["core-workflow"])  # also missing mandatory
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(b))
+    assert rc == 0  # warn-only; register succeeds regardless
+
+    # Both findings present + registry advanced.
+    err = capsys.readouterr().err
+    assert "marketplace source mismatch" in err
+    assert "missing mandatory plugin 'core-guardrails'" in err
+    reg = json.loads((ws / ".workspace" / "registry.json").read_text())
+    assert {s["slug"] for s in reg["services"]} == {"svc-a", "svc-b"}
