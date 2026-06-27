@@ -83,6 +83,20 @@ SUBAGENT_SHORTCUTS = {
     "planner": "plan",
 }
 
+# B2.3: Internal plugin-marketplace consumer model. When --marketplace=<source>
+# is set, the scaffold seeds `.claude/settings.json::installed_plugins` with
+# the two mandatory plugins (per design §6.2) plus profile-specific opt-ins
+# (per design §6.3 + §6.6). The catalog itself (which plugins exist + their
+# semver pins) lives inside the `core-workflow` + `core-guardrails` plugins
+# themselves, shipped by B3.1; this consumer wiring only records pointers.
+MARKETPLACE_MANDATORY_PLUGINS: tuple[str, ...] = ("core-workflow", "core-guardrails")
+MARKETPLACE_PROFILE_PLUGINS: dict[str, tuple[str, ...]] = {
+    "microservice": (),
+    "bff": ("contracts-sync", "bff-patterns"),
+    "frontend": (),
+}
+MARKETPLACE_REGULATED_PLUGINS: tuple[str, ...] = ("compliance-pack",)
+
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="sn-setup", description="Scaffold a Claude-powered project.")
@@ -120,6 +134,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Pair-scaffold a sibling workspace dir aggregating this project.")
     p.add_argument("--workspace-name", default=None, dest="workspace_name",
                    help="Workspace dir name (default: <project>-workspace).")
+    p.add_argument("--marketplace", default=None, dest="marketplace_source",
+                   help="Internal plugin-marketplace source (git URL like "
+                        "https://github.com/org/marketplace.git OR a local path "
+                        "like './'). When set, emits .claude-plugin/marketplace.json, "
+                        "an installed_plugins block in .claude/settings.json, and a "
+                        "self-deactivating SessionStart bootstrap warning hook. "
+                        "org/repo shorthand is rejected (platform-ambiguous).")
     p.add_argument("--workflow", choices=WORKFLOW_CHOICES, default="spec-loop")
     p.add_argument("--subagents", default=",".join(DEFAULT_SUBAGENTS),
                    help="Comma-list, 'all', or 'none'")
@@ -266,6 +287,10 @@ def run(args: argparse.Namespace) -> int:
         # state/logging consistency but skip the overlay later.
         args.framework = DEFAULT_FRAMEWORK
 
+    # B2.3: Validate --marketplace=<source> shape before any I/O.
+    if getattr(args, "marketplace_source", None):
+        args.marketplace_source = _validate_marketplace_source(args.marketplace_source)
+
     # B1.7b: regulated-data policies auto-add security-auditor to the default
     # subagent set, so the scaffold ships .claude/agents/security-auditor.md.
     # Must run BEFORE _render_claude builds the scaffold tree. Skipped when
@@ -313,6 +338,15 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
     args.devcontainer = persisted.get("devcontainer", False)
     args.license_kind = persisted.get("license", args.license_kind)
     args.no_audit_log = not persisted.get("audit_log", True)
+    # B2.3: marketplace_source persists across upgrades. Without this,
+    # `--upgrade` on a scaffold originally built with --marketplace=<url>
+    # silently drops the marketplace consumer files (no marketplace.json,
+    # no installed_plugins, no bootstrap hook entry). Honor explicit
+    # --marketplace on the upgrade invocation, else restore from state.
+    args.marketplace_source = (
+        getattr(args, "marketplace_source", None)
+        or persisted.get("marketplace_source")
+    )
     # Profile + framework: older state files predate these keys; default to
     # microservice/next so re-upgrades on legacy scaffolds keep working.
     args.profile = _resolve_profile(state.get("profile") or persisted.get("profile") or "microservice")
@@ -482,6 +516,8 @@ def _plan_new_files(args: argparse.Namespace, target: Path) -> list[tuple[str, s
     files.extend(_render_profile(args, project_name))
     if args.profile == "frontend":
         files.extend(_render_framework(args, project_name))
+    if getattr(args, "marketplace_source", None):
+        files.extend(_render_marketplace(args, project_name))
     files.extend(_render_claude(args, project_name))
 
     if args.license_kind != "none":
@@ -497,7 +533,15 @@ def _plan_new_files(args: argparse.Namespace, target: Path) -> list[tuple[str, s
 
 
 def _plan_add_files(args: argparse.Namespace, target: Path) -> list[tuple[str, str]]:
-    """Return list of (relative_path, content) tuples for add mode (.claude/ only)."""
+    """Return list of (relative_path, content) tuples for add mode (.claude/ only).
+
+    B2.3 note: add mode deliberately does NOT call _render_marketplace.
+    Add mode's contract is "drop a .claude/ overlay into an existing repo
+    without touching anything else"; marketplace wiring is a new-scaffold
+    concern (it owns top-level .claude-plugin/ + settings.json shape).
+    Add mode users who want the marketplace block can run --upgrade instead,
+    which preserves the persisted marketplace_source and re-renders.
+    """
     project_name = target.name
     return _render_claude(args, project_name)
 
@@ -583,6 +627,111 @@ def _render_profile(args: argparse.Namespace, project_name: str) -> list[tuple[s
     return files
 
 
+def _validate_marketplace_source(source: str) -> str:
+    """B2.3: Accept git URL (http/https/git@) or local path (./, /, ~/).
+    Reject org/repo shorthand (platform-ambiguous: github vs gitlab vs bitbucket).
+    Returns the source string unchanged on success.
+    """
+    if not source or not source.strip():
+        raise errors.UsageError("--marketplace=<source> requires a non-empty value")
+    s = source.strip()
+    if s.startswith(("http://", "https://", "git@", "ssh://", "git+")):
+        return s  # git URL form
+    if s.startswith(("./", "../", "/", "~")) or s in (".", ".."):
+        return s  # local path form
+    raise errors.UsageError(
+        f"--marketplace={source!r}: org/repo shorthand is rejected (platform-ambiguous). "
+        "Use a git URL (https://github.com/org/repo.git) or local path (./)."
+    )
+
+
+def _resolve_marketplace_plugins(args: argparse.Namespace) -> list[str]:
+    """B2.3: Return the ordered list of plugins to seed into installed_plugins.
+    Mandatory first, then profile-specific, then compliance-pack if any
+    regulated policy is planned. Deduplicates while preserving order.
+    """
+    plugins: list[str] = list(MARKETPLACE_MANDATORY_PLUGINS)
+    for p in MARKETPLACE_PROFILE_PLUGINS.get(args.profile, ()):
+        if p not in plugins:
+            plugins.append(p)
+    if REGULATED_POLICY_SLUGS.intersection(_resolve_planned_policy_set(args)):
+        for p in MARKETPLACE_REGULATED_PLUGINS:
+            if p not in plugins:
+                plugins.append(p)
+    return plugins
+
+
+def _render_marketplace(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
+    """B2.3: Render the marketplace-consumer template subtree. Only invoked
+    when args.marketplace_source is set. Mirrors `_render_profile` shape.
+
+    The default subtree at templates/marketplace-consumer/default/ ships:
+    - .claude-plugin/marketplace.json (consumer manifest)
+    - claude/hooks/marketplace-bootstrap.sh (SessionStart warn-then-self-deactivate)
+    The settings.patch.json LIVES in the same subtree but is NOT walked here;
+    it is merged directly into the rendered settings.json inside _render_claude
+    via _inject_marketplace_into_settings.
+    """
+    source = args.marketplace_source
+    mkt_dir = TEMPLATES / "marketplace-consumer" / "default"
+    if not mkt_dir.exists():
+        raise errors.SnInitError(
+            "missing template: marketplace-consumer/default/ "
+            "(expected when --marketplace is set)"
+        )
+    files: list[tuple[str, str]] = []
+    ctx = {
+        "name": project_name,
+        "lang": args.lang,
+        "profile": args.profile,
+        "framework": args.framework,
+        "model": "claude-opus-4-8",
+        "marketplace_source": source,
+    }
+    for path in sorted(mkt_dir.rglob("*")):
+        if path.is_dir():
+            continue
+        rel = path.relative_to(mkt_dir)
+        rel_str = str(rel)
+        # The settings patch is merged inline by _render_claude, not emitted
+        # as a file in the scaffold output.
+        if rel_str == "settings.patch.json":
+            continue
+        # Same `claude/` → `.claude/` rename used by _render_base /
+        # _render_profile (templates use no-dot prefix because `.claude/`
+        # is in this repo's .gitignore).
+        if rel_str.startswith("claude/"):
+            rel_str = ".claude/" + rel_str[len("claude/"):]
+        content = path.read_text(encoding="utf-8")
+        content = _substitute(content, ctx)
+        files.append((rel_str, content))
+    return files
+
+
+def _inject_marketplace_into_settings(data: dict, args: argparse.Namespace) -> dict:
+    """B2.3: Mutate settings dict to add installed_plugins block + SessionStart
+    bootstrap hook entry. Idempotent. Returns the (mutated) dict.
+    """
+    plugins = _resolve_marketplace_plugins(args)
+    data["installed_plugins"] = [{"name": p} for p in plugins]
+
+    hooks = data.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        hooks = {}
+        data["hooks"] = hooks
+    session_start = hooks.setdefault("SessionStart", [])
+    if not isinstance(session_start, list):
+        session_start = []
+        hooks["SessionStart"] = session_start
+    bootstrap_cmd = ".claude/hooks/marketplace-bootstrap.sh"
+    if not any(
+        isinstance(e, dict) and e.get("command") == bootstrap_cmd
+        for e in session_start
+    ):
+        session_start.append({"command": bootstrap_cmd})
+    return data
+
+
 def _render_framework(args: argparse.Namespace, project_name: str) -> list[tuple[str, str]]:
     framework_dir = TEMPLATES / "framework" / args.framework
     if not framework_dir.exists():
@@ -666,17 +815,29 @@ def _render_claude(args: argparse.Namespace, project_name: str) -> list[tuple[st
         rel = Path(".claude") / rel_native
         rel_str = str(rel)
 
-        # Skip audit hook artifacts when the flag opts out.
-        if args.no_audit_log and (
-            rel_str.startswith(".claude/hooks/audit.")
-            or rel_str == ".claude/settings.json"
-        ):
-            if rel_str == ".claude/settings.json":
-                content = _read_template("claude/settings.json")
-                content = _strip_audit_hooks(content)
-                files.append((rel_str, content))
+        # Drop audit hook scripts when the flag opts out (settings.json is
+        # mutated below, not skipped here).
+        if args.no_audit_log and rel_str.startswith(".claude/hooks/audit."):
+            continue
+
+        # Settings.json takes the mutation path: strip audit hooks if opted
+        # out, inject marketplace installed_plugins + SessionStart bootstrap
+        # entry when --marketplace is set. Both transforms are JSON-level so
+        # they compose.
+        if rel_str == ".claude/settings.json":
+            raw = path.read_text(encoding="utf-8")
+            try:
+                data = json.loads(raw)
+            except Exception:
+                # Malformed template — preserve as-is so the failure is loud
+                # downstream rather than masked by a partial mutation.
+                files.append((rel_str, raw))
                 continue
-            # drop audit.{sh,py,ts}
+            if args.no_audit_log:
+                data["hooks"] = {}
+            if getattr(args, "marketplace_source", None):
+                _inject_marketplace_into_settings(data, args)
+            files.append((rel_str, json.dumps(data, indent=2) + "\n"))
             continue
 
         content = path.read_text(encoding="utf-8")
@@ -799,6 +960,7 @@ def _write_state(target: Path, args: argparse.Namespace, mode: str, files: list[
             "audit_log": not args.no_audit_log,
             "profile": args.profile,
             "framework": args.framework if args.profile == "frontend" else None,
+            "marketplace_source": getattr(args, "marketplace_source", None),
         },
         "files_written": files,
         "created_at": datetime.now(timezone.utc).isoformat(),

@@ -1,0 +1,8 @@
+{
+  "_comment": "Consumer-side marketplace manifest seeded by sn-setup --marketplace=<source>. The canonical schema for this file is published by the platform marketplace repo (B3.1); this scaffold ships a minimal envelope that records the source pointer so /plugin install knows where to look. The catalog itself (which plugins exist, which are mandatory, semver pins) lives inside the core-workflow and core-guardrails plugins shipped from that same source.",
+  "marketplace": {
+    "name": "org-internal",
+    "source": "${marketplace_source}",
+    "description": "Internal plugin marketplace for ${name}."
+  }
+}
