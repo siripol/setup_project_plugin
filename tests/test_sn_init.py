@@ -2470,3 +2470,145 @@ def test_b2_1c_microservice_profile_ships_neither(tmp_path: Path):
     agents = tmp_path / "demo" / ".claude" / "agents"
     assert not (agents / "bff-integration-reviewer.md").exists()
     assert not (agents / "a11y-auditor.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# B2.3 — internal plugin-marketplace consumer model (--marketplace=<source>)
+
+
+def test_b2_3_marketplace_flag_emits_consumer_files(tmp_path: Path):
+    """B2.3 — `--marketplace=./` writes the consumer manifest + bootstrap hook."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./")
+    project = tmp_path / "demo"
+    manifest = project / ".claude-plugin" / "marketplace.json"
+    hook = project / ".claude" / "hooks" / "marketplace-bootstrap.sh"
+    assert manifest.exists(), "consumer marketplace.json missing"
+    assert hook.exists(), "bootstrap hook missing"
+    # Hook must be executable (sn_init._should_be_executable covers .claude/hooks/).
+    assert os.access(hook, os.X_OK), "bootstrap hook not executable"
+    data = json.loads(manifest.read_text())
+    assert data["marketplace"]["source"] == "./"
+
+
+def test_b2_3_marketplace_writes_installed_plugins_block(tmp_path: Path):
+    """B2.3 — `--marketplace=./` injects mandatory plugins into settings.json."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./")
+    settings = json.loads(
+        (tmp_path / "demo" / ".claude" / "settings.json").read_text()
+    )
+    plugins = settings.get("installed_plugins")
+    assert isinstance(plugins, list)
+    names = [p["name"] for p in plugins]
+    assert "core-workflow" in names
+    assert "core-guardrails" in names
+
+
+def test_b2_3_marketplace_registers_session_start_hook(tmp_path: Path):
+    """B2.3 — bootstrap hook is registered under SessionStart alongside audit."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./")
+    settings = json.loads(
+        (tmp_path / "demo" / ".claude" / "settings.json").read_text()
+    )
+    session_cmds = [e.get("command") for e in settings["hooks"]["SessionStart"]]
+    assert ".claude/hooks/marketplace-bootstrap.sh" in session_cmds
+    # Audit hook must remain registered too (composes, does not replace).
+    assert ".claude/hooks/audit.sh" in session_cmds
+
+
+def test_b2_3_marketplace_url_form_accepted(tmp_path: Path):
+    """B2.3 — git URL form is passed through verbatim."""
+    url = "https://github.com/myorg/marketplace.git"
+    _run(tmp_path, "demo", "--no-git", f"--marketplace={url}")
+    data = json.loads(
+        (tmp_path / "demo" / ".claude-plugin" / "marketplace.json").read_text()
+    )
+    assert data["marketplace"]["source"] == url
+
+
+def test_b2_3_marketplace_ssh_url_form_accepted(tmp_path: Path):
+    """B2.3 — git SSH form (git@) is accepted."""
+    url = "git@github.com:myorg/marketplace.git"
+    _run(tmp_path, "demo", "--no-git", f"--marketplace={url}")
+    data = json.loads(
+        (tmp_path / "demo" / ".claude-plugin" / "marketplace.json").read_text()
+    )
+    assert data["marketplace"]["source"] == url
+
+
+def test_b2_3_marketplace_org_repo_shorthand_rejected(tmp_path: Path):
+    """B2.3 — org/repo shorthand is rejected w/ a clear usage error."""
+    rc = _run(tmp_path, "demo", "--no-git", "--marketplace=myorg/marketplace")
+    assert rc == errors.EXIT_USAGE
+
+
+def test_b2_3_marketplace_omitted_leaves_no_block(tmp_path: Path):
+    """B2.3 — when `--marketplace` is omitted, scaffold is unchanged."""
+    _run(tmp_path, "demo", "--no-git")
+    project = tmp_path / "demo"
+    settings = json.loads((project / ".claude" / "settings.json").read_text())
+    assert "installed_plugins" not in settings
+    session_cmds = [e.get("command") for e in settings["hooks"]["SessionStart"]]
+    assert ".claude/hooks/marketplace-bootstrap.sh" not in session_cmds
+    assert not (project / ".claude-plugin").exists()
+    assert not (project / ".claude" / "hooks" / "marketplace-bootstrap.sh").exists()
+
+
+def test_b2_3_marketplace_bff_profile_adds_contracts_and_bff_patterns(tmp_path: Path):
+    """B2.3 — bff profile seeds contracts-sync + bff-patterns alongside mandatory."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./", "--profile=bff")
+    settings = json.loads(
+        (tmp_path / "demo" / ".claude" / "settings.json").read_text()
+    )
+    names = [p["name"] for p in settings["installed_plugins"]]
+    assert "core-workflow" in names
+    assert "core-guardrails" in names
+    assert "contracts-sync" in names
+    assert "bff-patterns" in names
+
+
+def test_b2_3_marketplace_regulated_adds_compliance_pack(tmp_path: Path):
+    """B2.3 — regulated policy in the planned set adds compliance-pack."""
+    _run(
+        tmp_path, "demo", "--no-git",
+        "--marketplace=./",
+        "--policies=memory-regulated,repository-ecosystem",
+    )
+    settings = json.loads(
+        (tmp_path / "demo" / ".claude" / "settings.json").read_text()
+    )
+    names = [p["name"] for p in settings["installed_plugins"]]
+    assert "compliance-pack" in names
+
+
+def test_b2_3_marketplace_state_records_source(tmp_path: Path):
+    """B2.3 — .sn-init-state.json records the marketplace source for traceability."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./")
+    state = json.loads((tmp_path / "demo" / ".sn-init-state.json").read_text())
+    assert state["flags"]["marketplace_source"] == "./"
+
+
+def test_b2_3_marketplace_bootstrap_hook_self_deactivates(tmp_path: Path):
+    """B2.3 — bootstrap hook contains the self-deactivation guard for core-guardrails."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./")
+    hook = (tmp_path / "demo" / ".claude" / "hooks" / "marketplace-bootstrap.sh").read_text()
+    assert 'if [ -d ".claude/plugins/core-guardrails" ]; then' in hook
+    assert "exit 0" in hook
+
+
+def test_b2_3_marketplace_composes_with_no_audit_log(tmp_path: Path):
+    """B2.3 — `--no-audit-log` + `--marketplace` both transforms apply; bootstrap
+    hook survives the audit-strip path."""
+    _run(tmp_path, "demo", "--no-git", "--marketplace=./", "--no-audit-log")
+    settings = json.loads(
+        (tmp_path / "demo" / ".claude" / "settings.json").read_text()
+    )
+    assert "installed_plugins" in settings
+    session_cmds = [e.get("command") for e in settings["hooks"].get("SessionStart", [])]
+    assert ".claude/hooks/marketplace-bootstrap.sh" in session_cmds
+    # Audit hook must NOT be present in any event (--no-audit-log).
+    all_cmds = [
+        e.get("command", "")
+        for evs in settings["hooks"].values()
+        for e in evs
+    ]
+    assert not any("audit.sh" in c for c in all_cmds)
