@@ -48,6 +48,135 @@ def _atomic_write_json(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
+# B2.2-FU-4: marketplace divergence helpers. Compare a new member service's
+# marketplace config against the already-registered members and surface
+# stderr warnings. Warn-only; `workspace add` always succeeds regardless.
+
+# Mandatory plugin names per design §6.2 — duplicated here (not imported from
+# sn_init) to keep workspace_cli a flat dispatcher without a sn_init dep.
+MARKETPLACE_MANDATORY_NAMES: frozenset[str] = frozenset({"core-workflow", "core-guardrails"})
+
+
+def _collect_marketplace_state(service_path: Path) -> dict:
+    """Read marketplace state for a single service path.
+
+    Returns:
+        {
+          "slug": str,
+          "source": str | None,           # marketplace.source from .claude-plugin/marketplace.json
+          "plugins": set[str] | None,     # installed_plugins names from .claude/settings.json
+          "has_state": bool,              # True iff at least one of the two files was readable
+        }
+    Missing files / parse errors → null fields, has_state=False (silent skip
+    during pairwise compare so legacy / pre-B2.3 members don't generate noise).
+    """
+    state: dict = {
+        "slug": service_path.name,
+        "source": None,
+        "plugins": None,
+        "has_state": False,
+    }
+    settings_path = service_path / ".claude" / "settings.json"
+    if settings_path.exists():
+        try:
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+            plugins_raw = settings.get("installed_plugins")
+            if isinstance(plugins_raw, list):
+                state["plugins"] = {
+                    p["name"] for p in plugins_raw
+                    if isinstance(p, dict) and isinstance(p.get("name"), str)
+                }
+                state["has_state"] = True
+        except (json.JSONDecodeError, OSError):
+            pass
+    manifest_path = service_path / ".claude-plugin" / "marketplace.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            mkt = manifest.get("marketplace")
+            if isinstance(mkt, dict):
+                source = mkt.get("source")
+                if isinstance(source, str) and source.strip():
+                    state["source"] = source
+                    state["has_state"] = True
+        except (json.JSONDecodeError, OSError):
+            pass
+    return state
+
+
+def _check_marketplace_divergence(new: dict, existing: list[dict]) -> list[str]:
+    """Compare new member state vs each existing member state.
+
+    Returns a list of pre-formatted stderr-ready lines (severity-tagged) to
+    print. Empty list → no divergence. The caller decides whether to print
+    them; `_cmd_add` does, always to stderr, always non-blocking.
+
+    Severity tags:
+        🔴 critical  — marketplace source mismatch, missing mandatory plugin
+        🟡 warn      — installed_plugins name-set difference (informational)
+    """
+    findings: list[str] = []
+
+    # Only compare against members that have actually wired marketplace state.
+    # Legacy members predate B2.3 and don't carry the files.
+    comparable = [e for e in existing if e["has_state"]]
+
+    # Red: source mismatch. Report one line per existing member with a
+    # different source; deduplicate by source value so we don't spam if
+    # five members share the same different source.
+    if new["source"] is not None:
+        mismatches: dict[str, list[str]] = {}
+        for e in comparable:
+            if e["source"] is not None and e["source"] != new["source"]:
+                mismatches.setdefault(e["source"], []).append(e["slug"])
+        for other_src, slugs in sorted(mismatches.items()):
+            findings.append(
+                f"sn-setup workspace: ⚠ critical: marketplace source mismatch — "
+                f"new member uses {new['source']!r}; existing member(s) "
+                f"{sorted(slugs)!r} use {other_src!r}."
+            )
+
+    # Red: missing mandatory. Only fires when at least one existing comparable
+    # member ships the mandatory plugin AND the new member doesn't. Silent if
+    # everyone is missing it (treats the workspace as collectively pre-B2.3).
+    if new["plugins"] is not None:
+        for mandatory in sorted(MARKETPLACE_MANDATORY_NAMES):
+            if mandatory in new["plugins"]:
+                continue
+            others_with = [e["slug"] for e in comparable
+                           if e["plugins"] is not None and mandatory in e["plugins"]]
+            if others_with:
+                findings.append(
+                    f"sn-setup workspace: ⚠ critical: new member missing mandatory "
+                    f"plugin {mandatory!r} (existing member(s) {sorted(others_with)!r} ship it)."
+                )
+
+    # Yellow: name-set difference vs the union of comparable members'
+    # installed_plugins, with mandatory plugins already covered above
+    # excluded so we don't double-count.
+    if new["plugins"] is not None and comparable:
+        union: set[str] = set()
+        for e in comparable:
+            if e["plugins"] is not None:
+                union |= e["plugins"]
+        if union:
+            covered_mandatory = MARKETPLACE_MANDATORY_NAMES
+            extra_in_new = (new["plugins"] - union) - covered_mandatory
+            missing_in_new = (union - new["plugins"]) - covered_mandatory
+            diff_bits: list[str] = []
+            if extra_in_new:
+                diff_bits.append(f"new-only={sorted(extra_in_new)}")
+            if missing_in_new:
+                diff_bits.append(f"existing-only={sorted(missing_in_new)}")
+            if diff_bits:
+                findings.append(
+                    f"sn-setup workspace: ⚠ warn: installed_plugins set "
+                    f"differs from existing members ({', '.join(diff_bits)})."
+                )
+
+    return findings
+
+
 def _cmd_init(ns: argparse.Namespace) -> int:
     target = Path.cwd() / ns.name
     if target.exists() and any(target.iterdir()):
@@ -152,6 +281,19 @@ def _cmd_add(ns: argparse.Namespace) -> int:
         pass
 
     rel = os.path.relpath(service_path, start=root)
+
+    # B2.2-FU-4: marketplace divergence warning. Compare the new member's
+    # marketplace state against already-registered members BEFORE appending
+    # to the registry (so the warnings reference the pre-add member set).
+    # Warn-only — `add` always succeeds regardless of findings.
+    new_state = _collect_marketplace_state(service_path)
+    existing_states = [
+        _collect_marketplace_state(root / s["path"])
+        for s in reg["services"]
+    ]
+    for line in _check_marketplace_divergence(new_state, existing_states):
+        print(line, file=sys.stderr)
+
     entry = {
         "slug": slug,
         "path": rel,
