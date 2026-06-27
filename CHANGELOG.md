@@ -8,6 +8,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Workspace layer (B2.2)** — virtual-monorepo aggregator for polyrepo
+  services. New `sn-setup workspace {init,add,remove,list,status,sync,launch}`
+  sub-tree plus `--workspace` pair flag on `sn-setup new` / `demo`. Workspace
+  dir aggregates registered services via `.workspace/registry.json` with
+  `WORKSPACE.md` / `CLAUDE.md` / `MIGRATION.md`. Adoption is reversible
+  (`rm -rf <workspace-dir>/`).
+
 - **Per-profile subagents** (B2.1c, REQ-PROF-002). BFF and frontend profiles now ship profile-specific reviewer subagents:
   - `--profile=bff` → `.claude/agents/bff-integration-reviewer.md` (downstream contract drift, error-envelope shape, retry/timeout config, partial-response handling, authn/authz boundary).
   - `--profile=frontend` → `.claude/agents/a11y-auditor.md` (WCAG 2.2 AA: images, focus management, semantic HTML + ARIA, forms, color/motion/contrast).
