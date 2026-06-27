@@ -404,11 +404,15 @@ def test_subagents_all_ships_optional(tmp_path: Path):
 
 
 def test_subagents_none_drops_all(tmp_path: Path):
-    # --subagents=none + --workflow=none → only README.md remains.
+    # --subagents=none + --workflow=none → only README.md + profile-shipped
+    # reviewer agents remain. Profile-specific subagents (B2.1c +
+    # B2.4b) always ship regardless of --subagents=; the flag only
+    # gates the generic + workflow subagent set.
     _run(tmp_path, "demo", "--no-git", "--subagents=none", "--workflow=none")
     agents = tmp_path / "demo" / ".claude" / "agents"
     md_files = list(agents.glob("*.md"))
-    assert all(p.name == "README.md" for p in md_files), [p.name for p in md_files]
+    allowed = {"README.md", "microservice-reviewer.md"}
+    assert all(p.name in allowed for p in md_files), [p.name for p in md_files]
 
 
 def test_subagents_unknown_rejected(tmp_path: Path):
