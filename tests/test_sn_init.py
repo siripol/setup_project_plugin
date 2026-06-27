@@ -124,6 +124,16 @@ def _expected_top_level(name: str) -> list[str]:
         "docs/REPO-STRATEGY.md",
         "docs/GOVERNANCE.md",
         "docs/SECURITY.md",
+        # B2.4b profile-overlay-fill Group A (universal foundation)
+        "claude-security-guidance.md",
+        ".claude/docs/README.md",
+        ".claude/skills/README.md",
+        ".claude/agents/README.md",
+        # B2.4b profile-overlay-fill Group B (microservice profile, default)
+        ".claude/docs/microservice-conventions.md",
+        ".claude/skills/example/SKILL.md",
+        ".claude/skills/example/HOWTO.md",
+        ".claude/agents/microservice-reviewer.md",
         # lang go overlay
         "go.mod",
         "src/agent.go",
@@ -404,11 +414,15 @@ def test_subagents_all_ships_optional(tmp_path: Path):
 
 
 def test_subagents_none_drops_all(tmp_path: Path):
-    # --subagents=none + --workflow=none → only README.md remains.
+    # --subagents=none + --workflow=none → only README.md + profile-shipped
+    # reviewer agents remain. Profile-specific subagents (B2.1c +
+    # B2.4b) always ship regardless of --subagents=; the flag only
+    # gates the generic + workflow subagent set.
     _run(tmp_path, "demo", "--no-git", "--subagents=none", "--workflow=none")
     agents = tmp_path / "demo" / ".claude" / "agents"
     md_files = list(agents.glob("*.md"))
-    assert all(p.name == "README.md" for p in md_files), [p.name for p in md_files]
+    allowed = {"README.md", "microservice-reviewer.md"}
+    assert all(p.name in allowed for p in md_files), [p.name for p in md_files]
 
 
 def test_subagents_unknown_rejected(tmp_path: Path):
@@ -2056,6 +2070,11 @@ def test_profile_bff_default_lang_go(tmp_path: Path):
     state = json.loads((project / ".sn-init-state.json").read_text())
     assert state["profile"] == "bff"
     assert state["lang"] == "go"
+    # B2.4b profile-overlay-fill Group B (bff): aggregation conventions +
+    # skill exemplar ship in fresh --profile=bff scaffold.
+    assert (project / ".claude" / "docs" / "bff-aggregation.md").exists()
+    assert (project / ".claude" / "skills" / "example-bff" / "SKILL.md").exists()
+    assert (project / ".claude" / "skills" / "example-bff" / "HOWTO.md").exists()
 
 
 def test_profile_bff_lang_ts_allowed(tmp_path: Path):

@@ -519,9 +519,16 @@ def _render_base(args: argparse.Namespace, project_name: str) -> list[tuple[str,
         if path.is_dir():
             continue
         rel = path.relative_to(base)
+        rel_str = str(rel)
+        # Mirror the `templates/profile/<P>/claude/` → `.claude/` rename
+        # used by `_render_profile`. Source dir uses no-dot prefix because
+        # `.claude/` is gitignored in this repo; the scaffold needs the
+        # dotted form.
+        if rel_str.startswith("claude/"):
+            rel_str = ".claude/" + rel_str[len("claude/"):]
         content = path.read_text(encoding="utf-8")
         content = _substitute(content, ctx)
-        files.append((str(rel), content))
+        files.append((rel_str, content))
     return files
 
 
