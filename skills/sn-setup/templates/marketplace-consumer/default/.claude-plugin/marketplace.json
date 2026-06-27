@@ -1,0 +1,8 @@
+{
+  "$schema": "https://claude.com/schemas/plugin-marketplace.json",
+  "marketplace": {
+    "name": "org-internal",
+    "source": "${marketplace_source}",
+    "description": "Internal plugin marketplace for ${name}. Catalog (which plugins exist, which are mandatory) lives inside core-workflow and core-guardrails packs. This file only records the source pointer so /plugin install knows where to look."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "_comment": "B2.3 marketplace consumer settings patch — REFERENCE ONLY. The actual merge happens inline inside scripts/sn_init.py::_inject_marketplace_into_settings (which derives the installed_plugins list from MARKETPLACE_MANDATORY_PLUGINS + MARKETPLACE_PROFILE_PLUGINS[args.profile] + MARKETPLACE_REGULATED_PLUGINS when a regulated policy is planned). This file documents the SHAPE of what gets injected; sn_init.py does not read it. If you want to extend the seeded plugin set, edit the constants in sn_init.py, NOT this file.",
+  "installed_plugins": [
+    {"name": "core-workflow"},
+    {"name": "core-guardrails"}
+  ],
+  "hooks": {
+    "SessionStart": [
+      {"command": ".claude/hooks/marketplace-bootstrap.sh"}
+    ]
+  }
+}
