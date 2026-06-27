@@ -449,6 +449,42 @@ def test_b22fu4_legacy_existing_silent_for_that_member(tmp_path: Path, capsys):
     assert "svc-a" not in err  # legacy member silently skipped
 
 
+def test_b22fu4_mandatory_constants_match_sn_init():
+    """B2.2-FU-4 — workspace_cli's MARKETPLACE_MANDATORY_NAMES must stay in
+    sync with sn_init's MARKETPLACE_MANDATORY_PLUGINS. The constants are
+    duplicated by design (workspace_cli stays a flat dispatcher) but CI
+    must catch drift if a new mandatory plugin lands in one file but not
+    the other.
+    """
+    assert workspace_cli.MARKETPLACE_MANDATORY_NAMES == frozenset(
+        sn_init.MARKETPLACE_MANDATORY_PLUGINS
+    )
+
+
+def test_b22fu4_malformed_settings_emits_note(tmp_path: Path, capsys):
+    """B2.2-FU-4 — a .claude/settings.json that exists but won't parse
+    surfaces a one-line stderr notice (different signal from a missing
+    legacy file). The member is silently skipped in the pairwise compare;
+    add still returns 0.
+    """
+    _run(tmp_path, "init", "ws")
+    ws = tmp_path / "ws"
+    a = _fake_git_repo(tmp_path, "svc-a", profile="microservice", lang="go")
+    _wire_marketplace(a, source="./", plugins=["core-workflow", "core-guardrails"])
+    b = _fake_git_repo(tmp_path, "svc-b", profile="microservice", lang="go")
+    # Drop a malformed .claude/settings.json into b.
+    (b / ".claude").mkdir()
+    (b / ".claude" / "settings.json").write_text("{ this is not json")
+
+    _run(ws, "add", str(a))
+    capsys.readouterr()
+    rc = _run(ws, "add", str(b))
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "⚠ note: could not read" in err
+    assert ".claude/settings.json" in err
+
+
 def test_b22fu4_returns_zero_on_critical_findings(tmp_path: Path, capsys):
     """B2.2-FU-4 — critical findings do NOT block add (warn-only contract)."""
     _run(tmp_path, "init", "ws")

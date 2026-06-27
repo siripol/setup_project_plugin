@@ -87,8 +87,15 @@ def _collect_marketplace_state(service_path: Path) -> dict:
                     if isinstance(p, dict) and isinstance(p.get("name"), str)
                 }
                 state["has_state"] = True
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            # A file that exists but won't parse is a different signal than a
+            # missing legacy file. Print a one-line stderr notice so the user
+            # knows the divergence check skipped this member silently and why.
+            print(
+                f"sn-setup workspace: ⚠ note: could not read {settings_path} "
+                f"({type(exc).__name__}); divergence check will skip this member.",
+                file=sys.stderr,
+            )
     manifest_path = service_path / ".claude-plugin" / "marketplace.json"
     if manifest_path.exists():
         try:
@@ -99,8 +106,12 @@ def _collect_marketplace_state(service_path: Path) -> dict:
                 if isinstance(source, str) and source.strip():
                     state["source"] = source
                     state["has_state"] = True
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            print(
+                f"sn-setup workspace: ⚠ note: could not read {manifest_path} "
+                f"({type(exc).__name__}); divergence check will skip this member.",
+                file=sys.stderr,
+            )
     return state
 
 
@@ -160,9 +171,8 @@ def _check_marketplace_divergence(new: dict, existing: list[dict]) -> list[str]:
             if e["plugins"] is not None:
                 union |= e["plugins"]
         if union:
-            covered_mandatory = MARKETPLACE_MANDATORY_NAMES
-            extra_in_new = (new["plugins"] - union) - covered_mandatory
-            missing_in_new = (union - new["plugins"]) - covered_mandatory
+            extra_in_new = (new["plugins"] - union) - MARKETPLACE_MANDATORY_NAMES
+            missing_in_new = (union - new["plugins"]) - MARKETPLACE_MANDATORY_NAMES
             diff_bits: list[str] = []
             if extra_in_new:
                 diff_bits.append(f"new-only={sorted(extra_in_new)}")
@@ -287,10 +297,15 @@ def _cmd_add(ns: argparse.Namespace) -> int:
     # to the registry (so the warnings reference the pre-add member set).
     # Warn-only — `add` always succeeds regardless of findings.
     new_state = _collect_marketplace_state(service_path)
-    existing_states = [
-        _collect_marketplace_state(root / s["path"])
-        for s in reg["services"]
-    ]
+    existing_states: list[dict] = []
+    for s in reg["services"]:
+        raw_path = Path(s["path"])
+        # registry.json stores paths relative to workspace root by contract;
+        # an absolute path can only arrive via a hand-edited registry. Guard
+        # against `root / abs_path` silently dropping `root` (Python pathlib
+        # semantic) and reading the wrong directory.
+        member_path = raw_path if raw_path.is_absolute() else (root / raw_path)
+        existing_states.append(_collect_marketplace_state(member_path))
     for line in _check_marketplace_divergence(new_state, existing_states):
         print(line, file=sys.stderr)
 
