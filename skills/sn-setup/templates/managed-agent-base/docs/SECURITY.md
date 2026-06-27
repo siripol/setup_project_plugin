@@ -10,10 +10,11 @@ Every scaffolded service starts with the following enforcement layer, populated 
 
 | Control | Plugin / hook | What it does |
 |---|---|---|
-| Audit log | `audit-log-strict` policy + `audit.sh` PostToolUse hook | Every Claude tool call writes a JSONL line to `.sn-init/logs/`. Payloads spilling 2 KB go to `blobs/`. Cannot be disabled in regulated repos. |
+| Audit log | `audit-log-strict` policy + `audit.sh` multi-event hook (PreToolUse, PostToolUse, UserPromptSubmit, SessionStart, SessionEnd, Stop) | Every Claude tool call writes a JSONL line to `.sn-init/logs/`. Payloads spilling 2 KB go to `blobs/`. Cannot be disabled in regulated repos. |
 | Secret scan | `secret-scan` policy + `secret-scan.sh` PreToolUse hook | Blocks `Write`/`Edit` whose content matches secret-shaped patterns (AWS keys, private keys, JWT tokens, bearer headers). |
 | Supply-chain scan | `supply-chain-scan` policy + dependabot integration | Pre-merge check that no dependency in lockfiles matches a known-bad CVE list. Default for regulated profiles. |
-| Chokepoint gate | `core-guardrails` plugin's `chokepoint-gate.sh` PreToolUse hook | Rate-limit + circuit-breaker: 200 calls / hour, 2M tokens / hour, 5 same-error → 5 min cooldown. |
+| Chokepoint gate | `chokepoint-gate.sh` PreToolUse hook | Reads `.harness/chokepoints.yaml`; blocks tool calls whose paths match a chokepoint pattern (sensitive files, infra, etc.). |
+| Rate limit | `rate-limit.sh` PreToolUse hook | Caps tool-call rate (200 calls/hour) and token usage (2M tokens/hour) to prevent runaway sessions. |
 | Permission boundary | `.claude/settings.json::permissions` block + plugin hook list | Explicit allow/deny rules per tool. Deny by default for `Bash(rm -rf /)` and similar destructive shapes. |
 | Commit-msg gate | `.githooks/commit-msg` | Strips `Co-Authored-By: Claude` lines, enforces `Author:` trailer, blocks commits without one. |
 
@@ -28,7 +29,7 @@ Each baseline control exists because of an incident class that recurs across org
 | Leaked secret in git history | AWS access key committed to a config file; published to a public repo; auto-scraped within minutes; compromised account before rotation. | `secret-scan` hook catches the write before the file lands. `.gitignore` defaults exclude `.env`, `*.key`, `credentials.json`. |
 | Supply-chain compromise | Transitive dep on a popular npm package gets a malicious update; downstream service runs it next deploy. | `supply-chain-scan` pre-merge check; pinning to concrete versions in `installed_plugins`; CVE feed integration. |
 | Audit-log opt-out hides misuse | Engineer disables audit log "to debug a flaky test"; never re-enables; misuse goes unnoticed. | `audit-log-strict` policy in regulated repos cannot be disabled at runtime; opt-out only at scaffold via explicit `--no-audit-log` (blocked for regulated). |
-| Prompt-injected Claude session | External user submits content that overrides system instructions; assistant exfiltrates context. | Chokepoint gate rate-limits + circuit-breaks; PostToolUse audit catches the exfil tool call; `security-auditor` subagent reviews diffs for AuthZ regressions. |
+| Prompt-injected Claude session | External user submits content that overrides system instructions; assistant exfiltrates context. | Rate-limit hook caps tool-call frequency and token usage to bound session runaway; chokepoint gate blocks writes to sensitive paths even if the session is compromised; PostToolUse audit catches the exfil tool call in the JSONL log; `security-auditor` subagent reviews diffs for AuthZ regressions. |
 | PDPA breach via training data | Training data scraped from logs contains regulated personal data; data subject discovers it; org faces fine. | `memory-regulated` policy blocks auto-memory writes; PDPA pack (B2.5) adds Hook A PII scan + Hook B retention sidecar. |
 | Permission bypass | Engineer adds `--dangerously-skip-permissions` to a debug script; script lands in CI; entire permission system bypassed. | CI's `Block --dangerously-skip-permissions` step greps every push + PR; `GOVERNANCE-SERVICE-LEVEL.md` documents the policy. |
 
@@ -36,7 +37,7 @@ This is not a complete threat catalog. It is the set of incident shapes the base
 
 ## Pinning policy
 
-Every plugin in `.claude/settings.json::installed_plugins` is pinned to a concrete version. No tags, no ranges, no `latest`. CI verifies this on every push.
+Every plugin in `.claude/settings.json::installed_plugins` should be pinned to a concrete version when that consumer block ships (B2.3). No tags, no ranges, no `latest`. This is enforced by CODEOWNERS review today; automated CI verification is tracked in B3.2.
 
 Why pinning matters: an unpinned plugin can break or compromise a service silently when its upstream ships a new version. Pinning makes every change explicit, reviewable, and rollbackable.
 

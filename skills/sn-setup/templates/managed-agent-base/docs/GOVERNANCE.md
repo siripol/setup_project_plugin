@@ -4,7 +4,7 @@
 
 ## Plugin versioning and pinning policy
 
-The internal plugin marketplace (Layer 1) is the source of every advisory skill and enforcement hook this service runs. Every plugin declares semver. Every consuming service pins to a specific version in `.claude/settings.json::installed_plugins`. No service runs `latest`. CI verifies every entry in the block resolves to a concrete version, not a tag or range.
+The internal plugin marketplace (Layer 1) is the source of every advisory skill and enforcement hook this service runs. Every plugin declares semver. Every consuming service should pin to a specific version in `.claude/settings.json::installed_plugins` when that consumer block ships (B2.3, unshipped today). No service should run `latest`. When B3.2 (pin-verification CI) lands, CI will verify every entry resolves to a concrete version; until then, CODEOWNERS enforces this in PR review.
 
 ### Update procedure
 

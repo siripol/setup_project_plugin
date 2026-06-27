@@ -21,7 +21,7 @@ Opt-in packs add narrower capabilities: `testing-standards`, `contracts-sync`, `
 
 **Why marketplace, not template-baked.** Template-baked plugins drift the moment the template diverges from upstream. Marketplace plugins ship a single canonical version; service repos pin to a specific version in `.claude/settings.json::installed_plugins`. Upgrades happen through PR review with explicit version diffs, not through silent template re-runs.
 
-The marketplace itself is a separate repository (or subdir) the org owns. The consumer side — references to it — lives in this repo's `.claude/settings.json` and `.claude-plugin/marketplace.json`.
+The marketplace itself is a separate repository (or subdir) the org owns. The consumer side — references to it — lives in this repo's `.claude/settings.json` (`installed_plugins` block) and, once B2.3 (marketplace consumer) ships, `.claude-plugin/marketplace.json`. Today the consumer block is not yet wired; the platform team's marketplace-consumer flag (`--marketplace=<source>`) is the path that will scaffold it.
 
 ## Layer 2 — Service repos (this scaffold)
 
