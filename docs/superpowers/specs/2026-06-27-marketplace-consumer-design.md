@@ -44,12 +44,12 @@ Concrete file changes:
   - `build_parser()` gains `--marketplace=<source>` flag (`dest="marketplace_source"`, `default=None`).
   - New `_render_marketplace(args, project_name)` function modelled on `_render_profile()` (sn_init.py:557-583). Walks `skills/sn-setup/templates/marketplace-consumer/default/` and emits files into the scaffold; renames the `claude/` subtree prefix → `.claude/` exactly like `_render_base` / `_render_profile` already do; substitutes `{marketplace_source}` token.
   - `_plan_new_files()` calls `_render_marketplace(...)` only when `args.marketplace_source` is set, slotted between profile/framework rendering and `_render_claude()`.
-  - Inside `_render_claude()` (sn_init.py:608-685), after the canonical `settings.json` is read, if `args.marketplace_source` is set, the marketplace `settings.patch.json` is merged into the settings dict (new top-level `installed_plugins` key, simple-array merge — no `policy` marker, this is scaffold-layer not policy-layer).
+  - Inside `_render_claude()` (sn_init.py:608-685), after the canonical `settings.json` is read, if `args.marketplace_source` is set, `_inject_marketplace_into_settings(data, args)` adds the `installed_plugins` block + the SessionStart bootstrap hook entry. The plugin list is composed in code from `MARKETPLACE_MANDATORY_PLUGINS` + `MARKETPLACE_PROFILE_PLUGINS[args.profile]` + `MARKETPLACE_REGULATED_PLUGINS` (the last when a regulated policy is in the planned set per `_resolve_planned_policy_set`). The template `settings.patch.json` file in the subtree is REFERENCE ONLY — it documents the shape of the injection for future maintainers but is not read by the renderer.
 
 ### Template subtree
 
-- `skills/sn-setup/templates/marketplace-consumer/default/.claude-plugin/marketplace.json` — minimal consumer manifest with placeholder `source` set from substitution. Schema follows Claude Code's native marketplace JSON shape.
-- `skills/sn-setup/templates/marketplace-consumer/default/settings.patch.json` — `{"installed_plugins": [{"name": "core-workflow", ...}, {"name": "core-guardrails", ...}]}`. Profile-specific opt-ins (`contracts-sync`, `bff-patterns`, `compliance-pack`) added at render time based on `args.profile` + `args.profile_regulated`.
+- `skills/sn-setup/templates/marketplace-consumer/default/.claude-plugin/marketplace.json` — minimal consumer manifest with placeholder `source` set from substitution. The schema field is a placeholder — the canonical consumer-side marketplace JSON schema lives in the platform marketplace repo shipped by B3.1 and will be wired in once that lands.
+- `skills/sn-setup/templates/marketplace-consumer/default/settings.patch.json` — `{"installed_plugins": [{"name": "core-workflow", ...}, {"name": "core-guardrails", ...}]}`. REFERENCE ONLY (the actual merge is derived from constants in `sn_init.py`). Profile-specific opt-ins (`contracts-sync`, `bff-patterns`, `compliance-pack`) are added at render time based on `args.profile` and on whether `_resolve_planned_policy_set(args)` intersects `REGULATED_POLICY_SLUGS` (i.e. `--policies=memory-regulated` or `--policies=pdpa-compliance` is present).
 - `skills/sn-setup/templates/marketplace-consumer/default/claude/hooks/marketplace-bootstrap.sh` — single bash script. On run: `if [ ! -d ".claude/plugins/core-guardrails" ]; then echo "⚠ Mandatory plugins missing. Run: /plugin install core-workflow core-guardrails (marketplace: {marketplace_source})"; fi`. Marked executable. SessionStart hook entry added to `settings.json` via the patch above.
 
 ### Tests
@@ -61,7 +61,7 @@ Concrete file changes:
 - `test_marketplace_flag_url_form_accepted` — scaffold with `--marketplace=https://github.com/org/marketplace.git` → `marketplace.json` records the URL verbatim.
 - `test_marketplace_omitted_leaves_no_block` — scaffold without `--marketplace=` → no `installed_plugins` key in `settings.json`, no `.claude-plugin/` dir, no `marketplace-bootstrap.sh`.
 - `test_marketplace_bff_adds_contracts_sync` — `--marketplace=./ --profile=bff` → `installed_plugins` also lists `contracts-sync` + `bff-patterns`.
-- `test_marketplace_regulated_adds_compliance_pack` — `--marketplace=./ --profile-regulated` → `installed_plugins` also lists `compliance-pack`.
+- `test_marketplace_regulated_adds_compliance_pack` — `--marketplace=./ --policies=memory-regulated,repository-ecosystem` → `installed_plugins` also lists `compliance-pack`. (Regulated is signaled by the planned policy set intersecting `REGULATED_POLICY_SLUGS`, not by a dedicated CLI flag.)
 - `test_marketplace_bootstrap_hook_registered_at_session_start` — `settings["hooks"]["SessionStart"]` includes an entry pointing at `.claude/hooks/marketplace-bootstrap.sh`.
 
 `_expected_top_level` helper extended if new top-level paths appear (they don't here — `.claude-plugin/` is new but lives below project root).
@@ -84,7 +84,7 @@ Concrete file changes:
 | # | Criterion |
 |---|---|
 | AC-1 | `sn-setup new demo --no-git --marketplace=./` produces a scaffold containing `.claude-plugin/marketplace.json`, `.claude/settings.json` with `installed_plugins` key, and `.claude/hooks/marketplace-bootstrap.sh` (executable). |
-| AC-2 | `installed_plugins` always contains `core-workflow` + `core-guardrails`. `--profile=bff` adds `contracts-sync` + `bff-patterns`. `--profile-regulated` adds `compliance-pack`. |
+| AC-2 | `installed_plugins` always contains `core-workflow` + `core-guardrails`. `--profile=bff` adds `contracts-sync` + `bff-patterns`. A regulated policy in the planned set (`--policies=memory-regulated` or `--policies=pdpa-compliance`) adds `compliance-pack`. |
 | AC-3 | `marketplace-bootstrap.sh` self-deactivates: when `.claude/plugins/core-guardrails/` exists, the hook exits silently. |
 | AC-4 | The SessionStart hook entry in `settings.json` references `.claude/hooks/marketplace-bootstrap.sh` and does NOT clash with the existing audit SessionStart entry (both fire). |
 | AC-5 | `--marketplace=` accepts both a git URL (`https://github.com/...`, `git@github.com:...`) and a path (`./`, `/abs/path`). org/repo shorthand is rejected with a clear error message. |

@@ -2595,6 +2595,32 @@ def test_b2_3_marketplace_bootstrap_hook_self_deactivates(tmp_path: Path):
     assert "exit 0" in hook
 
 
+def test_b2_3_marketplace_persists_across_upgrade(tmp_path: Path):
+    """B2.3 — `--upgrade` restores marketplace_source from state so the
+    consumer files survive a template-version bump. Without this, an
+    upgrade run on a marketplace-wired scaffold silently drops the block.
+    """
+    _run(tmp_path, "demo", "--no-git", "--marketplace=https://github.com/myorg/mkt.git")
+    project = tmp_path / "demo"
+    # Sanity check: source recorded on initial scaffold.
+    state = json.loads((project / ".sn-init-state.json").read_text())
+    assert state["flags"]["marketplace_source"] == "https://github.com/myorg/mkt.git"
+
+    # Bump the template_version inside state to force `--upgrade` to run.
+    state["template_version"] = "0.0.0"
+    (project / ".sn-init-state.json").write_text(json.dumps(state, indent=2) + "\n")
+
+    # Drop one of the marketplace files so the upgrade has work to do.
+    (project / ".claude-plugin" / "marketplace.json").unlink()
+
+    rc = _run(tmp_path, "--no-git", "--upgrade", cwd=project)
+    assert rc == 0
+    # Marketplace manifest is restored from the persisted source.
+    assert (project / ".claude-plugin" / "marketplace.json").exists()
+    data = json.loads((project / ".claude-plugin" / "marketplace.json").read_text())
+    assert data["marketplace"]["source"] == "https://github.com/myorg/mkt.git"
+
+
 def test_b2_3_marketplace_composes_with_no_audit_log(tmp_path: Path):
     """B2.3 — `--no-audit-log` + `--marketplace` both transforms apply; bootstrap
     hook survives the audit-strip path."""

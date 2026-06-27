@@ -338,6 +338,15 @@ def _run_upgrade(args: argparse.Namespace, cwd: Path) -> int:
     args.devcontainer = persisted.get("devcontainer", False)
     args.license_kind = persisted.get("license", args.license_kind)
     args.no_audit_log = not persisted.get("audit_log", True)
+    # B2.3: marketplace_source persists across upgrades. Without this,
+    # `--upgrade` on a scaffold originally built with --marketplace=<url>
+    # silently drops the marketplace consumer files (no marketplace.json,
+    # no installed_plugins, no bootstrap hook entry). Honor explicit
+    # --marketplace on the upgrade invocation, else restore from state.
+    args.marketplace_source = (
+        getattr(args, "marketplace_source", None)
+        or persisted.get("marketplace_source")
+    )
     # Profile + framework: older state files predate these keys; default to
     # microservice/next so re-upgrades on legacy scaffolds keep working.
     args.profile = _resolve_profile(state.get("profile") or persisted.get("profile") or "microservice")
@@ -524,7 +533,15 @@ def _plan_new_files(args: argparse.Namespace, target: Path) -> list[tuple[str, s
 
 
 def _plan_add_files(args: argparse.Namespace, target: Path) -> list[tuple[str, str]]:
-    """Return list of (relative_path, content) tuples for add mode (.claude/ only)."""
+    """Return list of (relative_path, content) tuples for add mode (.claude/ only).
+
+    B2.3 note: add mode deliberately does NOT call _render_marketplace.
+    Add mode's contract is "drop a .claude/ overlay into an existing repo
+    without touching anything else"; marketplace wiring is a new-scaffold
+    concern (it owns top-level .claude-plugin/ + settings.json shape).
+    Add mode users who want the marketplace block can run --upgrade instead,
+    which preserves the persisted marketplace_source and re-renders.
+    """
     project_name = target.name
     return _render_claude(args, project_name)
 
