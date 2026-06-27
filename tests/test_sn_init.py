@@ -2102,6 +2102,11 @@ def test_profile_frontend_default_framework_next(tmp_path: Path):
     state = json.loads((project / ".sn-init-state.json").read_text())
     assert state["profile"] == "frontend"
     assert state["framework"] == "next"
+    # B2.4c frontend-overlay-fill: conventions + skill exemplar ship in
+    # fresh --profile=frontend scaffold (framework-neutral).
+    assert (project / ".claude" / "docs" / "frontend-conventions.md").exists()
+    assert (project / ".claude" / "skills" / "example-frontend" / "SKILL.md").exists()
+    assert (project / ".claude" / "skills" / "example-frontend" / "HOWTO.md").exists()
 
 
 def test_profile_frontend_framework_vite(tmp_path: Path):

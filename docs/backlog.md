@@ -112,12 +112,13 @@ Most current items derive from the **microservices template-family design doc** 
 - `scripts/sn_init.py::_render_base` extended with the `claude/` → `.claude/` rename matching `_render_profile`'s pattern from B2.1c.
 - Vault: [[../obsidian_sharedknowledge/projects/setup_project_plugin/requirements/profile-overlay-fill.md]] (REQ-PROF-003).
 
-### B2.4c `[ ]` Frontend profile overlay fill — design §9.4 / §9.5 (same shape)
-- **Why**: frontend profile (`profile/frontend/`) has the same gaps B2.4b fixed for microservice + bff — no `claude/` subdir at all today; only `default_policies.yaml` + `docs/{ACCESSIBILITY,DESIGN,BROWSER-MATRIX,PROFILE}.md` + `claude/agents/a11y-auditor.md` (B2.1c).
-- **Where**: `skills/sn-setup/templates/profile/frontend/`. Same shape as B2.4b: `.claude/docs/` load-on-demand body + `.claude/skills/` exemplar. (frontend already has the agent.)
-- Frontend may need framework-aware variants since `--profile=frontend` ships with `--framework=next|vite` overlays on top; decide at brainstorm time whether to ship one body per framework or one shared body.
-- **Estimate**: 2-3h. ~3-4 files (one body + one skill exemplar; potentially +1 framework sub-variant).
-- Carved from B2.4b for the same PR-size hygiene reason.
+### B2.4c `[x]` Frontend profile overlay fill — **shipped feat/frontend-overlay-fill** (REQ-PROF-004)
+- 1 conventions doc + 1 skill (SKILL + HOWTO) under `profile/frontend/claude/`:
+  - `docs/frontend-conventions.md` (~150 lines) — framework-neutral conventions covering component composition, accessibility (high-level), state management discipline, performance budgets, testing strategies.
+  - `skills/example-frontend/{SKILL,HOWTO}.md` — `audit-component-coupling` skill; architecture-focused (prop drilling, context usage, state hoisting, fanout). Distinct from `a11y-auditor` agent (B2.1c, WCAG-focused).
+- Framework-neutral by locked design decision; framework-specific guidance stays in `framework/<F>/docs/FRAMEWORK.md`.
+- Frontend already had `claude/agents/a11y-auditor.md` from B2.1c.
+- Vault: [[../obsidian_sharedknowledge/projects/setup_project_plugin/requirements/frontend-overlay-fill.md]] (REQ-PROF-004).
 
 ### B2.5 `[x]` PDPA compliance pack (full enforcement) — **shipped feat/pdpa-pack** (REQ-PDPA-001)
 - pdpa-compliance@1.0.0 (signal-only) → 2.0.0 (full enforcement).
