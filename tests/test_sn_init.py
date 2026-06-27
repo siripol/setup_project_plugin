@@ -124,6 +124,16 @@ def _expected_top_level(name: str) -> list[str]:
         "docs/REPO-STRATEGY.md",
         "docs/GOVERNANCE.md",
         "docs/SECURITY.md",
+        # B2.4b profile-overlay-fill Group A (universal foundation)
+        "claude-security-guidance.md",
+        ".claude/docs/README.md",
+        ".claude/skills/README.md",
+        ".claude/agents/README.md",
+        # B2.4b profile-overlay-fill Group B (microservice profile, default)
+        ".claude/docs/microservice-conventions.md",
+        ".claude/skills/example/SKILL.md",
+        ".claude/skills/example/HOWTO.md",
+        ".claude/agents/microservice-reviewer.md",
         # lang go overlay
         "go.mod",
         "src/agent.go",
@@ -2060,6 +2070,11 @@ def test_profile_bff_default_lang_go(tmp_path: Path):
     state = json.loads((project / ".sn-init-state.json").read_text())
     assert state["profile"] == "bff"
     assert state["lang"] == "go"
+    # B2.4b profile-overlay-fill Group B (bff): aggregation conventions +
+    # skill exemplar ship in fresh --profile=bff scaffold.
+    assert (project / ".claude" / "docs" / "bff-aggregation.md").exists()
+    assert (project / ".claude" / "skills" / "example-bff" / "SKILL.md").exists()
+    assert (project / ".claude" / "skills" / "example-bff" / "HOWTO.md").exists()
 
 
 def test_profile_bff_lang_ts_allowed(tmp_path: Path):
