@@ -27,6 +27,9 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov
 
+      - name: Validate marketplace catalog + plugins
+        run: python scripts/validate_marketplace.py
+
       - name: Run pytest with coverage
         run: |
           python -m pytest -q \
