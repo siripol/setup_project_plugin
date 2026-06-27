@@ -8,6 +8,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Frontend profile overlay fill (B2.4c, REQ-PROF-004).** Completes the profile-overlay-fill series by bringing the `frontend` profile overlay into compliance with design §9.4 / §9.5. Adds under `templates/profile/frontend/claude/`:
+  - `docs/frontend-conventions.md` (~150 lines) — framework-neutral load-on-demand reference covering component composition, accessibility (high-level; defers WCAG detail to `a11y-auditor`), state management discipline, performance budgets, testing strategies.
+  - `skills/example-frontend/SKILL.md` + `HOWTO.md` — `audit-component-coupling` skill (architecture-focused: prop drilling, state hoisting, context usage, fanout). Explicitly distinct from `a11y-auditor` agent's WCAG-focused scope.
+  - Framework-neutral by locked design decision; framework-specific guidance stays in `framework/<F>/docs/FRAMEWORK.md` (already shipped for Next.js + Vite).
+  - Frontend already had `a11y-auditor.md` agent from B2.1c.
+  - `tests/test_sn_init.py::test_profile_frontend_default_framework_next` extended with the 3 new paths. No new test functions.
+
 - **Profile overlay fill (B2.4b, REQ-PROF-003).** Brings `microservice` and `bff` profile overlays into compliance with design §9.4 / §9.5. Adds 4 universal foundation files to `managed-agent-base/` (`claude-security-guidance.md` + `claude/{docs,skills,agents}/README.md`) and per-profile content under `templates/profile/<P>/claude/`:
   - **Microservice**: `claude/docs/microservice-conventions.md` (~120 lines on request handling, AuthN/Z, error envelopes, persistence, observability, API versioning) + `claude/skills/example/` (`audit-endpoint-coverage` skill) + `claude/agents/microservice-reviewer.md` (profile-shipped PR reviewer).
   - **BFF**: `claude/docs/bff-aggregation.md` (~140 lines on parallel-vs-sequential downstream calls, per-downstream timeouts, retry policy, circuit breakers, response shaping, three-tier caching, partial-response handling) + `claude/skills/example-bff/` (`diagnose-downstream-failure` skill). BFF already had `bff-integration-reviewer` agent from B2.1c.
