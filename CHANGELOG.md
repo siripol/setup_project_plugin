@@ -8,6 +8,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Profile overlay fill (B2.4b, REQ-PROF-003).** Brings `microservice` and `bff` profile overlays into compliance with design §9.4 / §9.5. Adds 4 universal foundation files to `managed-agent-base/` (`claude-security-guidance.md` + `claude/{docs,skills,agents}/README.md`) and per-profile content under `templates/profile/<P>/claude/`:
+  - **Microservice**: `claude/docs/microservice-conventions.md` (~120 lines on request handling, AuthN/Z, error envelopes, persistence, observability, API versioning) + `claude/skills/example/` (`audit-endpoint-coverage` skill) + `claude/agents/microservice-reviewer.md` (profile-shipped PR reviewer).
+  - **BFF**: `claude/docs/bff-aggregation.md` (~140 lines on parallel-vs-sequential downstream calls, per-downstream timeouts, retry policy, circuit breakers, response shaping, three-tier caching, partial-response handling) + `claude/skills/example-bff/` (`diagnose-downstream-failure` skill). BFF already had `bff-integration-reviewer` agent from B2.1c.
+  - `scripts/sn_init.py::_render_base` extended with the `claude/` → `.claude/` rename matching B2.1c's pattern in `_render_profile`.
+  - `tests/test_sn_init.py::_expected_top_level` + `test_profile_bff_default_lang_go` extended with the new paths. No new test functions.
+  - Carved new `B2.4c` follow-up for frontend profile overlay fill (same shape; ~3-4 files; possibly framework-aware variants).
+
 - **Layer-4 governance docs (B2.4, REQ-DOCS-002).** Four governance / architecture template docs landing in every scaffold's `docs/` tree:
   - `ARCHITECTURE.md` — layered architecture tour (Platform / Service / Workspace / Governance).
   - `REPO-STRATEGY.md` — polyrepo-by-default rationale + workspace adoption triggers + when-not-to-monorepo counter-arguments.

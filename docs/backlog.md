@@ -105,11 +105,19 @@ Most current items derive from the **microservices template-family design doc** 
 - Tests: `tests/test_sn_init.py::_expected_top_level` extended with the 4 new paths.
 - Vault: [[../obsidian_sharedknowledge/projects/setup_project_plugin/requirements/layer4-governance-docs.md]] (REQ-DOCS-002).
 
-### B2.4b `[ ]` Service/BFF profile overlay fill — design §9.4 / §9.5
-- **Why**: design §9.4 + §9.5 prescribe a fuller file set for service-template / bff-template; current `profile/microservice/` and `profile/bff/` overlays only ship `default_policies.yaml` + `docs/{API,OBSERVABILITY,PROFILE}.md` (microservice) or `docs/{BFF-INTEGRATION,DOWNSTREAMS,PROFILE}.md` + `claude/agents/bff-integration-reviewer.md` (bff).
-- **Where**: `skills/sn-setup/templates/profile/{microservice,bff}/`. Missing per design §9.4: `claude-security-guidance.md`, `.claude/docs/` load-on-demand conventions, `.claude/skills/` exemplar, `.claude/agents/` exemplar (microservice has none). Possibly `.claude/rules/` per-profile content.
-- **Estimate**: 4-6h. ~10 files. Carved from B2.4 in REQ-DOCS-002 to keep PR sizes reviewable.
-- **Not in scope**: creating literal top-level `templates/service-template/` or `templates/bff-template/` dirs (would require scaffolder rewrite and conflict with the additive overlay model).
+### B2.4b `[x]` Service/BFF profile overlay fill — **shipped feat/profile-overlay-fill** (REQ-PROF-003)
+- 4 universal foundation files in `managed-agent-base/`: `claude-security-guidance.md` + `claude/{docs,skills,agents}/README.md`.
+- 4 microservice files in `profile/microservice/claude/`: `docs/microservice-conventions.md` + `skills/example/{SKILL,HOWTO}.md` + `agents/microservice-reviewer.md`.
+- 3 bff files in `profile/bff/claude/`: `docs/bff-aggregation.md` + `skills/example-bff/{SKILL,HOWTO}.md`. (bff already had `claude/agents/bff-integration-reviewer.md` from B2.1c.)
+- `scripts/sn_init.py::_render_base` extended with the `claude/` → `.claude/` rename matching `_render_profile`'s pattern from B2.1c.
+- Vault: [[../obsidian_sharedknowledge/projects/setup_project_plugin/requirements/profile-overlay-fill.md]] (REQ-PROF-003).
+
+### B2.4c `[ ]` Frontend profile overlay fill — design §9.4 / §9.5 (same shape)
+- **Why**: frontend profile (`profile/frontend/`) has the same gaps B2.4b fixed for microservice + bff — no `claude/` subdir at all today; only `default_policies.yaml` + `docs/{ACCESSIBILITY,DESIGN,BROWSER-MATRIX,PROFILE}.md` + `claude/agents/a11y-auditor.md` (B2.1c).
+- **Where**: `skills/sn-setup/templates/profile/frontend/`. Same shape as B2.4b: `.claude/docs/` load-on-demand body + `.claude/skills/` exemplar. (frontend already has the agent.)
+- Frontend may need framework-aware variants since `--profile=frontend` ships with `--framework=next|vite` overlays on top; decide at brainstorm time whether to ship one body per framework or one shared body.
+- **Estimate**: 2-3h. ~3-4 files (one body + one skill exemplar; potentially +1 framework sub-variant).
+- Carved from B2.4b for the same PR-size hygiene reason.
 
 ### B2.5 `[x]` PDPA compliance pack (full enforcement) — **shipped feat/pdpa-pack** (REQ-PDPA-001)
 - pdpa-compliance@1.0.0 (signal-only) → 2.0.0 (full enforcement).
