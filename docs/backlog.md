@@ -98,10 +98,18 @@ Most current items derive from the **microservices template-family design doc** 
 - **Estimate**: 2 days (scaffold logic + marketplace.json schema + docs).
 - **Note**: doesn't require the platform-marketplace repo to exist — consumer can reference a `source: "./"` placeholder until the platform lands.
 
-### B2.4 `[ ]` Layer-4 governance docs — `ARCHITECTURE.md`, `REPO-STRATEGY.md`, `SECURITY.md`, `GOVERNANCE.md`
-- **Why**: design §9.2 — every scaffolded service ships these as org-facing artifacts. Today they're outlined in the design doc but not scaffolded.
-- **Where**: `skills/sn-setup/templates/managed-agent-base/docs/{ARCHITECTURE,REPO-STRATEGY,SECURITY,GOVERNANCE}.md`. Real content per the design doc, not outlines.
-- **Estimate**: 1 day per doc → 3–4 days bundled.
+### B2.4 `[x]` Layer-4 governance docs — `ARCHITECTURE.md`, `REPO-STRATEGY.md`, `SECURITY.md`, `GOVERNANCE.md` — **shipped feat/layer4-governance-docs** (REQ-DOCS-002)
+- 4 docs land under `skills/sn-setup/templates/managed-agent-base/docs/`. Each ~120-180 lines real prose per design §3 / §4 / §7 / §9.2.
+- `GOVERNANCE.md` (org-wide) and `GOVERNANCE-SERVICE-LEVEL.md` (per-team) each cross-reference the other in their opening paragraphs to disambiguate.
+- `SECURITY.md` cross-references `docs/compliance/*` shipped by B2.5 PDPA pack.
+- Tests: `tests/test_sn_init.py::_expected_top_level` extended with the 4 new paths.
+- Vault: [[../obsidian_sharedknowledge/projects/setup_project_plugin/requirements/layer4-governance-docs.md]] (REQ-DOCS-002).
+
+### B2.4b `[ ]` Service/BFF profile overlay fill — design §9.4 / §9.5
+- **Why**: design §9.4 + §9.5 prescribe a fuller file set for service-template / bff-template; current `profile/microservice/` and `profile/bff/` overlays only ship `default_policies.yaml` + `docs/{API,OBSERVABILITY,PROFILE}.md` (microservice) or `docs/{BFF-INTEGRATION,DOWNSTREAMS,PROFILE}.md` + `claude/agents/bff-integration-reviewer.md` (bff).
+- **Where**: `skills/sn-setup/templates/profile/{microservice,bff}/`. Missing per design §9.4: `claude-security-guidance.md`, `.claude/docs/` load-on-demand conventions, `.claude/skills/` exemplar, `.claude/agents/` exemplar (microservice has none). Possibly `.claude/rules/` per-profile content.
+- **Estimate**: 4-6h. ~10 files. Carved from B2.4 in REQ-DOCS-002 to keep PR sizes reviewable.
+- **Not in scope**: creating literal top-level `templates/service-template/` or `templates/bff-template/` dirs (would require scaffolder rewrite and conflict with the additive overlay model).
 
 ### B2.5 `[x]` PDPA compliance pack (full enforcement) — **shipped feat/pdpa-pack** (REQ-PDPA-001)
 - pdpa-compliance@1.0.0 (signal-only) → 2.0.0 (full enforcement).

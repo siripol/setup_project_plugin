@@ -1,6 +1,6 @@
 # Service-level Governance — ${name}
 
-How this service team owns and operates the `.claude/` tree. Treat `.claude/` like code: PR-reviewed, CODEOWNERS-protected, change-logged.
+**Scope of this doc — this service team only.** How THIS service team owns and operates ITS OWN `.claude/` tree. Treat `.claude/` like code: PR-reviewed, CODEOWNERS-protected, change-logged. For org-wide policy (plugin versioning, two-tier memory, marketplace promotion, tool-neutral context positioning, the explicit out-of-scope list), see `GOVERNANCE.md` in this same folder. The two files are complements, not duplicates.
 
 ## Ownership
 

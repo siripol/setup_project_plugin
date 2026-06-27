@@ -8,6 +8,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Versions
 
 ### Added
 
+- **Layer-4 governance docs (B2.4, REQ-DOCS-002).** Four governance / architecture template docs landing in every scaffold's `docs/` tree:
+  - `ARCHITECTURE.md` — layered architecture tour (Platform / Service / Workspace / Governance).
+  - `REPO-STRATEGY.md` — polyrepo-by-default rationale + workspace adoption triggers + when-not-to-monorepo counter-arguments.
+  - `GOVERNANCE.md` — org-wide policy: plugin pinning, two-tier memory, marketplace promotion, tool-neutral context positioning, explicit out-of-scope list.
+  - `SECURITY.md` — baseline controls, reasoning from real incident classes, pinning policy, update process, threat-model boundary, escalation path.
+  - `GOVERNANCE.md` and `GOVERNANCE-SERVICE-LEVEL.md` cross-reference each other in opening paragraphs (disambiguate org-wide vs service-team scope). `SECURITY.md` cross-references PDPA pack docs.
+  - `tests/test_sn_init.py::_expected_top_level` extended with the 4 new paths. No new test functions.
+  - Carved follow-up `B2.4b` (service/bff profile overlay fill per design §9.4 / §9.5) on the backlog.
+
 - **Workspace layer (B2.2)** — virtual-monorepo aggregator for polyrepo
   services. New `sn-setup workspace {init,add,remove,list,status,sync,launch}`
   sub-tree plus `--workspace` pair flag on `sn-setup new` / `demo`. Workspace
