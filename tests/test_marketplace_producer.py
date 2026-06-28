@@ -78,3 +78,107 @@ def test_b31_phase1_validator_cli_fails_on_schema_violation(tmp_path: Path):
     result = _run_validator(fake)
     assert result.returncode == 1
     assert "schema violation" in result.stderr.lower() or "required" in result.stderr.lower()
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — core-guardrails plugin lifted as first canonical plugin.
+# ---------------------------------------------------------------------------
+
+CORE_GUARDRAILS = MARKETPLACE / "plugins" / "core-guardrails"
+SCAFFOLD_HOOKS = REPO_ROOT / "skills" / "sn-setup" / "templates" / "claude" / "hooks"
+SCAFFOLD_SETTINGS = REPO_ROOT / "skills" / "sn-setup" / "templates" / "claude" / "settings.json"
+BOOTSTRAP_HOOK = (
+    REPO_ROOT / "skills" / "sn-setup" / "templates" / "marketplace-consumer"
+    / "default" / "claude" / "hooks" / "marketplace-bootstrap.sh"
+)
+
+CORE_GUARDRAILS_HOOK_FILES = [
+    "audit.sh", "audit.py", "audit.ts",
+    "chokepoint-gate.sh", "chokepoint-gate.py", "chokepoint-gate.ts",
+    "rate-limit.sh", "rate-limit.py", "rate-limit.ts",
+]
+
+
+def test_b31_phase2_core_guardrails_manifest_valid_and_in_catalog():
+    """Plugin manifest parses, validates against plugin.schema.json, and the
+    catalog entry mirrors its version exactly."""
+    manifest = json.loads((CORE_GUARDRAILS / ".claude-plugin" / "plugin.json").read_text())
+    schema = json.loads((MARKETPLACE / ".claude-plugin" / "plugin.schema.json").read_text())
+    jsonschema.Draft202012Validator(schema).validate(manifest)
+    assert manifest["name"] == "core-guardrails"
+    assert manifest["type"] == "mandatory"
+
+    catalog = json.loads((MARKETPLACE / ".claude-plugin" / "marketplace.json").read_text())
+    entries = [p for p in catalog["plugins"] if p["name"] == "core-guardrails"]
+    assert len(entries) == 1
+    assert entries[0]["version"] == manifest["version"]
+    assert entries[0]["source"] == "./plugins/core-guardrails"
+
+
+def test_b31_phase2_core_guardrails_self_contained():
+    """Validator's self-containment pass (full validate_all) succeeds with the
+    plugin landed. Catches `../` escapes + cross-plugin symlinks per ADR-MKT-003."""
+    result = _run_validator(MARKETPLACE)
+    assert result.returncode == 0, f"stderr={result.stderr!r}"
+
+
+def test_b31_phase2_core_guardrails_settings_patch_parses():
+    """The settings patch parses + has the required top-level keys."""
+    patch = json.loads(
+        (CORE_GUARDRAILS / "settings" / "settings.patch.json").read_text()
+    )
+    assert "permissions" in patch
+    assert "allow" in patch["permissions"]
+    assert "deny" in patch["permissions"]
+    assert "hooks" in patch
+    # Mandatory deny patterns kept in lockstep with scaffold.
+    deny_set = set(patch["permissions"]["deny"])
+    for sensitive in ("Write(~/.ssh/**)", "Edit(~/.ssh/**)", "Write(**/.env)"):
+        assert sensitive in deny_set, f"plugin settings.patch.json missing deny rule {sensitive!r}"
+
+
+def test_b31_phase2_core_guardrails_hooks_match_scaffold():
+    """ADR-MKT-002 dual-source: scaffold hook files MUST be byte-identical to
+    the plugin's copies. CI guard against drift until Phase 6 cutover."""
+    for fname in CORE_GUARDRAILS_HOOK_FILES:
+        scaffold = (SCAFFOLD_HOOKS / fname).read_bytes()
+        plugin = (CORE_GUARDRAILS / "hooks" / fname).read_bytes()
+        assert scaffold == plugin, f"hook drift detected: {fname}"
+
+
+def test_b31_phase2_core_guardrails_settings_patch_matches_scaffold():
+    """ADR-MKT-002 + REQ-MKT-002 D-8: plugin settings.patch.json is
+    authoritative for permissions + hooks; the scaffold's settings.json must
+    embed identical permissions.{allow,deny} + hooks subtrees."""
+    plugin_patch = json.loads(
+        (CORE_GUARDRAILS / "settings" / "settings.patch.json").read_text()
+    )
+    scaffold_settings = json.loads(SCAFFOLD_SETTINGS.read_text())
+    assert plugin_patch["permissions"]["allow"] == scaffold_settings["permissions"]["allow"]
+    assert plugin_patch["permissions"]["deny"] == scaffold_settings["permissions"]["deny"]
+    assert plugin_patch["hooks"] == scaffold_settings["hooks"]
+
+
+def test_b31_phase2_consumer_bootstrap_hook_self_deactivates(tmp_path: Path):
+    """B2.3 marketplace-bootstrap hook exits silently the moment
+    `.claude/plugins/core-guardrails/` exists. Validates the day-1 silent-failure
+    window closes the moment Phase 2 lands in a consumer."""
+    sandbox = tmp_path / "consumer"
+    (sandbox / ".claude" / "plugins" / "core-guardrails").mkdir(parents=True)
+    result = subprocess.run(
+        ["bash", str(BOOTSTRAP_HOOK)],
+        cwd=sandbox, capture_output=True, text=True,
+        env={"marketplace_source": "./platform-marketplace", "PATH": "/usr/bin:/bin"},
+    )
+    assert result.returncode == 0
+    assert result.stdout == "", f"unexpected stdout: {result.stdout!r}"
+    assert result.stderr == "", f"unexpected stderr: {result.stderr!r}"
+
+
+def test_b31_phase2_full_marketplace_validates_with_one_plugin():
+    """End-to-end: validator passes against a marketplace containing
+    one real plugin (catalog parses, manifest parses, self-contained,
+    no dep-graph issues, version-sync OK)."""
+    result = _run_validator(MARKETPLACE)
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "OK" in result.stdout
