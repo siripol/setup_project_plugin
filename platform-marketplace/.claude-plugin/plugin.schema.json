@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/siripol/setup_project_plugin/platform-marketplace/plugin.schema.json",
+  "$id": "https://raw.githubusercontent.com/siripol/setup_project_plugin/main/platform-marketplace/.claude-plugin/plugin.schema.json",
   "title": "Per-plugin manifest",
   "description": "Source of truth for a single plugin. Lives at <plugin>/.claude-plugin/plugin.json. The marketplace catalog entry is validated against this manifest by scripts/validate_marketplace.py.",
   "type": "object",

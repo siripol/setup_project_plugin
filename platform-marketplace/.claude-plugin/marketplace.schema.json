@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/siripol/setup_project_plugin/platform-marketplace/marketplace.schema.json",
+  "$id": "https://raw.githubusercontent.com/siripol/setup_project_plugin/main/platform-marketplace/.claude-plugin/marketplace.schema.json",
   "title": "Marketplace catalog",
   "description": "Catalog of plugins published by an internal sn-platform-marketplace. Each plugin entry is a lightweight pointer; the per-plugin manifest at <source>/.claude-plugin/plugin.json is the source of truth and validated against it.",
   "type": "object",

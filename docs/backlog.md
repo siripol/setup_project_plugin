@@ -162,7 +162,7 @@ Most current items derive from the **microservices template-family design doc** 
 - **What's needed**: separate `platform-marketplace/` repo (or subdir) holding the canonical skills + agents + hooks as installable plugins. Release pipeline. Versioning + pinning policy. Promotion workflow (B1.3 documents this; B3.1 implements the receiving end).
 - **Implies subsumes**: B2.3 (consumer side), B2.5 (pdpa pack as a marketplace plugin), B2.4 (governance docs as marketplace assets).
 - **Estimate**: weeks, not days. Architectural shift.
-- **Approach**: subdir monorepo (ADR-MKT-001). 7-phase / 9-PR roadmap per REQ-MKT-002 (vault). Phase 0 vault docs landed `5ed18f5` (vault). Phase 1 (this PR) lands `platform-marketplace/` scaffolding + catalog JSON Schema + validator + 6 tests + extended `ci.yml`. Phase 2 lifts `core-guardrails` first.
+- **Approach**: subdir monorepo (ADR-MKT-001). 7-phase / 9-PR roadmap per REQ-MKT-002 (vault). Phase 0 vault docs landed `5ed18f5` (vault). Phase 1 lands `platform-marketplace/` scaffolding + catalog JSON Schema + validator + 6 tests + extended `ci.yml` (merged `8bd7f24` PR #32). Phase 2 (this PR) lifts `core-guardrails` first — 9 hooks + authoritative settings.patch.json + 2 threat-model rules + 7 tests + catalog entry. Phase 3 lifts `core-workflow` next.
 
 ### B3.2 `[ ]` Org-wide enforcement of advice-vs-enforcement split (Principle 1)
 - **Why**: design Principle 1 + §6.2 — `core-guardrails` is the enforcement plugin and **must** be installed in every service; `core-workflow` is advisory and optional-detailed. Today both live as templated content inside the scaffold, so they're trivially editable / removable per-repo.

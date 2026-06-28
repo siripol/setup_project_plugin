@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/siripol/setup_project_plugin/main/platform-marketplace/.claude-plugin/plugin.schema.json",
+  "name": "core-guardrails",
+  "version": "1.0.0",
+  "type": "mandatory",
+  "owners": ["@siripol/security"],
+  "description": "Mandatory enforcement plugin: audit hook, chokepoint gate, rate limit, deny rules, settings patch. Single source of truth for Layer-1 guardrails across every sn-setup scaffolded service.",
+  "depends_on": [],
+  "min_consumer_version": "0.1.0",
+  "min_template_version": "2026.06.24",
+  "claude_components": {
+    "hooks": [
+      "audit.sh", "audit.py", "audit.ts",
+      "chokepoint-gate.sh", "chokepoint-gate.py", "chokepoint-gate.ts",
+      "rate-limit.sh", "rate-limit.py", "rate-limit.ts"
+    ],
+    "settings_patch": "settings/settings.patch.json",
+    "docs": ["rules/deny-sensitive-paths.md", "rules/deny-network-exfil.md"]
+  },
+  "install_targets": [
+    ".claude/hooks/",
+    ".claude/settings.json (merged via settings_patch)"
+  ]
+}
