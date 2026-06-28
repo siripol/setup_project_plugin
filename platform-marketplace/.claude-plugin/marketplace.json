@@ -8,5 +8,15 @@
     "description": "Internal-only plugin marketplace for setup_project_plugin scaffolds. Producer side of Layer 1 (REQ-MKT-002).",
     "source_repo": "https://github.com/siripol/setup_project_plugin.git"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "core-guardrails",
+      "version": "1.0.0",
+      "type": "mandatory",
+      "source": "./plugins/core-guardrails",
+      "owners": ["@siripol/security"],
+      "depends_on": [],
+      "min_consumer_version": "0.1.0"
+    }
+  ]
 }

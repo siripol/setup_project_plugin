@@ -1,0 +1,61 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(make:*)",
+      "Bash(ant:*)",
+      "Bash(go test:*)",
+      "Bash(go vet:*)",
+      "Bash(go build:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest:*)"
+    ],
+    "deny": [
+      "Write(/etc/**)",
+      "Write(/root/**)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Write(~/.config/gcloud/**)",
+      "Write(~/.kube/**)",
+      "Write(~/.docker/**)",
+      "Write(~/.netrc)",
+      "Write(~/.pgpass)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Edit(/etc/**)",
+      "Edit(/root/**)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/.aws/**)",
+      "Edit(~/.config/gcloud/**)",
+      "Edit(~/.kube/**)",
+      "Edit(~/.docker/**)",
+      "Edit(~/.netrc)",
+      "Edit(~/.pgpass)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": ".*",         "command": ".claude/hooks/rate-limit.sh"},
+      {"matcher": "Edit|Write", "command": ".claude/hooks/chokepoint-gate.sh"},
+      {"matcher": ".*",         "command": ".claude/hooks/audit.sh"}
+    ],
+    "PostToolUse":      [{"matcher": ".*", "command": ".claude/hooks/audit.sh"}],
+    "UserPromptSubmit": [{"command": ".claude/hooks/audit.sh"}],
+    "SessionStart":     [{"command": ".claude/hooks/audit.sh"}],
+    "SessionEnd":       [{"command": ".claude/hooks/audit.sh"}],
+    "Stop":             [{"command": ".claude/hooks/audit.sh"}]
+  }
+}
