@@ -168,7 +168,11 @@ def test_b31_phase2_consumer_bootstrap_hook_self_deactivates(tmp_path: Path):
     result = subprocess.run(
         ["bash", str(BOOTSTRAP_HOOK)],
         cwd=sandbox, capture_output=True, text=True,
-        env={"marketplace_source": "./platform-marketplace", "PATH": "/usr/bin:/bin"},
+        env={
+            "marketplace_source": "./platform-marketplace",
+            "PATH": "/usr/bin:/bin",
+            "HOME": str(sandbox),
+        },
     )
     assert result.returncode == 0
     assert result.stdout == "", f"unexpected stdout: {result.stdout!r}"

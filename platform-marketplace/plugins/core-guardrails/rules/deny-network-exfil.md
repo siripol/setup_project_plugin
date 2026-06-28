@@ -21,6 +21,8 @@ Anything that touches network surface in a way that could exfiltrate or pull for
 
 - `curl`, `wget`, `ssh`, `scp`, `rsync`, `nc`, `nmap`.
 - Package-management commands beyond toolchain (e.g. `apt`, `brew`, `pip install`, `npm install -g` — note `npm install` without `-g` is allowed; the global form is not because it mutates user-wide state).
+
+  **Known gap with `npm install`**: a compromised `package.json` (or `package-lock.json`) in the consumer repo can still pull malicious dependencies during a non-global install. This plugin does not catch poisoned-manifest supply-chain attacks at the deny layer; mitigation belongs at the package-manifest review layer (CODEOWNERS on `package.json` / `package-lock.json`, lockfile pinning, registry allowlisting). Accept the local install in exchange for normal-loop friction; raise the threat model elsewhere.
 - Shell-launching commands (`bash -c`, `sh -c`, `eval`).
 - `git push`, `git pull`, `git fetch`, `git clone` — every network-touching git op requires explicit grant. Local-only git operations (status/diff/log) are allowed.
 

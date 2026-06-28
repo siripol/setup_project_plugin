@@ -1,5 +1,5 @@
 {
-  "$schema": "https://github.com/siripol/setup_project_plugin/platform-marketplace/plugin.schema.json",
+  "$schema": "https://raw.githubusercontent.com/siripol/setup_project_plugin/main/platform-marketplace/.claude-plugin/plugin.schema.json",
   "name": "core-guardrails",
   "version": "1.0.0",
   "type": "mandatory",
