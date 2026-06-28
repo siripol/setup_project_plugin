@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/siripol/setup_project_plugin/platform-marketplace/marketplace.schema.json",
+  "title": "Marketplace catalog",
+  "description": "Catalog of plugins published by an internal sn-platform-marketplace. Each plugin entry is a lightweight pointer; the per-plugin manifest at <source>/.claude-plugin/plugin.json is the source of truth and validated against it.",
+  "type": "object",
+  "required": ["schema_version", "marketplace", "plugins"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Bumped on breaking schema changes."
+    },
+    "marketplace": {
+      "type": "object",
+      "required": ["name", "version", "owners"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Slug; kebab-case."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semver of the catalog itself."
+        },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"},
+          "description": "GitHub teams or usernames."
+        },
+        "description": {"type": "string"},
+        "source_repo": {"type": "string"}
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/plugin_entry"
+      }
+    }
+  },
+  "$defs": {
+    "plugin_entry": {
+      "type": "object",
+      "required": ["name", "version", "type", "source", "owners"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "MAJOR.MINOR.PATCH. Must match the plugin's own plugin.json::version."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["mandatory", "opt-in"]
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^\\./plugins/[a-z0-9][a-z0-9-]*/?$",
+          "description": "Relative path to the plugin directory."
+        },
+        "owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "version_constraint"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]*$"
+              },
+              "version_constraint": {
+                "type": "string",
+                "pattern": "^[~^]?\\d+(\\.\\d+)?(\\.\\d+)?$",
+                "description": "Supported: ^X.Y (compatible major), ~X.Y (compatible major+minor), X.Y.Z (exact)."
+              }
+            }
+          }
+        },
+        "min_consumer_version": {"type": "string"},
+        "min_template_version": {"type": "string"},
+        "deprecated": {"type": "boolean", "default": false},
+        "deprecation_message": {"type": "string"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"deprecated": {"const": true}}, "required": ["deprecated"]},
+          "then": {"required": ["deprecation_message"]}
+        }
+      ]
+    }
+  }
+}
